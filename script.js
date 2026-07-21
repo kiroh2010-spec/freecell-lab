@@ -733,7 +733,9 @@ function isInHintSource(location) {
 
 
 function persistGameState() {
-  if (!state.tableau.some(column => column.length)) return;
+  const hasTableauCards = state.tableau.some(column => column.length);
+  const hasCompletedFoundations = Object.values(state.foundations).reduce((sum, pile) => sum + pile.length, 0) === 52;
+  if (!hasTableauCards && !state.won && !hasCompletedFoundations) return;
   const payload = {
     savedAt: Date.now(),
     freecells: state.freecells,
