@@ -87,7 +87,6 @@ const resultTime = $('resultTime');
 const resultMoves = $('resultMoves');
 const resultScore = $('resultScore');
 const resultRankText = $('resultRankText');
-const resultNewGameBtn = $('resultNewGameBtn');
 const resultCloseBtn = $('resultCloseBtn');
 const rankingModal = $('rankingModal');
 const rankingDetailList = $('rankingDetailList');
@@ -1535,7 +1534,6 @@ window.setInterval(() => {
 updateSoundButton();
 
 $('newGameBtn').addEventListener('click', requestNewGame);
-resultNewGameBtn.addEventListener('click', () => { confirmResultModal(); requestNewGame(); });
 resultCloseBtn.addEventListener('click', confirmResultModal);
 $('autoBtn').addEventListener('click', showHint);
 soundBtn.addEventListener('click', toggleSound);
