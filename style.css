@@ -92,6 +92,30 @@ button, .home-link {
   box-shadow: 0 4px 10px rgba(0,0,0,.18);
 }
 .home-link { text-decoration: none; display: inline-flex; align-items: center; }
+.sound-button {
+  display: inline-grid;
+  place-items: center;
+  min-width: 44px;
+  padding-inline: 12px;
+  line-height: 1;
+}
+.sound-symbol {
+  width: 22px;
+  height: 22px;
+  display: block;
+  fill: #18321f;
+}
+.sound-symbol .sound-wave {
+  fill: none;
+  stroke: #18321f;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+}
+.sound-button[aria-pressed="false"] {
+  opacity: .48;
+  filter: grayscale(.4);
+  box-shadow: none;
+}
 .ghost-button {
   color: white;
   background: rgba(255,255,255,.14);
@@ -135,6 +159,11 @@ button:disabled {
   font-size: 24px;
   line-height: 1;
 }
+.timer-hud {
+  border-color: rgba(255, 209, 102, .45);
+  background: rgba(255, 209, 102, .12);
+}
+.timer-hud strong { color: var(--accent); }
 .ranking-panel {
   margin-top: 12px;
   padding: 16px;
@@ -332,6 +361,15 @@ button:disabled {
 
 .card:hover { transform: translateY(-2px); }
 .card.red { color: var(--danger); }
+.card.face-card {
+  background:
+    linear-gradient(135deg, rgba(255,209,102,.26), transparent 38%),
+    var(--card);
+}
+.card.face-card .corner {
+  background: rgba(255, 209, 102, .48);
+  border: 1px solid rgba(120, 80, 0, .18);
+}
 .card.selected { outline: 4px solid var(--accent); transform: translateY(-6px); }
 .card.dragging { opacity: .45; transform: scale(.96); }
 .drop-ok { outline: 4px solid rgba(255, 209, 102, .75); outline-offset: 3px; }
@@ -353,6 +391,22 @@ button:disabled {
   margin-top: auto;
   font-size: 28px;
   line-height: 1;
+}
+.face-mark {
+  position: absolute;
+  left: 50%;
+  top: 48%;
+  transform: translate(-50%, -50%);
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  color: #2b2110;
+  background: rgba(255, 209, 102, .42);
+  font-size: 18px;
+  line-height: 1;
+  opacity: .9;
 }
 .slot .card .corner { font-size: 18px; }
 .card.movable::after {
@@ -379,48 +433,48 @@ button:disabled {
   body { background: var(--felt-dark); }
   .app {
     width: 100%;
-    padding: 6px 6px calc(72px + env(safe-area-inset-bottom));
+    padding: calc(14px + env(safe-area-inset-top)) 6px calc(72px + env(safe-area-inset-bottom));
   }
   .topbar {
     align-items: stretch;
-    gap: 5px;
+    gap: 7px 6px;
     display: grid;
-    grid-template-columns: minmax(92px, .72fr) minmax(108px, 1fr) minmax(92px, .72fr);
+    grid-template-columns: minmax(140px, 1fr) minmax(118px, auto);
   }
   .title-block { min-width: 0; }
-  .topbar h1 { font-size: 20px; line-height: .95; }
+  .topbar h1 { font-size: 21px; line-height: 1; }
   .topbar p {
     display: block;
-    margin-top: 2px;
-    font-size: 9px;
-    line-height: 1.1;
+    margin-top: 3px;
+    font-size: 10px;
+    line-height: 1.15;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
   .player-card {
-    grid-column: 3;
+    grid-column: 2;
     grid-row: 1;
     min-width: 0;
-    padding: 5px 6px;
-    border-radius: 10px;
+    padding: 6px 7px;
+    border-radius: 11px;
   }
   .player-label { font-size: 8px; }
   .player-row { gap: 4px; }
   .player-id { font-size: 11px; }
   .player-rank { padding: 2px 4px; font-size: 9px; }
   .top-ranking {
-    grid-column: 2;
-    grid-row: 1;
+    grid-column: 1 / -1;
+    grid-row: 2;
     min-width: 0;
-    padding: 5px 6px;
-    border-radius: 10px;
+    padding: 6px 8px;
+    border-radius: 12px;
     text-align: center;
   }
-  .ranking-title { font-size: 11px; line-height: 1; }
+  .ranking-title { font-size: 12px; line-height: 1; }
   .top-ranking > p {
-    margin-top: 2px;
-    font-size: 8px;
+    margin-top: 3px;
+    font-size: 9px;
     line-height: 1.1;
     white-space: nowrap;
     overflow: hidden;
@@ -447,13 +501,14 @@ button:disabled {
   .empty-rank { margin-left: 0; }
   .hud {
     max-width: none;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 4px;
-    margin-top: 5px;
+    grid-template-columns: .86fr 1.12fr .86fr;
+    gap: 5px;
+    margin-top: 7px;
   }
-  .hud-item { padding: 5px 7px; border-radius: 9px; }
+  .hud-item { padding: 7px 8px; border-radius: 11px; text-align: center; }
   .hud-item span { font-size: 8px; }
   .hud-item strong { font-size: 16px; }
+  .timer-hud strong { font-size: 18px; }
   .actions {
     position: fixed;
     left: 0;
@@ -487,7 +542,7 @@ button:disabled {
   .tutorial-header { flex-direction: row; align-items: center; }
   .tutorial li { font-size: 13px; }
   .board {
-    margin-top: 5px;
+    margin-top: 4px;
     padding: 6px;
     border-radius: 14px;
     min-height: auto;
@@ -548,6 +603,11 @@ button:disabled {
     border-radius: 4px;
   }
   .card .center-suit { font-size: 18px; }
+  .face-mark {
+    width: 18px;
+    height: 18px;
+    font-size: 13px;
+  }
   .slot .card .corner { font-size: 13px; }
   .statusbar {
     margin-top: 4px;
@@ -566,4 +626,5 @@ button:disabled {
   .card { width: min(42px, 100%); height: 58px; margin-bottom: -36px; }
   .card .corner { font-size: 12px; min-height: 16px; }
   .card .center-suit { font-size: 16px; }
+  .face-mark { width: 16px; height: 16px; font-size: 12px; }
 }

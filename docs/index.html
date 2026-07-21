@@ -11,7 +11,7 @@
     <header class="topbar">
       <div class="title-block">
         <h1>Freecell</h1>
-        <p>초안 v0.8 · 모바일 상단/랭킹 압축</p>
+        <p id="versionLabel">초안 v0.8n2</p>
       </div>
       <section class="ranking-panel top-ranking" aria-label="주간 랭킹">
         <div class="ranking-title">🏆 주간 랭킹</div>
@@ -30,18 +30,23 @@
         <button id="newGameBtn">새 게임</button>
         <button id="autoBtn">힌트</button>
         <button id="undoBtn">무르기 5</button>
-        <button id="soundBtn" aria-pressed="true">소리 켜짐</button>
+        <button id="soundBtn" class="sound-button" aria-pressed="true" aria-label="소리 켜짐" title="소리 켜짐">
+          <svg class="sound-symbol" aria-hidden="true" viewBox="0 0 24 24" focusable="false">
+            <path d="M4 9.25h4.1L13 5.6v12.8l-4.9-3.65H4z" />
+            <path class="sound-wave" d="M16.2 9.1c1.2 1.6 1.2 4.2 0 5.8" />
+          </svg>
+        </button>
       </div>
     </header>
 
     <section class="hud" aria-label="게임 정보">
       <div class="hud-item">
-        <span>TIME</span>
-        <strong id="timerDisplay">00:00</strong>
-      </div>
-      <div class="hud-item">
         <span>MOVE</span>
         <strong id="moveHud">0</strong>
+      </div>
+      <div class="hud-item timer-hud">
+        <span>TIME</span>
+        <strong id="timerDisplay">00:00</strong>
       </div>
       <div class="hud-item">
         <span>UNDO</span>
