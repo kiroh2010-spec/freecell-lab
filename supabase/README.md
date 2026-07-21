@@ -2,7 +2,7 @@
 
 ## Project
 
-- URL: `https://zhhvyvjbqdwurwigseod.supabase.co`
+- URL: `https://zhhvyvjbqdwurwlgseod.supabase.co`
 - Frontend key type: publishable key (`sb_publishable_...`)
 
 ## Setup steps

@@ -24,7 +24,7 @@ const STORAGE_KEYS = {
 };
 
 const SUPABASE_CONFIG = {
-  url: 'https://zhhvyvjbqdwurwigseod.supabase.co',
+  url: 'https://zhhvyvjbqdwurwlgseod.supabase.co',
   key: 'sb_publishable_JtPb39q98NCpE8fnKGnclg_E9PYFLjA',
 };
 
