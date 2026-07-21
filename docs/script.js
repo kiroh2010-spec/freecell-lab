@@ -1338,13 +1338,26 @@ function renderRankings() {
     return;
   }
 
-  const topEntries = entries.slice(0, 5);
-  if (state.rankingTickerIndex >= topEntries.length) state.rankingTickerIndex = 0;
-  const entry = topEntries[state.rankingTickerIndex] || topEntries[0];
+  const leader = entries[0];
+  const chasingEntries = entries.slice(1, 5);
+  if (state.rankingTickerIndex >= chasingEntries.length) state.rankingTickerIndex = 0;
+  const chasing = chasingEntries[state.rankingTickerIndex] || null;
+  const leaderMeta = `${leader.difficultyCode || 'e1'}${leader.mode === 'promotion' ? ' · 승급' : ''}${leader.hintUsed ? ` · 💡${leader.hintUsed}` : ''}`;
+  const chasingMeta = chasing
+    ? `${chasing.difficultyCode || 'e1'}${chasing.mode === 'promotion' ? ' · 승급' : ''}${chasing.hintUsed ? ` · 💡${chasing.hintUsed}` : ''}`
+    : '';
   rankingList.innerHTML = `
-    <li>
-      <strong>${entry.rank}위 ${entry.id}</strong>
-      <span>${entry.score}점 · ${entry.difficultyCode || 'e1'}${entry.mode === 'promotion' ? ' · 승급' : ''}${entry.hintUsed ? ` · 💡${entry.hintUsed}` : ''}</span>
+    <li class="rank-line rank-leader">
+      <strong>🏆 현재 1위</strong>
+      <span class="rank-id">${leader.id}</span>
+      <span class="rank-score">${leader.score}점</span>
+      <span class="rank-meta">${leaderMeta}</span>
+    </li>
+    <li class="rank-line rank-chaser">
+      <strong>${chasing ? `${chasing.rank}위` : '2위'}</strong>
+      <span class="rank-id">${chasing ? chasing.id : '-'}</span>
+      <span class="rank-score">${chasing ? `${chasing.score}점` : '도전자를 기다리는 중'}</span>
+      <span class="rank-meta">${chasingMeta}</span>
     </li>
   `;
 }
@@ -1522,9 +1535,9 @@ initPlayer();
 renderRankings();
 refreshServerRankings();
 window.setInterval(() => {
-  const topCount = getRankedEntries(5).length;
-  if (topCount > 1) {
-    state.rankingTickerIndex = (state.rankingTickerIndex + 1) % topCount;
+  const chasingCount = Math.max(0, getRankedEntries(5).length - 1);
+  if (chasingCount > 1) {
+    state.rankingTickerIndex = (state.rankingTickerIndex + 1) % chasingCount;
     renderRankings();
   }
 }, 2000);
