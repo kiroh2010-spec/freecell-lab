@@ -23,7 +23,7 @@ body {
 .app { width: min(var(--game-width), 100%); margin: 0 auto; padding: 20px; }
 .topbar {
   display: grid;
-  grid-template-columns: 1fr minmax(240px, 320px) auto;
+  grid-template-columns: minmax(180px, 1fr) minmax(300px, 380px) minmax(190px, 230px);
   align-items: start;
   gap: 12px;
 }
@@ -128,13 +128,13 @@ h2 { margin: 0 0 10px; font-size: 14px; text-transform: uppercase; letter-spacin
   justify-content: flex-end;
 }
 .player-card {
-  margin-left: auto;
-  min-width: 168px;
-  padding: 10px 12px;
+  width: 100%;
+  min-width: 190px;
+  padding: 11px 13px;
   border: 1px solid rgba(255, 209, 102, .38);
   border-radius: 16px;
   background: linear-gradient(135deg, rgba(255,209,102,.16), rgba(0,0,0,.18));
-  text-align: right;
+  text-align: center;
   cursor: pointer;
 }
 .player-card:hover {
@@ -150,9 +150,9 @@ h2 { margin: 0 0 10px; font-size: 14px; text-transform: uppercase; letter-spacin
 .player-rank-hero {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  gap: 6px;
-  margin-top: 2px;
+  justify-content: center;
+  gap: 7px;
+  margin-top: 4px;
 }
 .player-trophy {
   font-size: 24px;
@@ -171,14 +171,18 @@ h2 { margin: 0 0 10px; font-size: 14px; text-transform: uppercase; letter-spacin
 .player-row {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: center;
   gap: 8px;
-  margin-top: 2px;
+  margin-top: 7px;
 }
 .player-id {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   color: var(--accent);
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 950;
+  white-space: nowrap;
 }
 .player-difficulty {
   padding: 3px 7px;
@@ -193,9 +197,9 @@ h2 { margin: 0 0 10px; font-size: 14px; text-transform: uppercase; letter-spacin
 .player-password-row {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: center;
   gap: 6px;
-  margin-top: 5px;
+  margin-top: 6px;
   color: var(--muted);
   font-size: 10px;
 }
