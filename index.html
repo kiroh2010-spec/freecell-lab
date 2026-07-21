@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Freecell Draft</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <main class="app">
+    <header class="topbar">
+      <div>
+        <h1>Freecell</h1>
+        <p>초안 v0.5 · Free Cell 더블클릭/Foundation 표현 개선</p>
+      </div>
+      <div class="actions">
+        <a class="home-link" href="./home.html">홈</a>
+        <button id="tutorialBtn" aria-expanded="false" aria-controls="tutorialPanel">게임 방법</button>
+        <button id="newGameBtn">새 게임</button>
+        <button id="autoBtn">가능한 A 자동 이동</button>
+        <button id="soundBtn" aria-pressed="true">소리 켜짐</button>
+      </div>
+    </header>
+
+    <section id="tutorialPanel" class="tutorial" hidden>
+      <div class="tutorial-header">
+        <h2>게임 플레이 방법</h2>
+        <button id="tutorialCloseBtn" class="ghost-button" aria-label="튜토리얼 닫기">닫기</button>
+      </div>
+      <ol>
+        <li><strong>목표:</strong> 오른쪽 위 Foundation에 A부터 K까지 같은 무늬로 쌓으면 됩니다.</li>
+        <li><strong>Tableau:</strong> 아래 카드 위에는 색이 다른 카드만, 숫자가 하나 작은 순서로 올릴 수 있습니다. 예: 검은 8 위에 빨간 7.</li>
+        <li><strong>Free Cell:</strong> 왼쪽 위 4칸은 카드를 잠깐 빼두는 공간입니다. 한 칸에 한 장만 둘 수 있습니다.</li>
+        <li><strong>이동:</strong> 카드를 클릭한 뒤 옮길 위치를 클릭하세요. 데스크톱에서는 드래그도 됩니다.</li>
+        <li><strong>빠른 이동:</strong> Tableau 맨 아래 카드나 Free Cell 카드를 더블클릭하면, 가능한 경우 Foundation으로 바로 이동합니다.</li>
+      </ol>
+    </section>
+
+    <section class="board" aria-label="프리셀 게임 보드">
+      <div class="upper-row">
+        <div class="zone-group">
+          <h2>Free Cells</h2>
+          <div id="freecells" class="slots freecells"></div>
+        </div>
+        <div class="zone-group foundations-wrap">
+          <h2>Foundations</h2>
+          <div id="foundations" class="slots foundations"></div>
+        </div>
+      </div>
+
+      <div class="tableau-wrap">
+        <h2>Tableau</h2>
+        <div id="tableau" class="tableau"></div>
+      </div>
+    </section>
+
+    <footer class="statusbar">
+      <span id="status">게임을 시작합니다.</span>
+      <span id="moveCount">Moves: 0</span>
+    </footer>
+  </main>
+
+  <script src="./script.js"></script>
+</body>
+</html>

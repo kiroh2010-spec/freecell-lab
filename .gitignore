@@ -1,0 +1,12 @@
+# Local/generated test packages
+freecell-iphone-*.zip
+freecell-mobile-*.html
+dist/
+
+# Local-only draft homepage, not for public repo yet
+home.html
+home.css
+
+# OS/editor noise
+.DS_Store
+*.log
