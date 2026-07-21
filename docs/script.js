@@ -6,6 +6,9 @@ const suits = [
 ];
 const ranks = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
 
+const RANKING_LIMIT = 50;
+const RANKING_TICKER_LIMIT = 5;
+
 const DIFFICULTY_TIERS = [
   { code: 'e1', label: 'Easy 1', requiredClears: 0, multiplier: 1.00, totalMax: 6, minLow: 3, minMovable: 4 },
   { code: 'e2', label: 'Easy 2', requiredClears: 3, multiplier: 1.05, totalMax: 12, minLow: 2, minMovable: 3 },
@@ -70,6 +73,8 @@ const playerIdEl = $('playerId');
 const playerPasswordEl = $('playerPassword');
 const passwordToggleBtn = $('passwordToggleBtn');
 const playerRankEl = $('playerRank');
+const playerTrophyEl = $('playerTrophy');
+const playerDifficultyEl = $('playerDifficulty');
 const rankingPanel = $('rankingPanel');
 const rankingResetText = $('rankingResetText');
 const rankingList = $('rankingList');
@@ -238,8 +243,26 @@ function getScoreMultiplier(code, mode = 'normal') {
 
 function renderVersionLabel() {
   if (!versionLabel) return;
-  const prefix = state.gameMode === 'promotion' ? 'p' : '';
-  versionLabel.textContent = `초안 v0.8${prefix}${state.difficultyCode}`;
+  versionLabel.textContent = '초안 v0.8';
+  renderPlayerDifficulty();
+}
+
+function formatDifficultyCode(code = state.difficultyCode) {
+  const prefix = state.gameMode === 'promotion' ? 'P' : '';
+  return `${prefix}${String(code || 'e1').toUpperCase()}`;
+}
+
+function renderPlayerDifficulty() {
+  if (!playerDifficultyEl) return;
+  playerDifficultyEl.textContent = formatDifficultyCode();
+}
+
+function getRankTrophy(rank) {
+  if (rank === 1) return '🥇';
+  if (rank === 2) return '🥈';
+  if (rank === 3) return '🥉';
+  if (Number.isInteger(rank)) return '🏅';
+  return '—';
 }
 
 function ensureOpeningFoundationMove(tableau = state.tableau) {
@@ -908,7 +931,7 @@ async function refreshServerRankings({ notify = false } = {}) {
   try {
     const rows = await supabaseRpc('freecell_weekly_leaderboard', {
       p_week_key: getWeekKey(),
-      p_limit: 20,
+      p_limit: RANKING_LIMIT,
     });
     const data = {
       weekKey: getWeekKey(),
@@ -1247,11 +1270,11 @@ function recordWeeklyScore() {
   const fullRankIndex = submitted
     ? data.entries.findIndex(item => item.completedAt === completedAt && item.id === entry.id)
     : -1;
-  const cutoffEntry = data.entries[19] || null;
-  const topShortage = submitted && fullRankIndex >= 20 && cutoffEntry
+  const cutoffEntry = data.entries[RANKING_LIMIT - 1] || null;
+  const topShortage = submitted && fullRankIndex >= RANKING_LIMIT && cutoffEntry
     ? Math.max(1, cutoffEntry.score - score + 1)
     : 0;
-  data.entries = data.entries.slice(0, 20);
+  data.entries = data.entries.slice(0, RANKING_LIMIT);
   const rankIndex = submitted
     ? data.entries.findIndex(item => item.completedAt === completedAt && item.id === entry.id)
     : -1;
@@ -1259,7 +1282,7 @@ function recordWeeklyScore() {
     ...entry,
     rank: rankIndex === -1 ? null : rankIndex + 1,
     ranked: rankIndex !== -1,
-    rankingLimit: 20,
+    rankingLimit: RANKING_LIMIT,
     shortage: personalBestShortage || topShortage,
     submitted,
     notBest: Boolean(personalBestShortage),
@@ -1328,10 +1351,13 @@ function getLeaderText() {
 }
 
 function renderRankings() {
-  const entries = getRankedEntries(20);
+  const entries = getRankedEntries(RANKING_LIMIT);
   rankingResetText.textContent = getResetText();
   const myRankIndex = state.player ? entries.findIndex(entry => entry.id === state.player.id) : -1;
-  playerRankEl.textContent = myRankIndex === -1 ? 'MY -' : `MY ${myRankIndex + 1}위`;
+  const myRank = myRankIndex === -1 ? null : myRankIndex + 1;
+  playerRankEl.textContent = myRank ? `MY ${myRank}위` : 'MY -';
+  if (playerTrophyEl) playerTrophyEl.textContent = getRankTrophy(myRank);
+  renderPlayerDifficulty();
 
   if (!entries.length) {
     rankingList.innerHTML = '<li class="empty-rank">랭킹 없음</li>';
@@ -1339,7 +1365,7 @@ function renderRankings() {
   }
 
   const leader = entries[0];
-  const chasingEntries = entries.slice(1, 5);
+  const chasingEntries = entries.slice(1, RANKING_TICKER_LIMIT);
   if (state.rankingTickerIndex >= chasingEntries.length) state.rankingTickerIndex = 0;
   const chasing = chasingEntries[state.rankingTickerIndex] || null;
   const leaderMeta = `${leader.difficultyCode || 'e1'}${leader.mode === 'promotion' ? ' · 승급' : ''}${leader.hintUsed ? ` · 💡${leader.hintUsed}` : ''}`;
@@ -1479,7 +1505,7 @@ function closeRankingModal() {
 }
 
 function renderRankingDetail() {
-  const entries = getRankedEntries(10);
+  const entries = getRankedEntries(RANKING_LIMIT);
   rankingDetailReset.textContent = getResetText();
   if (!entries.length) {
     rankingDetailList.innerHTML = '<li><div class="ranking-detail-main">아직 등록된 주간 랭킹이 없습니다.</div></li>';
@@ -1535,7 +1561,7 @@ initPlayer();
 renderRankings();
 refreshServerRankings();
 window.setInterval(() => {
-  const chasingCount = Math.max(0, getRankedEntries(5).length - 1);
+  const chasingCount = Math.max(0, getRankedEntries(RANKING_TICKER_LIMIT).length - 1);
   if (chasingCount > 1) {
     state.rankingTickerIndex = (state.rankingTickerIndex + 1) % chasingCount;
     renderRankings();

@@ -14,15 +14,19 @@
         <p id="versionLabel">초안 v0.8e1</p>
       </div>
       <section id="rankingPanel" class="ranking-panel top-ranking" aria-label="주간 랭킹" role="button" tabindex="0">
-        <div class="ranking-title">주간 랭킹 · TOP10 보기</div>
+        <div class="ranking-title">주간 랭킹 · TOP50 보기</div>
         <ol id="rankingList" class="ranking-list ranking-ticker"></ol>
         <p id="rankingResetText">초기화 일정 계산 중</p>
       </section>
-      <div class="player-card" aria-label="플레이어 정보">
-        <div class="player-label">PLAYER</div>
+      <div class="player-card" aria-label="내 랭킹과 플레이어 정보">
+        <div class="player-label">MY RANK</div>
+        <div class="player-rank-hero">
+          <span id="playerTrophy" class="player-trophy">🏅</span>
+          <strong id="playerRank" class="player-rank">MY -</strong>
+        </div>
         <div class="player-row">
           <div id="playerId" class="player-id">생성 중</div>
-          <div id="playerRank" class="player-rank">MY -</div>
+          <div id="playerDifficulty" class="player-difficulty">E1</div>
         </div>
         <div class="player-password-row">
           <span>PW</span>
@@ -140,7 +144,7 @@
     <section id="rankingModal" class="result-modal ranking-modal" aria-label="주간 랭킹 상세" hidden>
       <div class="result-card ranking-detail-card" role="dialog" aria-modal="true" aria-labelledby="rankingModalTitle">
         <div class="result-kicker">WEEKLY</div>
-        <h2 id="rankingModalTitle">주간 랭킹 TOP 10</h2>
+        <h2 id="rankingModalTitle">주간 랭킹 TOP 50</h2>
         <ol id="rankingDetailList" class="ranking-detail-list"></ol>
         <p id="rankingDetailReset" class="ranking-detail-reset">초기화 일정 계산 중</p>
         <div class="result-actions">
