@@ -9,18 +9,47 @@
 <body>
   <main class="app">
     <header class="topbar">
-      <div>
+      <div class="title-block">
         <h1>Freecell</h1>
-        <p>초안 v0.5 · Free Cell 더블클릭/Foundation 표현 개선</p>
+        <p>초안 v0.8 · 모바일 상단/랭킹 압축</p>
+      </div>
+      <section class="ranking-panel top-ranking" aria-label="주간 랭킹">
+        <div class="ranking-title">🏆 주간 랭킹</div>
+        <ol id="rankingList" class="ranking-list"></ol>
+        <p id="rankingResetText">초기화 일정 계산 중</p>
+      </section>
+      <div class="player-card" aria-label="플레이어 정보">
+        <div class="player-label">PLAYER</div>
+        <div class="player-row">
+          <div id="playerId" class="player-id">생성 중</div>
+          <div id="playerRank" class="player-rank">MY -</div>
+        </div>
       </div>
       <div class="actions">
         <a class="home-link" href="./home.html">홈</a>
         <button id="tutorialBtn" aria-expanded="false" aria-controls="tutorialPanel">게임 방법</button>
         <button id="newGameBtn">새 게임</button>
-        <button id="autoBtn">가능한 A 자동 이동</button>
+        <button id="autoBtn">힌트</button>
+        <button id="undoBtn">무르기 5</button>
         <button id="soundBtn" aria-pressed="true">소리 켜짐</button>
       </div>
     </header>
+
+    <section class="hud" aria-label="게임 정보">
+      <div class="hud-item">
+        <span>TIME</span>
+        <strong id="timerDisplay">00:00</strong>
+      </div>
+      <div class="hud-item">
+        <span>MOVE</span>
+        <strong id="moveHud">0</strong>
+      </div>
+      <div class="hud-item">
+        <span>UNDO</span>
+        <strong id="undoHud">5</strong>
+      </div>
+    </section>
+
 
     <section id="tutorialPanel" class="tutorial" hidden>
       <div class="tutorial-header">
@@ -38,12 +67,12 @@
 
     <section class="board" aria-label="프리셀 게임 보드">
       <div class="upper-row">
-        <div class="zone-group">
-          <h2>Free Cells</h2>
+        <div class="zone-group freecell-zone">
+          <h2>Free Cells <span>임시 보관</span></h2>
           <div id="freecells" class="slots freecells"></div>
         </div>
-        <div class="zone-group foundations-wrap">
-          <h2>Foundations</h2>
+        <div class="zone-group foundations-wrap foundation-zone">
+          <h2>Foundations <span>A→K 완성</span></h2>
           <div id="foundations" class="slots foundations"></div>
         </div>
       </div>
@@ -56,7 +85,6 @@
 
     <footer class="statusbar">
       <span id="status">게임을 시작합니다.</span>
-      <span id="moveCount">Moves: 0</span>
     </footer>
   </main>
 
