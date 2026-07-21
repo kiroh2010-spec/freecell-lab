@@ -18,7 +18,7 @@ create table if not exists public.weekly_scores (
   player_id text not null,
   week_key text not null,
   score integer not null,
-  time integer not null,
+  elapsed_time integer not null,
   moves integer not null,
   hint_used integer not null default 0,
   difficulty_code text not null default 'e1',
@@ -27,7 +27,7 @@ create table if not exists public.weekly_scores (
 );
 
 create index if not exists weekly_scores_week_score_idx
-  on public.weekly_scores (week_key, score desc, time asc, moves asc);
+  on public.weekly_scores (week_key, score desc, elapsed_time asc, moves asc);
 
 alter table public.players enable row level security;
 alter table public.weekly_scores enable row level security;
@@ -167,7 +167,7 @@ begin
     return;
   end if;
 
-  insert into weekly_scores(player_id, week_key, score, time, moves, hint_used, difficulty_code, mode)
+  insert into weekly_scores(player_id, week_key, score, elapsed_time, moves, hint_used, difficulty_code, mode)
   values (p_player_id, p_week_key, p_score, p_time, p_moves, coalesce(p_hint_used, 0), p_difficulty_code, coalesce(p_mode, 'normal'))
   returning id into inserted_id;
 
@@ -181,7 +181,7 @@ begin
   return query
   select 'ok'::text, ranked.rank::integer
   from (
-    select id, row_number() over (order by score desc, time asc, moves asc) as rank
+    select id, row_number() over (order by score desc, elapsed_time asc, moves asc) as rank
     from weekly_scores
     where week_key = p_week_key
   ) ranked
@@ -194,7 +194,7 @@ create function public.freecell_weekly_leaderboard(p_week_key text, p_limit inte
 returns table(
   player_id text,
   score integer,
-  time integer,
+  elapsed_time integer,
   moves integer,
   hint_used integer,
   difficulty_code text,
@@ -205,14 +205,9 @@ language sql
 security definer
 set search_path = public
 as $$
-  select player_id, score, time, moves, hint_used, difficulty_code, mode, created_at
+  select player_id, score, elapsed_time, moves, hint_used, difficulty_code, mode, created_at
   from weekly_scores
   where week_key = p_week_key
-  order by score desc, time asc, moves asc
+  order by score desc, elapsed_time asc, moves asc
   limit least(greatest(coalesce(p_limit, 20), 1), 100);
 $$;
-
-grant execute on function public.freecell_register_player(text, text) to anon, authenticated;
-grant execute on function public.freecell_update_player_once(text, text, text, text) to anon, authenticated;
-grant execute on function public.freecell_submit_score(text, text, text, integer, integer, integer, integer, text, text) to anon, authenticated;
-grant execute on function public.freecell_weekly_leaderboard(text, integer) to anon, authenticated;

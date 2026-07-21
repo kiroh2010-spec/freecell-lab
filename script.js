@@ -904,7 +904,7 @@ async function refreshServerRankings({ notify = false } = {}) {
       entries: rows.map(row => ({
         id: row.player_id,
         score: row.score,
-        time: row.time,
+        time: row.elapsed_time ?? row.time,
         moves: row.moves,
         hintUsed: row.hint_used || 0,
         difficultyCode: row.difficulty_code || 'e1',
