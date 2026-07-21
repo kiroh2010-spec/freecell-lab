@@ -53,6 +53,11 @@ h2 { margin: 0 0 10px; font-size: 14px; text-transform: uppercase; letter-spacin
   border-radius: 16px;
   background: rgba(0,0,0,.16);
   text-align: right;
+  cursor: pointer;
+}
+.player-card:hover {
+  border-color: rgba(255, 209, 102, .5);
+  background: rgba(0,0,0,.22);
 }
 .player-label {
   color: var(--muted);
@@ -80,6 +85,27 @@ h2 { margin: 0 0 10px; font-size: 14px; text-transform: uppercase; letter-spacin
   font-size: 11px;
   font-weight: 900;
   white-space: nowrap;
+}
+.player-password-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 10px;
+}
+.player-password-row code {
+  color: white;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  letter-spacing: .05em;
+}
+.mini-button {
+  padding: 3px 7px;
+  border-radius: 999px;
+  font-size: 10px;
+  box-shadow: none;
 }
 button, .home-link {
   border: 0;
@@ -128,6 +154,49 @@ button:disabled {
   cursor: not-allowed;
   transform: none;
   filter: grayscale(.35);
+}
+
+.signup-panel {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 14px;
+  margin-top: 14px;
+  padding: 16px;
+  border: 1px solid rgba(255, 209, 102, .55);
+  border-radius: 20px;
+  background: linear-gradient(135deg, rgba(255,209,102,.18), rgba(0,0,0,.18));
+  box-shadow: var(--shadow);
+}
+.signup-panel[hidden] { display: none; }
+.signup-panel h2 { margin: 0; color: white; }
+.signup-form {
+  display: flex;
+  align-items: end;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.signup-form label {
+  display: grid;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+.signup-form input {
+  width: 136px;
+  border: 1px solid rgba(255,255,255,.25);
+  border-radius: 12px;
+  padding: 10px 11px;
+  color: white;
+  background: rgba(0,0,0,.22);
+  font: inherit;
+  outline: none;
+}
+.signup-form input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(255, 209, 102, .18);
 }
 
 .hud {
@@ -373,6 +442,27 @@ button:disabled {
 .card.selected { outline: 4px solid var(--accent); transform: translateY(-6px); }
 .card.dragging { opacity: .45; transform: scale(.96); }
 .drop-ok { outline: 4px solid rgba(255, 209, 102, .75); outline-offset: 3px; }
+.column.tableau-hint-target {
+  border-color: rgba(255, 209, 102, .95);
+  background:
+    radial-gradient(circle at top, rgba(255, 209, 102, .24), rgba(255, 209, 102, .08) 36%, rgba(0,0,0,.12));
+  box-shadow: inset 0 0 0 2px rgba(255, 209, 102, .22), 0 0 18px rgba(255, 209, 102, .18);
+}
+.column.tableau-hint-target::after {
+  content: "이동 가능";
+  position: absolute;
+  left: 50%;
+  bottom: 10px;
+  transform: translateX(-50%);
+  padding: 4px 8px;
+  border-radius: 999px;
+  color: #18321f;
+  background: var(--accent);
+  font-size: 10px;
+  font-weight: 950;
+  white-space: nowrap;
+  box-shadow: 0 4px 10px rgba(0,0,0,.2);
+}
 .card .corner {
   display: inline-flex;
   align-items: center;
@@ -538,6 +628,17 @@ button:disabled {
   #autoBtn::before { content: "💡"; display: block; font-size: 18px; line-height: 1; }
   #undoBtn::before { content: "↶"; display: block; font-size: 18px; line-height: 1; }
 
+  .signup-panel {
+    align-items: stretch;
+    gap: 10px;
+    margin-top: 8px;
+    padding: 12px;
+    border-radius: 16px;
+  }
+  .signup-form { justify-content: stretch; }
+  .signup-form label { flex: 1 1 120px; }
+  .signup-form input { width: 100%; }
+  .signup-form button { flex: 1 1 100%; }
   .tutorial { margin-top: 6px; padding: 10px; }
   .tutorial-header { flex-direction: row; align-items: center; }
   .tutorial li { font-size: 13px; }

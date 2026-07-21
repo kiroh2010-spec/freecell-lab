@@ -6,11 +6,21 @@ const suits = [
 ];
 const ranks = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
 
+const DIFFICULTY_TIERS = [
+  { code: 'e1', label: 'Easy 1', requiredClears: 0, multiplier: 1.00, totalMax: 6, minLow: 3, minMovable: 4 },
+  { code: 'e2', label: 'Easy 2', requiredClears: 3, multiplier: 1.05, totalMax: 12, minLow: 2, minMovable: 3 },
+  { code: 'n1', label: 'Normal 1', requiredClears: 6, multiplier: 1.15, totalMin: 6, totalMax: 18, minLow: 2, minMovable: 3 },
+  { code: 'n2', label: 'Normal 2', requiredClears: 10, multiplier: 1.25, totalMin: 10, totalMax: 24, minLow: 1, minMovable: 2 },
+  { code: 'n3', label: 'Normal 3', requiredClears: 15, multiplier: 1.40, totalMin: 16, totalMax: 32, minLow: 1, minMovable: 2 },
+];
+
+
 const STORAGE_KEYS = {
   player: 'freecell.player.v1',
   rankings: 'freecell.weeklyRankings.v1',
   game: 'freecell.currentGame.v1',
   stats: 'freecell.stats.v1',
+  profiles: 'freecell.profiles.v1',
 };
 
 const state = {
@@ -27,10 +37,12 @@ const state = {
   timerId: null,
   scoreSaved: false,
   player: null,
+  passwordVisible: false,
+  isEditingPlayer: false,
   undoStack: [],
   undoLeft: 5,
   gameMode: 'normal',
-  difficultyCode: 'n2',
+  difficultyCode: 'e1',
 };
 
 const $ = (id) => document.getElementById(id);
@@ -43,6 +55,8 @@ const timerDisplay = $('timerDisplay');
 const undoHud = $('undoHud');
 const versionLabel = $('versionLabel');
 const playerIdEl = $('playerId');
+const playerPasswordEl = $('playerPassword');
+const passwordToggleBtn = $('passwordToggleBtn');
 const playerRankEl = $('playerRank');
 const rankingResetText = $('rankingResetText');
 const rankingList = $('rankingList');
@@ -51,6 +65,11 @@ const undoBtn = $('undoBtn');
 const tutorialBtn = $('tutorialBtn');
 const tutorialCloseBtn = $('tutorialCloseBtn');
 const tutorialPanel = $('tutorialPanel');
+const signupPanel = $('signupPanel');
+const signupForm = $('signupForm');
+const signupIdInput = $('signupId');
+const signupPasswordInput = $('signupPassword');
+const signupCancelBtn = $('signupCancelBtn');
 let audioContext = null;
 
 function makeDeck() {
@@ -73,7 +92,7 @@ function shuffle(deck) {
   return arr;
 }
 
-function newGame({ clearSaved = true, mode = 'normal' } = {}) {
+function newGame({ clearSaved = true, mode = 'normal', difficultyCode = null } = {}) {
   state.freecells = [null, null, null, null];
   state.foundations = { S: [], H: [], D: [], C: [] };
   state.tableau = Array.from({ length: 8 }, () => []);
@@ -88,21 +107,24 @@ function newGame({ clearSaved = true, mode = 'normal' } = {}) {
   state.undoStack = [];
   state.undoLeft = 5;
   state.gameMode = mode;
+  state.difficultyCode = difficultyCode || getActiveDifficultyCode();
   if (clearSaved) localStorage.removeItem(STORAGE_KEYS.game);
 
-  const dealScore = dealGame(mode);
-  state.difficultyCode = getDifficultyCode(mode, dealScore);
-  setStatus(mode === 'fever'
-    ? '🔥 피버 모드 발동! 난이도가 조금 올라가고 점수 1.1배가 적용됩니다.'
-    : '바로 Foundation에 보낼 수 있는 A 카드가 준비됐습니다.');
+  const dealScore = dealGame(state.difficultyCode);
+  const tier = getDifficultyTier(state.difficultyCode);
+  setStatus(mode === 'promotion'
+    ? `승급전 시작! ${tier.label} 난이도에 도전합니다. 클리어하면 승급하고 점수 배수가 올라갑니다.`
+    : `${tier.label} 난이도입니다. 바로 Foundation에 보낼 수 있는 A 카드가 준비됐습니다.`);
   render();
 }
 
 
-function dealGame(mode = 'normal') {
-  const maxAttempts = mode === 'fever' ? 180 : 120;
+function dealGame(difficultyCode = 'e1') {
+  const tier = getDifficultyTier(difficultyCode);
+  const isHarderTier = difficultyCode.startsWith('n');
+  const maxAttempts = isHarderTier ? 180 : 120;
   let bestDeal = null;
-  let bestScore = mode === 'fever' ? -Infinity : Infinity;
+  let bestScore = isHarderTier ? -Infinity : Infinity;
 
   for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
     const candidate = Array.from({ length: 8 }, () => []);
@@ -112,12 +134,12 @@ function dealGame(mode = 'normal') {
     ensureOpeningFoundationMove(candidate);
     const score = evaluateDeal(candidate);
 
-    if (isDealInDifficulty(score, mode)) {
+    if (isDealInDifficulty(score, tier)) {
       state.tableau = candidate;
       return score;
     }
 
-    if (mode === 'fever') {
+    if (isHarderTier) {
       if (score.total > bestScore) {
         bestScore = score.total;
         bestDeal = candidate;
@@ -157,25 +179,45 @@ function evaluateDeal(tableau) {
   return { total, topAces, topLowCards, movableTopCards, lowCardDepth, blockedAces };
 }
 
-function isDealInDifficulty(score, mode) {
-  if (mode === 'fever') {
-    return score.topAces >= 1 && score.total >= 18 && score.total <= 42 && score.movableTopCards >= 1;
-  }
-  return score.topAces >= 1 && score.topLowCards >= 2 && score.total <= 16 && score.movableTopCards >= 3;
+function isDealInDifficulty(score, tier) {
+  const totalMin = tier.totalMin ?? -Infinity;
+  const totalMax = tier.totalMax ?? Infinity;
+  return score.topAces >= 1 &&
+    score.topLowCards >= tier.minLow &&
+    score.movableTopCards >= tier.minMovable &&
+    score.total >= totalMin &&
+    score.total <= totalMax;
 }
 
+function getDifficultyTier(code) {
+  return DIFFICULTY_TIERS.find(tier => tier.code === code) || DIFFICULTY_TIERS[0];
+}
 
-function getDifficultyCode(mode, score) {
-  if (mode === 'fever') return 'f';
-  if (!score) return 'n2';
-  if (score.total <= 6) return 'n1';
-  if (score.total <= 11) return 'n2';
-  return 'n3';
+function getDifficultyTierIndex(code) {
+  const index = DIFFICULTY_TIERS.findIndex(tier => tier.code === code);
+  return index === -1 ? 0 : index;
+}
+
+function getActiveDifficultyCode() {
+  const stats = loadStats();
+  return DIFFICULTY_TIERS[stats.difficultyIndex]?.code || DIFFICULTY_TIERS[0].code;
+}
+
+function getPromotionTarget(stats = loadStats()) {
+  const nextTier = DIFFICULTY_TIERS[stats.difficultyIndex + 1];
+  if (!nextTier) return null;
+  return stats.clears >= nextTier.requiredClears ? nextTier : null;
+}
+
+function getScoreMultiplier(code, mode = 'normal') {
+  const tier = getDifficultyTier(code);
+  return tier.multiplier + (mode === 'promotion' ? 0.10 : 0);
 }
 
 function renderVersionLabel() {
   if (!versionLabel) return;
-  versionLabel.textContent = `초안 v0.8${state.difficultyCode}`;
+  const prefix = state.gameMode === 'promotion' ? 'p' : '';
+  versionLabel.textContent = `초안 v0.8${prefix}${state.difficultyCode}`;
 }
 
 function ensureOpeningFoundationMove(tableau = state.tableau) {
@@ -226,6 +268,7 @@ function render() {
     const col = document.createElement('div');
     col.className = 'column';
     const columnTarget = { type: 'tableau', index: colIndex };
+    if (isTableauHintTarget(columnTarget)) col.classList.add('tableau-hint-target');
     col.addEventListener('click', (event) => {
       if (event.target === col) handleTarget(columnTarget);
     });
@@ -451,6 +494,14 @@ function isInSelectedSequence(location) {
   return isSameLocation(state.selected, location);
 }
 
+
+function isTableauHintTarget(target) {
+  if (!state.selected || target.type !== 'tableau') return false;
+  if (state.selected.type === 'tableau' && state.selected.index === target.index) return false;
+  const movingCards = getMovingCards(state.selected);
+  return movingCards.length > 0 && canMoveCardsTo(movingCards, target);
+}
+
 function normalizeDropTarget(location) {
   if (location.type === 'tableau') return { type: 'tableau', index: location.index };
   if (location.type === 'foundation') return { type: 'foundation', suit: location.suit };
@@ -628,8 +679,8 @@ function restoreSavedGame() {
   state.scoreSaved = Boolean(saved.scoreSaved);
   state.undoStack = Array.isArray(saved.undoStack) ? saved.undoStack : [];
   state.undoLeft = Number.isInteger(saved.undoLeft) ? saved.undoLeft : 5;
-  state.gameMode = saved.gameMode === 'fever' ? 'fever' : 'normal';
-  state.difficultyCode = typeof saved.difficultyCode === 'string' ? saved.difficultyCode : (state.gameMode === 'fever' ? 'f' : 'n2');
+  state.gameMode = saved.gameMode === 'promotion' ? 'promotion' : 'normal';
+  state.difficultyCode = typeof saved.difficultyCode === 'string' ? saved.difficultyCode : getActiveDifficultyCode();
 
   if (state.timerStarted && saved.savedAt) {
     const deltaSeconds = Math.max(0, Math.floor((Date.now() - saved.savedAt) / 1000));
@@ -667,15 +718,27 @@ function resumeTimer() {
 function requestNewGame() {
   const stats = loadStats();
   stats.gamesStarted += 1;
+  const promotionTarget = getPromotionTarget(stats);
   saveStats(stats);
 
-  const isFever = stats.gamesStarted % 3 === 0;
-  newGame({ clearSaved: true, mode: isFever ? 'fever' : 'normal' });
+  if (promotionTarget) {
+    newGame({ clearSaved: true, mode: 'promotion', difficultyCode: promotionTarget.code });
+    return;
+  }
+
+  newGame({ clearSaved: true, mode: 'normal', difficultyCode: DIFFICULTY_TIERS[stats.difficultyIndex].code });
 }
 
 function loadStats() {
   const saved = safeJsonParse(localStorage.getItem(STORAGE_KEYS.stats));
-  return { gamesStarted: Number.isInteger(saved?.gamesStarted) ? saved.gamesStarted : 0 };
+  const difficultyIndex = Number.isInteger(saved?.difficultyIndex)
+    ? Math.min(Math.max(saved.difficultyIndex, 0), DIFFICULTY_TIERS.length - 1)
+    : 0;
+  return {
+    gamesStarted: Number.isInteger(saved?.gamesStarted) ? saved.gamesStarted : 0,
+    clears: Number.isInteger(saved?.clears) ? saved.clears : 0,
+    difficultyIndex,
+  };
 }
 
 function saveStats(stats) {
@@ -687,14 +750,119 @@ function initPlayer() {
   if (saved?.id && saved?.password) {
     state.player = saved;
   } else {
-    state.player = {
-      id: `FC-${Math.random().toString(36).slice(2, 6).toUpperCase()}${Math.floor(Math.random() * 90 + 10)}`,
-      password: Math.random().toString(36).slice(2, 8).toUpperCase(),
-      createdAt: new Date().toISOString(),
-    };
+    state.player = createAutoPlayer();
     localStorage.setItem(STORAGE_KEYS.player, JSON.stringify(state.player));
+    saveCurrentProfile();
   }
   playerIdEl.textContent = state.player.id;
+  renderPlayerPassword();
+  renderSignupPanel();
+}
+
+function renderPlayerPassword() {
+  if (!playerPasswordEl) return;
+  if (!state.player) return;
+  passwordToggleBtn.disabled = false;
+  playerPasswordEl.textContent = state.passwordVisible ? state.player.password : '••••••';
+  passwordToggleBtn.textContent = state.passwordVisible ? '숨김' : '보기';
+  passwordToggleBtn.setAttribute('aria-pressed', String(state.passwordVisible));
+}
+
+function togglePasswordVisibility() {
+  state.passwordVisible = !state.passwordVisible;
+  renderPlayerPassword();
+}
+
+
+function renderSignupPanel() {
+  signupPanel.hidden = !state.isEditingPlayer;
+  if (state.isEditingPlayer && state.player) {
+    signupIdInput.value = state.player.id;
+    signupPasswordInput.value = state.player.password;
+  }
+}
+
+function createAutoPlayer() {
+  return {
+    id: `FC-${Math.random().toString(36).slice(2, 6).toUpperCase()}${Math.floor(Math.random() * 90 + 10)}`,
+    password: Math.random().toString(36).slice(2, 8).toUpperCase(),
+    createdAt: new Date().toISOString(),
+  };
+}
+
+function normalizePlayerId(value) {
+  return value.trim().replace(/\s+/g, '').toUpperCase();
+}
+
+function getProfileKey(id, password) {
+  return `${id}::${password}`;
+}
+
+function loadProfiles() {
+  const saved = safeJsonParse(localStorage.getItem(STORAGE_KEYS.profiles));
+  return saved && typeof saved === 'object' && !Array.isArray(saved) ? saved : {};
+}
+
+function saveProfiles(profiles) {
+  localStorage.setItem(STORAGE_KEYS.profiles, JSON.stringify(profiles));
+}
+
+function saveCurrentProfile() {
+  if (!state.player) return;
+  const profiles = loadProfiles();
+  profiles[getProfileKey(state.player.id, state.player.password)] = {
+    player: state.player,
+    stats: loadStats(),
+    savedAt: new Date().toISOString(),
+  };
+  saveProfiles(profiles);
+}
+
+function openPlayerEditor() {
+  state.isEditingPlayer = true;
+  renderSignupPanel();
+  setStatus('아이디와 비밀번호를 수정하거나 기존 정보를 불러올 수 있습니다.');
+}
+
+function closePlayerEditor() {
+  state.isEditingPlayer = false;
+  renderSignupPanel();
+}
+
+function handleSignup(event) {
+  event.preventDefault();
+  const id = normalizePlayerId(signupIdInput.value);
+  const password = signupPasswordInput.value.trim();
+  if (id.length < 3) {
+    setStatus('아이디는 3자 이상 입력해주세요.');
+    playSound('invalid');
+    return;
+  }
+  if (password.length < 4) {
+    setStatus('비밀번호는 4자 이상 입력해주세요.');
+    playSound('invalid');
+    return;
+  }
+
+  saveCurrentProfile();
+  const profiles = loadProfiles();
+  const profile = profiles[getProfileKey(id, password)];
+  state.player = profile?.player || { id, password, createdAt: new Date().toISOString() };
+  localStorage.setItem(STORAGE_KEYS.player, JSON.stringify(state.player));
+
+  if (profile?.stats) saveStats(profile.stats);
+  else saveCurrentProfile();
+  localStorage.removeItem(STORAGE_KEYS.game);
+
+  state.passwordVisible = false;
+  state.isEditingPlayer = false;
+  playerIdEl.textContent = state.player.id;
+  renderPlayerPassword();
+  renderSignupPanel();
+  renderVersionLabel();
+  renderRankings();
+  const tier = getDifficultyTier(getActiveDifficultyCode());
+  setStatus(profile ? `${state.player.id} 정보 계승 완료. 현재 난이도 ${tier.label}.` : `${state.player.id} 새 정보 저장 완료. Easy 1부터 시작합니다.`);
 }
 
 function startTimer() {
@@ -753,7 +921,7 @@ function recordWeeklyScore() {
   if (state.scoreSaved || !state.player) return;
   state.scoreSaved = true;
   const data = loadRankingData();
-  const multiplier = state.gameMode === 'fever' ? 1.1 : 1;
+  const multiplier = getScoreMultiplier(state.difficultyCode, state.gameMode);
   const undoUsed = Math.max(0, 5 - state.undoLeft);
   const score = calculateScore(state.elapsedSeconds, state.moves, multiplier, undoUsed);
   data.entries.push({
@@ -763,12 +931,13 @@ function recordWeeklyScore() {
     score,
     undoUsed,
     multiplier,
+    difficultyCode: state.difficultyCode,
     mode: state.gameMode,
     completedAt: new Date().toISOString(),
   });
   data.entries.forEach(entry => {
     if (!Number.isFinite(entry.score)) {
-      entry.multiplier = entry.mode === 'fever' ? 1.1 : 1;
+      entry.multiplier = Number.isFinite(entry.multiplier) ? entry.multiplier : getScoreMultiplier(entry.difficultyCode || 'e1', entry.mode);
       entry.undoUsed = Number.isInteger(entry.undoUsed) ? entry.undoUsed : 0;
       entry.score = calculateScore(entry.time || 0, entry.moves || 0, entry.multiplier, entry.undoUsed);
     }
@@ -776,7 +945,22 @@ function recordWeeklyScore() {
   data.entries.sort((a, b) => b.score - a.score || a.time - b.time || a.moves - b.moves);
   data.entries = data.entries.slice(0, 20);
   saveRankingData(data);
+  updateClearProgress();
   renderRankings();
+}
+
+
+function updateClearProgress() {
+  const stats = loadStats();
+  stats.clears += 1;
+  if (state.gameMode === 'promotion') {
+    const promotedIndex = getDifficultyTierIndex(state.difficultyCode);
+    stats.difficultyIndex = Math.max(stats.difficultyIndex, promotedIndex);
+    const tier = getDifficultyTier(state.difficultyCode);
+    setStatus(`승급 성공! 이제 ${tier.label} 난이도로 진행합니다.`);
+  }
+  saveStats(stats);
+  saveCurrentProfile();
 }
 
 function calculateScore(time, moves, multiplier = 1, undoUsed = 0) {
@@ -787,7 +971,9 @@ function calculateScore(time, moves, multiplier = 1, undoUsed = 0) {
 function renderRankings() {
   const data = loadRankingData();
   data.entries.forEach(entry => {
-    entry.multiplier = entry.multiplier || (entry.mode === 'fever' ? 1.1 : 1);
+    entry.difficultyCode = entry.difficultyCode || 'e1';
+    entry.mode = entry.mode === 'promotion' ? 'promotion' : 'normal';
+    entry.multiplier = Number.isFinite(entry.multiplier) ? entry.multiplier : getScoreMultiplier(entry.difficultyCode, entry.mode);
     entry.undoUsed = Number.isInteger(entry.undoUsed) ? entry.undoUsed : 0;
     entry.score = Number.isFinite(entry.score) ? entry.score : calculateScore(entry.time || 0, entry.moves || 0, entry.multiplier, entry.undoUsed);
   });
@@ -805,7 +991,7 @@ function renderRankings() {
   rankingList.innerHTML = data.entries.slice(0, 5).map((entry, index) => `
     <li>
       <strong>${index + 1}. ${entry.id}</strong>
-      <span>${entry.score ?? calculateScore(entry.time || 0, entry.moves || 0, entry.multiplier || 1, entry.undoUsed || 0)}점${entry.mode === 'fever' ? ' · 🔥' : ''}${entry.undoUsed ? ` · ↶${entry.undoUsed}` : ''}</span>
+      <span>${entry.score ?? calculateScore(entry.time || 0, entry.moves || 0, entry.multiplier || 1, entry.undoUsed || 0)}점 · ${entry.difficultyCode || 'e1'}${entry.mode === 'promotion' ? ' · 승급' : ''}${entry.undoUsed ? ` · ↶${entry.undoUsed}` : ''}</span>
     </li>
   `).join('');
 }
@@ -953,6 +1139,13 @@ $('newGameBtn').addEventListener('click', requestNewGame);
 $('autoBtn').addEventListener('click', autoMoveAces);
 undoBtn.addEventListener('click', undoMove);
 soundBtn.addEventListener('click', toggleSound);
+passwordToggleBtn.addEventListener('click', togglePasswordVisibility);
+signupForm.addEventListener('submit', handleSignup);
+signupCancelBtn.addEventListener('click', closePlayerEditor);
+document.querySelector('.player-card').addEventListener('click', (event) => {
+  if (event.target === passwordToggleBtn) return;
+  openPlayerEditor();
+});
 tutorialBtn.addEventListener('click', () => toggleTutorial());
 tutorialCloseBtn.addEventListener('click', () => toggleTutorial(false));
-if (!restoreSavedGame()) newGame({ clearSaved: false });
+if (!restoreSavedGame()) newGame({ clearSaved: false, difficultyCode: getActiveDifficultyCode() });
