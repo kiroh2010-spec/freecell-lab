@@ -47,7 +47,7 @@
     <section id="signupPanel" class="signup-panel" aria-label="플레이어 정보 수정" hidden>
       <div>
         <h2>플레이어 정보</h2>
-        <p>아이디와 비밀번호를 수정하거나 기존 정보를 불러올 수 있습니다.</p>
+        <p>ID/PW 변경은 최초 1회만 가능합니다. 저장 후에는 다시 수정할 수 없습니다.</p>
       </div>
       <form id="signupForm" class="signup-form">
         <label>
@@ -56,7 +56,7 @@
         </label>
         <label>
           <span>비밀번호</span>
-          <input id="signupPassword" name="playerPassword" type="password" minlength="4" maxlength="20" autocomplete="new-password" placeholder="4자 이상" required />
+          <input id="signupPassword" name="playerPassword" type="password" inputmode="numeric" pattern="[0-9]{4}" minlength="4" maxlength="4" autocomplete="new-password" placeholder="숫자 4자리" required />
         </label>
         <button type="submit">저장</button>
         <button id="signupCancelBtn" class="ghost-button" type="button">닫기</button>

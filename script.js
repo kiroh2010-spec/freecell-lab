@@ -785,13 +785,18 @@ function renderSignupPanel() {
 function createAutoPlayer() {
   return {
     id: `FC-${Math.random().toString(36).slice(2, 6).toUpperCase()}${Math.floor(Math.random() * 90 + 10)}`,
-    password: Math.random().toString(36).slice(2, 8).toUpperCase(),
+    password: createPin(),
     createdAt: new Date().toISOString(),
+    editUsed: false,
   };
 }
 
 function normalizePlayerId(value) {
   return value.trim().replace(/\s+/g, '').toUpperCase();
+}
+
+function createPin() {
+  return String(Math.floor(Math.random() * 10000)).padStart(4, '0');
 }
 
 function getProfileKey(id, password) {
@@ -811,7 +816,7 @@ function saveCurrentProfile() {
   if (!state.player) return;
   const profiles = loadProfiles();
   profiles[getProfileKey(state.player.id, state.player.password)] = {
-    player: state.player,
+    player: { ...state.player, editUsed: Boolean(state.player.editUsed) },
     stats: loadStats(),
     savedAt: new Date().toISOString(),
   };
@@ -819,9 +824,14 @@ function saveCurrentProfile() {
 }
 
 function openPlayerEditor() {
+  if (state.player?.editUsed) {
+    setStatus('ID/PW 변경은 최초 1회만 가능합니다. 이미 변경을 사용했습니다.');
+    playSound('invalid');
+    return;
+  }
   state.isEditingPlayer = true;
   renderSignupPanel();
-  setStatus('아이디와 비밀번호를 수정하거나 기존 정보를 불러올 수 있습니다.');
+  setStatus('ID/PW 변경은 최초 1회만 가능합니다. 신중하게 저장해주세요.');
 }
 
 function closePlayerEditor() {
@@ -838,20 +848,32 @@ function handleSignup(event) {
     playSound('invalid');
     return;
   }
-  if (password.length < 4) {
-    setStatus('비밀번호는 4자 이상 입력해주세요.');
+  if (!/^\d{4}$/.test(password)) {
+    setStatus('비밀번호는 숫자 4자리로 입력해주세요.');
     playSound('invalid');
     return;
   }
 
+  if (state.player?.editUsed) {
+    setStatus('ID/PW 변경은 최초 1회만 가능합니다. 이미 변경을 사용했습니다.');
+    playSound('invalid');
+    closePlayerEditor();
+    return;
+  }
+
+  const previousId = state.player?.id;
   saveCurrentProfile();
   const profiles = loadProfiles();
   const profile = profiles[getProfileKey(id, password)];
-  state.player = profile?.player || { id, password, createdAt: new Date().toISOString() };
+  state.player = profile?.player
+    ? { ...profile.player, id, password, editUsed: true }
+    : { id, password, createdAt: new Date().toISOString(), editUsed: true };
   localStorage.setItem(STORAGE_KEYS.player, JSON.stringify(state.player));
 
   if (profile?.stats) saveStats(profile.stats);
   else saveCurrentProfile();
+  if (previousId && previousId !== id) updateRankingPlayerId(previousId, id);
+  saveCurrentProfile();
   localStorage.removeItem(STORAGE_KEYS.game);
 
   state.passwordVisible = false;
@@ -862,7 +884,7 @@ function handleSignup(event) {
   renderVersionLabel();
   renderRankings();
   const tier = getDifficultyTier(getActiveDifficultyCode());
-  setStatus(profile ? `${state.player.id} 정보 계승 완료. 현재 난이도 ${tier.label}.` : `${state.player.id} 새 정보 저장 완료. Easy 1부터 시작합니다.`);
+  setStatus(profile ? `${state.player.id} 정보 계승 완료. ID/PW 변경 1회를 사용했습니다. 현재 난이도 ${tier.label}.` : `${state.player.id} 저장 완료. ID/PW 변경 1회를 사용했습니다.`);
 }
 
 function startTimer() {
@@ -915,6 +937,19 @@ function loadRankingData() {
 
 function saveRankingData(data) {
   localStorage.setItem(STORAGE_KEYS.rankings, JSON.stringify(data));
+}
+
+
+function updateRankingPlayerId(oldId, newId) {
+  const data = loadRankingData();
+  let changed = false;
+  data.entries.forEach(entry => {
+    if (entry.id === oldId) {
+      entry.id = newId;
+      changed = true;
+    }
+  });
+  if (changed) saveRankingData(data);
 }
 
 function recordWeeklyScore() {
