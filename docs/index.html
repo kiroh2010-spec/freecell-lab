@@ -33,8 +33,7 @@
       <div class="actions">
         <button id="tutorialBtn" aria-expanded="false" aria-controls="tutorialPanel">게임 방법</button>
         <button id="newGameBtn">새 게임</button>
-        <button id="autoBtn">힌트</button>
-        <button id="undoBtn">무르기 5</button>
+        <button id="autoBtn">힌트 5</button>
         <button id="soundBtn" class="sound-button" aria-pressed="true" aria-label="소리 켜짐" title="소리 켜짐">
           <svg class="sound-symbol" aria-hidden="true" viewBox="0 0 24 24" focusable="false">
             <path d="M4 9.25h4.1L13 5.6v12.8l-4.9-3.65H4z" />
@@ -73,8 +72,8 @@
         <strong id="timerDisplay">00:00</strong>
       </div>
       <div class="hud-item">
-        <span>UNDO</span>
-        <strong id="undoHud">5</strong>
+        <span>HINT</span>
+        <strong id="hintHud">5</strong>
       </div>
     </section>
 
@@ -110,6 +109,32 @@
       <div class="tableau-wrap">
         <h2>Tableau</h2>
         <div id="tableau" class="tableau"></div>
+      </div>
+    </section>
+
+    <section id="resultModal" class="result-modal" aria-label="게임 결과" hidden>
+      <div class="result-card" role="dialog" aria-modal="true" aria-labelledby="resultTitle">
+        <div class="result-kicker">CLEAR</div>
+        <h2 id="resultTitle">클리어!</h2>
+        <div class="result-main">
+          <div>
+            <span>TIME</span>
+            <strong id="resultTime">00:00</strong>
+          </div>
+          <div>
+            <span>MOVE</span>
+            <strong id="resultMoves">0</strong>
+          </div>
+        </div>
+        <div class="result-score">
+          <span>SCORE</span>
+          <strong id="resultScore">0점</strong>
+        </div>
+        <p id="resultRankText" class="result-rank-text">랭킹 계산 중</p>
+        <div class="result-actions">
+          <button id="resultNewGameBtn" type="button">새 게임</button>
+          <button id="resultCloseBtn" class="ghost-button" type="button">확인</button>
+        </div>
       </div>
     </section>
 

@@ -23,6 +23,14 @@ const STORAGE_KEYS = {
   profiles: 'freecell.profiles.v1',
 };
 
+const SUPABASE_CONFIG = {
+  url: 'https://zhhvyvjbqdwurwigseod.supabase.co',
+  key: 'sb_publishable_JtPb39q98NCpE8fnKGnclg_E9PYFLjA',
+};
+
+const SERVER_RANKING_ENABLED = Boolean(SUPABASE_CONFIG.url && SUPABASE_CONFIG.key);
+
+
 const state = {
   freecells: [null, null, null, null],
   foundations: { S: [], H: [], D: [], C: [] },
@@ -39,10 +47,12 @@ const state = {
   player: null,
   passwordVisible: false,
   isEditingPlayer: false,
-  undoStack: [],
-  undoLeft: 5,
+  hintLeft: 5,
+  hintTarget: null,
   gameMode: 'normal',
   difficultyCode: 'e1',
+  serverLeader: null,
+  lastRankNoticeAt: 0,
 };
 
 const $ = (id) => document.getElementById(id);
@@ -52,7 +62,7 @@ const tableauEl = $('tableau');
 const statusEl = $('status');
 const moveHud = $('moveHud');
 const timerDisplay = $('timerDisplay');
-const undoHud = $('undoHud');
+const hintHud = $('hintHud');
 const versionLabel = $('versionLabel');
 const playerIdEl = $('playerId');
 const playerPasswordEl = $('playerPassword');
@@ -61,7 +71,6 @@ const playerRankEl = $('playerRank');
 const rankingResetText = $('rankingResetText');
 const rankingList = $('rankingList');
 const soundBtn = $('soundBtn');
-const undoBtn = $('undoBtn');
 const tutorialBtn = $('tutorialBtn');
 const tutorialCloseBtn = $('tutorialCloseBtn');
 const tutorialPanel = $('tutorialPanel');
@@ -70,6 +79,13 @@ const signupForm = $('signupForm');
 const signupIdInput = $('signupId');
 const signupPasswordInput = $('signupPassword');
 const signupCancelBtn = $('signupCancelBtn');
+const resultModal = $('resultModal');
+const resultTime = $('resultTime');
+const resultMoves = $('resultMoves');
+const resultScore = $('resultScore');
+const resultRankText = $('resultRankText');
+const resultNewGameBtn = $('resultNewGameBtn');
+const resultCloseBtn = $('resultCloseBtn');
 let audioContext = null;
 
 function makeDeck() {
@@ -104,8 +120,8 @@ function newGame({ clearSaved = true, mode = 'normal', difficultyCode = null } =
   state.timerStarted = false;
   state.scoreSaved = false;
   stopTimer();
-  state.undoStack = [];
-  state.undoLeft = 5;
+  state.hintLeft = 5;
+  state.hintTarget = null;
   state.gameMode = mode;
   state.difficultyCode = difficultyCode || getActiveDifficultyCode();
   if (clearSaved) localStorage.removeItem(STORAGE_KEYS.game);
@@ -249,6 +265,7 @@ function render() {
   state.freecells.forEach((card, index) => {
     const target = { type: 'freecell', index };
     const slot = slotEl(`F${index + 1}`, () => handleTarget(target));
+    if (isHintTarget(target)) slot.classList.add('hint-destination');
     wireDropTarget(slot, target);
     if (card) slot.appendChild(cardEl(card, { type: 'freecell', index }));
     freecellsEl.appendChild(slot);
@@ -258,6 +275,7 @@ function render() {
     const target = { type: 'foundation', suit: suit.key };
     const slot = slotEl(suit.symbol, () => handleTarget(target));
     slot.classList.add('foundation-slot');
+    if (isHintTarget(target)) slot.classList.add('hint-destination');
     wireDropTarget(slot, target);
     const pile = state.foundations[suit.key];
     if (pile.length) slot.appendChild(foundationPileEl(pile, suit.key));
@@ -269,6 +287,7 @@ function render() {
     col.className = 'column';
     const columnTarget = { type: 'tableau', index: colIndex };
     if (isTableauHintTarget(columnTarget)) col.classList.add('tableau-hint-target');
+    if (isHintTarget(columnTarget)) col.classList.add('hint-destination');
     col.addEventListener('click', (event) => {
       if (event.target === col) handleTarget(columnTarget);
     });
@@ -280,11 +299,11 @@ function render() {
   });
 
   moveHud.textContent = state.moves;
-  undoHud.textContent = state.undoLeft;
+  hintHud.textContent = state.hintLeft;
   timerDisplay.textContent = formatTime(state.elapsedSeconds);
   renderVersionLabel();
-  undoBtn.textContent = `무르기 ${state.undoLeft}`;
-  undoBtn.disabled = state.undoLeft <= 0 || state.undoStack.length === 0;
+  $('autoBtn').textContent = `힌트 ${state.hintLeft}`;
+  $('autoBtn').disabled = state.hintLeft <= 0;
   checkWin();
   persistGameState();
 }
@@ -319,6 +338,7 @@ function cardEl(card, location) {
   const isFace = ['J', 'Q', 'K'].includes(card.rank);
   el.className = `card ${card.color === 'red' ? 'red' : ''} ${isFace ? 'face-card' : ''}`;
   if (isInSelectedSequence(location)) el.classList.add('selected');
+  if (isInHintSource(location)) el.classList.add('hint-source');
   if (isSameLocation(state.dragging, location)) el.classList.add('dragging');
   if (canSelect(location)) el.classList.add('movable');
   el.innerHTML = isFace
@@ -392,11 +412,11 @@ function handleCardDoubleClick(location) {
 function moveSingleCard(from, to, message, soundKind = 'move') {
   const card = getCard(from);
   if (!card || !canMoveTo(card, to)) return false;
-  saveUndoState();
   removeCard(from);
   addCard(to, card);
   state.selected = null;
   state.dragging = null;
+  state.hintTarget = null;
   state.moves += 1;
   setStatus(message);
   playSound(soundKind);
@@ -417,6 +437,7 @@ function handleCardClick(location) {
   }
 
   startTimer();
+  state.hintTarget = null;
   state.selected = isSameLocation(state.selected, location) ? null : location;
   const cards = getMovingCards(location);
   const label = cards.length > 1 ? `${cards[0].rank}${cards[0].symbol}부터 ${cards.length}장` : `${cards[0].rank}${cards[0].symbol}`;
@@ -444,11 +465,11 @@ function handleTarget(target) {
     return false;
   }
 
-  saveUndoState();
   removeCards(state.selected, movingCards.length);
   addCards(target, movingCards);
   state.selected = null;
   state.dragging = null;
+  state.hintTarget = null;
   state.moves += 1;
   const first = movingCards[0];
   const label = movingCards.length > 1 ? `${first.rank}${first.symbol}부터 ${movingCards.length}장` : `${first.rank}${first.symbol}`;
@@ -597,43 +618,106 @@ function isSameLocation(a, b) {
   return false;
 }
 
-function autoMoveAces() {
-  startTimer();
-  const beforeAuto = snapshotState();
-  let moved = 0;
-  let didMove = true;
-  while (didMove) {
-    didMove = false;
-    const sources = [];
-    state.freecells.forEach((card, index) => card && sources.push({ card, loc: { type: 'freecell', index } }));
-    state.tableau.forEach((column, index) => {
-      const card = column[column.length - 1];
-      if (card) sources.push({ card, loc: { type: 'tableau', index, cardIndex: column.length - 1 } });
-    });
+function showHint() {
+  if (state.hintLeft <= 0) {
+    setStatus('이번 게임의 힌트 5회를 모두 사용했습니다.');
+    playSound('invalid');
+    return;
+  }
 
-    for (const { card, loc } of sources) {
-      const target = { type: 'foundation', suit: card.suit };
-      if (canMoveTo(card, target)) {
-        removeCard(loc);
-        addCard(target, card);
-        moved += 1;
-        didMove = true;
-        break;
-      }
+  startTimer();
+  state.selected = null;
+  state.hintTarget = null;
+  const hint = findHintMove();
+  if (!hint) {
+    setStatus('지금 알려줄 수 있는 이동이 없습니다.');
+    playSound('invalid');
+    return;
+  }
+
+  state.hintLeft -= 1;
+  state.selected = hint.from;
+  state.hintTarget = hint.to;
+  setStatus(`힌트: ${hint.cardLabel} → ${hint.targetLabel}. 직접 이동해보세요. 남은 힌트 ${state.hintLeft}회.`);
+  playSound('move');
+  render();
+}
+
+function findHintMove() {
+  const sources = getHintSources();
+
+  for (const source of sources) {
+    const target = { type: 'foundation', suit: source.cards[0].suit };
+    if (canMoveCardsTo(source.cards, target)) return buildHint(source, target);
+  }
+
+  for (const source of sources) {
+    for (let index = 0; index < state.tableau.length; index += 1) {
+      if (source.from.type === 'tableau' && source.from.index === index) continue;
+      const target = { type: 'tableau', index };
+      if (canMoveCardsTo(source.cards, target)) return buildHint(source, target);
     }
   }
-  if (moved) {
-    saveUndoSnapshot(beforeAuto);
-    state.moves += moved;
-    state.selected = null;
-    state.dragging = null;
-    setStatus(`Foundation으로 ${moved}장 자동 이동했습니다.`);
-    playSound('foundation');
-  } else {
-    setStatus('지금 자동 이동 가능한 카드가 없습니다.');
-    playSound('invalid');
+
+  for (const source of sources) {
+    const emptyIndex = state.freecells.findIndex(cell => cell === null);
+    if (emptyIndex !== -1 && source.cards.length === 1) {
+      const target = { type: 'freecell', index: emptyIndex };
+      if (canMoveCardsTo(source.cards, target)) return buildHint(source, target);
+    }
   }
-  render();
+
+  return null;
+}
+
+function getHintSources() {
+  const sources = [];
+  state.freecells.forEach((card, index) => {
+    if (card) sources.push({ from: { type: 'freecell', index }, cards: [card] });
+  });
+
+  state.tableau.forEach((column, index) => {
+    for (let cardIndex = 0; cardIndex < column.length; cardIndex += 1) {
+      const location = { type: 'tableau', index, cardIndex };
+      if (canSelect(location)) sources.push({ from: location, cards: getMovingCards(location) });
+    }
+  });
+
+  return sources;
+}
+
+function buildHint(source, target) {
+  const first = source.cards[0];
+  const cardLabel = source.cards.length > 1 ? `${first.rank}${first.symbol}부터 ${source.cards.length}장` : `${first.rank}${first.symbol}`;
+  return { from: source.from, to: target, cards: source.cards, cardLabel, targetLabel: getTargetLabel(target) };
+}
+
+function getTargetLabel(target) {
+  if (target.type === 'foundation') {
+    const suit = suits.find(item => item.key === target.suit);
+    return `Foundation ${suit?.symbol || target.suit}`;
+  }
+  if (target.type === 'freecell') return `Free Cell ${target.index + 1}`;
+  if (target.type === 'tableau') return `Tableau ${target.index + 1}`;
+  return '이동 가능 위치';
+}
+
+function isHintTarget(target) {
+  if (!state.hintTarget || !target) return false;
+  const normalizedTarget = normalizeDropTarget(target);
+  return isSameTarget(state.hintTarget, normalizedTarget);
+}
+
+function isSameTarget(a, b) {
+  if (!a || !b || a.type !== b.type) return false;
+  if (a.type === 'freecell' || a.type === 'tableau') return a.index === b.index;
+  if (a.type === 'foundation') return a.suit === b.suit;
+  return false;
+}
+
+function isInHintSource(location) {
+  if (!state.hintTarget || !state.selected || !location) return false;
+  return isInSelectedSequence(location);
 }
 
 
@@ -654,8 +738,7 @@ function persistGameState() {
     timerStarted: state.timerStarted,
     won: state.won,
     scoreSaved: state.scoreSaved,
-    undoStack: state.undoStack,
-    undoLeft: state.undoLeft,
+    hintLeft: state.hintLeft,
     gameMode: state.gameMode,
     difficultyCode: state.difficultyCode,
     status: statusEl.textContent,
@@ -677,8 +760,8 @@ function restoreSavedGame() {
   state.timerStarted = Boolean(saved.timerStarted && !saved.won);
   state.won = Boolean(saved.won);
   state.scoreSaved = Boolean(saved.scoreSaved);
-  state.undoStack = Array.isArray(saved.undoStack) ? saved.undoStack : [];
-  state.undoLeft = Number.isInteger(saved.undoLeft) ? saved.undoLeft : 5;
+  state.hintLeft = Number.isInteger(saved.hintLeft) ? saved.hintLeft : 5;
+  state.hintTarget = null;
   state.gameMode = saved.gameMode === 'promotion' ? 'promotion' : 'normal';
   state.difficultyCode = typeof saved.difficultyCode === 'string' ? saved.difficultyCode : getActiveDifficultyCode();
 
@@ -714,6 +797,158 @@ function resumeTimer() {
   }, 1000);
 }
 
+
+
+async function supabaseRpc(functionName, body) {
+  if (!SERVER_RANKING_ENABLED) throw new Error('Supabase is not configured');
+  const response = await fetch(`${SUPABASE_CONFIG.url}/rest/v1/rpc/${functionName}`, {
+    method: 'POST',
+    headers: {
+      apikey: SUPABASE_CONFIG.key,
+      Authorization: `Bearer ${SUPABASE_CONFIG.key}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    const message = await response.text();
+    throw new Error(`${functionName} failed: ${message}`);
+  }
+  return response.json();
+}
+
+function applyServerStats(profile) {
+  if (!profile) return;
+  const difficultyIndex = Number.isInteger(profile.difficulty_index)
+    ? Math.min(Math.max(profile.difficulty_index, 0), DIFFICULTY_TIERS.length - 1)
+    : 0;
+  saveStats({
+    ...loadStats(),
+    clears: Number.isInteger(profile.clears) ? profile.clears : 0,
+    difficultyIndex,
+  });
+  if (state.player) {
+    state.player.editUsed = Boolean(profile.edit_used);
+    localStorage.setItem(STORAGE_KEYS.player, JSON.stringify(state.player));
+  }
+}
+
+async function registerPlayerOnServer() {
+  if (!state.player || !SERVER_RANKING_ENABLED) return;
+  try {
+    const [profile] = await supabaseRpc('freecell_register_player', {
+      p_player_id: state.player.id,
+      p_pin: state.player.password,
+    });
+    if (profile?.status === 'ok') {
+      applyServerStats(profile);
+      renderVersionLabel();
+    }
+  } catch (error) {
+    console.warn('Player server sync failed', error);
+  }
+}
+
+async function updatePlayerOnServer(previousId, previousPin, id, password) {
+  if (!SERVER_RANKING_ENABLED || !previousId || !previousPin) return null;
+  try {
+    const [profile] = await supabaseRpc('freecell_update_player_once', {
+      p_old_id: previousId,
+      p_old_pin: previousPin,
+      p_new_id: id,
+      p_new_pin: password,
+    });
+    if (profile?.status === 'ok') return profile;
+    setStatus(`서버 플레이어 변경 실패: ${profile?.status || 'unknown'}`);
+    return profile || null;
+  } catch (error) {
+    console.warn('Player update server sync failed', error);
+    setStatus('서버 플레이어 변경은 실패했지만 로컬 정보는 저장했습니다.');
+    return null;
+  }
+}
+
+async function submitScoreToServer(result) {
+  if (!state.player || !SERVER_RANKING_ENABLED || !result) return;
+  try {
+    const [serverResult] = await supabaseRpc('freecell_submit_score', {
+      p_player_id: state.player.id,
+      p_pin: state.player.password,
+      p_week_key: getWeekKey(),
+      p_score: result.score,
+      p_time: result.time,
+      p_moves: result.moves,
+      p_hint_used: result.hintUsed || 0,
+      p_difficulty_code: result.difficultyCode,
+      p_mode: result.mode,
+    });
+    if (serverResult?.status === 'ok' && Number.isInteger(serverResult.rank)) {
+      result.rank = serverResult.rank;
+      result.ranked = serverResult.rank <= result.rankingLimit;
+    }
+    await refreshServerRankings();
+  } catch (error) {
+    console.warn('Score server sync failed', error);
+  }
+}
+
+async function refreshServerRankings({ notify = false } = {}) {
+  if (!SERVER_RANKING_ENABLED) return;
+  try {
+    const rows = await supabaseRpc('freecell_weekly_leaderboard', {
+      p_week_key: getWeekKey(),
+      p_limit: 20,
+    });
+    const data = {
+      weekKey: getWeekKey(),
+      entries: rows.map(row => ({
+        id: row.player_id,
+        score: row.score,
+        time: row.time,
+        moves: row.moves,
+        hintUsed: row.hint_used || 0,
+        difficultyCode: row.difficulty_code || 'e1',
+        mode: row.mode || 'normal',
+        completedAt: row.created_at,
+      })),
+    };
+    saveRankingData(data);
+    maybeNotifyRankingChange(data.entries, notify);
+    renderRankings();
+  } catch (error) {
+    console.warn('Leaderboard refresh failed', error);
+  }
+}
+
+
+function maybeNotifyRankingChange(entries, notify) {
+  if (!notify || !entries.length || !state.timerStarted || state.won) return;
+  const now = Date.now();
+  if (now - state.lastRankNoticeAt < 120000) return;
+
+  const leader = entries[0];
+  const previousLeader = state.serverLeader;
+  state.serverLeader = { id: leader.id, score: leader.score };
+
+  if (previousLeader && (previousLeader.id !== leader.id || previousLeader.score !== leader.score)) {
+    state.lastRankNoticeAt = now;
+    setStatus(`1위 변경: ${leader.id} · ${leader.score}점`);
+    return;
+  }
+
+  const hintUsed = Math.max(0, 5 - state.hintLeft);
+  const projectedScore = calculateScore(
+    state.elapsedSeconds,
+    state.moves,
+    getScoreMultiplier(state.difficultyCode, state.gameMode),
+    hintUsed
+  );
+  const gap = leader.score - projectedScore;
+  if (gap > 0 && gap <= 500) {
+    state.lastRankNoticeAt = now;
+    setStatus(`현재 페이스 기준 1위까지 ${gap}점 차이입니다.`);
+  }
+}
 
 function requestNewGame() {
   const stats = loadStats();
@@ -757,6 +992,7 @@ function initPlayer() {
   playerIdEl.textContent = state.player.id;
   renderPlayerPassword();
   renderSignupPanel();
+  registerPlayerOnServer();
 }
 
 function renderPlayerPassword() {
@@ -839,7 +1075,7 @@ function closePlayerEditor() {
   renderSignupPanel();
 }
 
-function handleSignup(event) {
+async function handleSignup(event) {
   event.preventDefault();
   const id = normalizePlayerId(signupIdInput.value);
   const password = signupPasswordInput.value.trim();
@@ -862,6 +1098,7 @@ function handleSignup(event) {
   }
 
   const previousId = state.player?.id;
+  const previousPin = state.player?.password;
   saveCurrentProfile();
   const profiles = loadProfiles();
   const profile = profiles[getProfileKey(id, password)];
@@ -872,6 +1109,8 @@ function handleSignup(event) {
 
   if (profile?.stats) saveStats(profile.stats);
   else saveCurrentProfile();
+  const serverProfile = await updatePlayerOnServer(previousId, previousPin, id, password);
+  if (serverProfile?.status === 'ok') applyServerStats(serverProfile);
   if (previousId && previousId !== id) updateRankingPlayerId(previousId, id);
   saveCurrentProfile();
   localStorage.removeItem(STORAGE_KEYS.game);
@@ -953,35 +1192,49 @@ function updateRankingPlayerId(oldId, newId) {
 }
 
 function recordWeeklyScore() {
-  if (state.scoreSaved || !state.player) return;
+  if (state.scoreSaved || !state.player) return null;
   state.scoreSaved = true;
   const data = loadRankingData();
   const multiplier = getScoreMultiplier(state.difficultyCode, state.gameMode);
-  const undoUsed = Math.max(0, 5 - state.undoLeft);
-  const score = calculateScore(state.elapsedSeconds, state.moves, multiplier, undoUsed);
-  data.entries.push({
+  const hintUsed = Math.max(0, 5 - state.hintLeft);
+  const score = calculateScore(state.elapsedSeconds, state.moves, multiplier, hintUsed);
+  const completedAt = new Date().toISOString();
+  const entry = {
     id: state.player.id,
     time: state.elapsedSeconds,
     moves: state.moves,
     score,
-    undoUsed,
+    hintUsed,
     multiplier,
     difficultyCode: state.difficultyCode,
     mode: state.gameMode,
-    completedAt: new Date().toISOString(),
-  });
-  data.entries.forEach(entry => {
-    if (!Number.isFinite(entry.score)) {
-      entry.multiplier = Number.isFinite(entry.multiplier) ? entry.multiplier : getScoreMultiplier(entry.difficultyCode || 'e1', entry.mode);
-      entry.undoUsed = Number.isInteger(entry.undoUsed) ? entry.undoUsed : 0;
-      entry.score = calculateScore(entry.time || 0, entry.moves || 0, entry.multiplier, entry.undoUsed);
+    completedAt,
+  };
+  data.entries.push(entry);
+  data.entries.forEach(item => {
+    if (!Number.isFinite(item.score)) {
+      item.multiplier = Number.isFinite(item.multiplier) ? item.multiplier : getScoreMultiplier(item.difficultyCode || 'e1', item.mode);
+      item.hintUsed = Number.isInteger(item.hintUsed) ? item.hintUsed : (Number.isInteger(item.undoUsed) ? item.undoUsed : 0);
+      item.score = calculateScore(item.time || 0, item.moves || 0, item.multiplier, item.hintUsed);
     }
   });
   data.entries.sort((a, b) => b.score - a.score || a.time - b.time || a.moves - b.moves);
+  const fullRankIndex = data.entries.findIndex(item => item.completedAt === completedAt && item.id === entry.id);
+  const cutoffEntry = data.entries[19] || null;
+  const shortage = fullRankIndex >= 20 && cutoffEntry ? Math.max(1, cutoffEntry.score - score + 1) : 0;
   data.entries = data.entries.slice(0, 20);
+  const rankIndex = data.entries.findIndex(item => item.completedAt === completedAt && item.id === entry.id);
+  const result = {
+    ...entry,
+    rank: rankIndex === -1 ? null : rankIndex + 1,
+    ranked: rankIndex !== -1,
+    rankingLimit: 20,
+    shortage,
+  };
   saveRankingData(data);
   updateClearProgress();
-  renderRankings();
+  submitScoreToServer(result);
+  return result;
 }
 
 
@@ -998,8 +1251,8 @@ function updateClearProgress() {
   saveCurrentProfile();
 }
 
-function calculateScore(time, moves, multiplier = 1, undoUsed = 0) {
-  const base = Math.max(100, 10000 - time * 10 - moves * 5 - undoUsed * 100);
+function calculateScore(time, moves, multiplier = 1, hintUsed = 0) {
+  const base = Math.max(100, 10000 - time * 10 - moves * 5 - hintUsed * 100);
   return Math.round(base * multiplier);
 }
 
@@ -1009,8 +1262,8 @@ function renderRankings() {
     entry.difficultyCode = entry.difficultyCode || 'e1';
     entry.mode = entry.mode === 'promotion' ? 'promotion' : 'normal';
     entry.multiplier = Number.isFinite(entry.multiplier) ? entry.multiplier : getScoreMultiplier(entry.difficultyCode, entry.mode);
-    entry.undoUsed = Number.isInteger(entry.undoUsed) ? entry.undoUsed : 0;
-    entry.score = Number.isFinite(entry.score) ? entry.score : calculateScore(entry.time || 0, entry.moves || 0, entry.multiplier, entry.undoUsed);
+    entry.hintUsed = Number.isInteger(entry.hintUsed) ? entry.hintUsed : (Number.isInteger(entry.undoUsed) ? entry.undoUsed : 0);
+    entry.score = Number.isFinite(entry.score) ? entry.score : calculateScore(entry.time || 0, entry.moves || 0, entry.multiplier, entry.hintUsed);
   });
   data.entries.sort((a, b) => b.score - a.score || a.time - b.time || a.moves - b.moves);
   const reset = getNextResetDate();
@@ -1025,8 +1278,8 @@ function renderRankings() {
 
   rankingList.innerHTML = data.entries.slice(0, 5).map((entry, index) => `
     <li>
-      <strong>${index + 1}. ${entry.id}</strong>
-      <span>${entry.score ?? calculateScore(entry.time || 0, entry.moves || 0, entry.multiplier || 1, entry.undoUsed || 0)}점 · ${entry.difficultyCode || 'e1'}${entry.mode === 'promotion' ? ' · 승급' : ''}${entry.undoUsed ? ` · ↶${entry.undoUsed}` : ''}</span>
+      <strong>${entry.id}</strong>
+      <span>${entry.score ?? calculateScore(entry.time || 0, entry.moves || 0, entry.multiplier || 1, entry.hintUsed || 0)}점 · ${entry.difficultyCode || 'e1'}${entry.mode === 'promotion' ? ' · 승급' : ''}${entry.hintUsed ? ` · 💡${entry.hintUsed}` : ''}</span>
     </li>
   `).join('');
 }
@@ -1045,50 +1298,6 @@ function snapshotState() {
     timerStarted: state.timerStarted,
     won: state.won,
   }));
-}
-
-function saveUndoState() {
-  saveUndoSnapshot(snapshotState());
-}
-
-function saveUndoSnapshot(snapshot) {
-  state.undoStack.push(snapshot);
-  if (state.undoStack.length > 20) state.undoStack.shift();
-}
-
-function undoMove() {
-  if (state.undoLeft <= 0) {
-    setStatus('이번 게임의 무르기 5회를 모두 사용했습니다.');
-    playSound('invalid');
-    return;
-  }
-  const previous = state.undoStack.pop();
-  if (!previous) {
-    setStatus('되돌릴 이동이 없습니다.');
-    playSound('invalid');
-    return;
-  }
-  state.freecells = previous.freecells;
-  state.foundations = previous.foundations;
-  state.tableau = previous.tableau;
-  state.moves = previous.moves;
-  state.elapsedSeconds = previous.elapsedSeconds;
-  state.timerStarted = previous.timerStarted;
-  state.won = previous.won;
-  if (!state.timerStarted) stopTimer();
-  if (state.timerStarted && !state.timerId) {
-    state.timerId = window.setInterval(() => {
-      state.elapsedSeconds += 1;
-      timerDisplay.textContent = formatTime(state.elapsedSeconds);
-      persistGameState();
-    }, 1000);
-  }
-  state.selected = null;
-  state.dragging = null;
-  state.undoLeft -= 1;
-  setStatus(`무르기 완료. 남은 무르기 ${state.undoLeft}회.`);
-  playSound('move');
-  render();
 }
 
 function toggleTutorial(forceOpen = null) {
@@ -1146,6 +1355,26 @@ function playSound(kind) {
   }
 }
 
+
+function showResultModal(result) {
+  if (!resultModal || !result) return;
+  resultTime.textContent = formatTime(result.time);
+  resultMoves.textContent = `${result.moves}`;
+  resultScore.textContent = `${result.score}점`;
+  const hintText = result.hintUsed ? ` · 힌트 ${result.hintUsed}회` : '';
+  const modeText = result.mode === 'promotion' ? ' · 승급전' : '';
+  resultRankText.textContent = result.ranked
+    ? `확인을 누르면 주간 랭킹 ${result.rank}위에 반영됩니다. ${result.difficultyCode}${modeText}${hintText}`
+    : `랭킹 TOP ${result.rankingLimit}까지 ${result.shortage}점 부족합니다. ${result.difficultyCode}${modeText}${hintText}`;
+  resultModal.hidden = false;
+}
+
+function confirmResultModal() {
+  if (resultModal) resultModal.hidden = true;
+  renderRankings();
+  setStatus('결과를 주간 랭킹에 반영했습니다.');
+}
+
 function checkWin() {
   const total = Object.values(state.foundations).reduce((sum, pile) => sum + pile.length, 0);
   if (total === 52) {
@@ -1154,7 +1383,8 @@ function checkWin() {
     if (!state.won) {
       state.won = true;
       stopTimer();
-      recordWeeklyScore();
+      const result = recordWeeklyScore();
+      showResultModal(result);
       playSound('win');
     }
   } else {
@@ -1168,11 +1398,16 @@ function setStatus(message) {
 
 initPlayer();
 renderRankings();
+refreshServerRankings();
+window.setInterval(() => {
+  if (state.timerStarted && !state.won) refreshServerRankings({ notify: true });
+}, 30000);
 updateSoundButton();
 
 $('newGameBtn').addEventListener('click', requestNewGame);
-$('autoBtn').addEventListener('click', autoMoveAces);
-undoBtn.addEventListener('click', undoMove);
+resultNewGameBtn.addEventListener('click', () => { confirmResultModal(); requestNewGame(); });
+resultCloseBtn.addEventListener('click', confirmResultModal);
+$('autoBtn').addEventListener('click', showHint);
 soundBtn.addEventListener('click', toggleSound);
 passwordToggleBtn.addEventListener('click', togglePasswordVisibility);
 signupForm.addEventListener('submit', handleSignup);
