@@ -53,6 +53,8 @@ const state = {
   difficultyCode: 'e1',
   serverLeader: null,
   lastRankNoticeAt: 0,
+  rankingTickerIndex: 0,
+  lastResult: null,
 };
 
 const $ = (id) => document.getElementById(id);
@@ -68,6 +70,7 @@ const playerIdEl = $('playerId');
 const playerPasswordEl = $('playerPassword');
 const passwordToggleBtn = $('passwordToggleBtn');
 const playerRankEl = $('playerRank');
+const rankingPanel = $('rankingPanel');
 const rankingResetText = $('rankingResetText');
 const rankingList = $('rankingList');
 const soundBtn = $('soundBtn');
@@ -86,6 +89,10 @@ const resultScore = $('resultScore');
 const resultRankText = $('resultRankText');
 const resultNewGameBtn = $('resultNewGameBtn');
 const resultCloseBtn = $('resultCloseBtn');
+const rankingModal = $('rankingModal');
+const rankingDetailList = $('rankingDetailList');
+const rankingDetailReset = $('rankingDetailReset');
+const rankingCloseBtn = $('rankingCloseBtn');
 let audioContext = null;
 
 function makeDeck() {
@@ -918,6 +925,8 @@ async function refreshServerRankings({ notify = false } = {}) {
     saveRankingData(data);
     maybeNotifyRankingChange(data.entries, notify);
     renderRankings();
+    renderRankingDetail();
+    refreshOpenResultMessage();
   } catch (error) {
     console.warn('Leaderboard refresh failed', error);
   }
@@ -1293,26 +1302,50 @@ function calculateScore(time, moves, multiplier = 1, hintUsed = 0) {
   return Math.round(base * multiplier);
 }
 
-function renderRankings() {
+function getRankedEntries(limit = Infinity) {
   const data = loadRankingData();
   data.entries.forEach(entry => normalizeRankingEntry(entry));
   data.entries.sort(compareRankingEntries);
+  return data.entries.slice(0, limit).map((entry, index) => ({ ...entry, rank: index + 1 }));
+}
+
+function getResetText() {
   const reset = getNextResetDate();
-  rankingResetText.textContent = `초기화 예정: ${reset.getFullYear()}-${String(reset.getMonth() + 1).padStart(2, '0')}-${String(reset.getDate()).padStart(2, '0')} 00:00`;
-  const myRankIndex = state.player ? data.entries.findIndex(entry => entry.id === state.player.id) : -1;
+  return `초기화 예정: ${reset.getFullYear()}-${String(reset.getMonth() + 1).padStart(2, '0')}-${String(reset.getDate()).padStart(2, '0')} 00:00`;
+}
+
+function formatRankingDate(value) {
+  if (!value) return '등록 시간 없음';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '등록 시간 없음';
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+}
+
+function getLeaderText() {
+  const [leader] = getRankedEntries(1);
+  return leader ? `현재 1위: ${leader.id} · ${leader.score}점` : '현재 1위 없음';
+}
+
+function renderRankings() {
+  const entries = getRankedEntries(20);
+  rankingResetText.textContent = getResetText();
+  const myRankIndex = state.player ? entries.findIndex(entry => entry.id === state.player.id) : -1;
   playerRankEl.textContent = myRankIndex === -1 ? 'MY -' : `MY ${myRankIndex + 1}위`;
 
-  if (!data.entries.length) {
-    rankingList.innerHTML = '';
+  if (!entries.length) {
+    rankingList.innerHTML = '<li class="empty-rank">랭킹 없음</li>';
     return;
   }
 
-  rankingList.innerHTML = data.entries.slice(0, 5).map((entry, index) => `
+  const topEntries = entries.slice(0, 5);
+  if (state.rankingTickerIndex >= topEntries.length) state.rankingTickerIndex = 0;
+  const entry = topEntries[state.rankingTickerIndex] || topEntries[0];
+  rankingList.innerHTML = `
     <li>
-      <strong>${entry.id}</strong>
-      <span>${entry.score ?? calculateScore(entry.time || 0, entry.moves || 0, entry.multiplier || 1, entry.hintUsed || 0)}점 · ${entry.difficultyCode || 'e1'}${entry.mode === 'promotion' ? ' · 승급' : ''}${entry.hintUsed ? ` · 💡${entry.hintUsed}` : ''}</span>
+      <strong>${entry.rank}위 ${entry.id}</strong>
+      <span>${entry.score}점 · ${entry.difficultyCode || 'e1'}${entry.mode === 'promotion' ? ' · 승급' : ''}${entry.hintUsed ? ` · 💡${entry.hintUsed}` : ''}</span>
     </li>
-  `).join('');
+  `;
 }
 
 function safeJsonParse(value) {
@@ -1387,27 +1420,70 @@ function playSound(kind) {
 }
 
 
+function getResultRankMessage(result) {
+  const hintText = result.hintUsed ? ` · 힌트 ${result.hintUsed}회` : '';
+  const modeText = result.mode === 'promotion' ? ' · 승급전' : '';
+  const leaderText = getLeaderText();
+  if (result.notBest) {
+    return `최고 점수까지 ${result.shortage}점 부족합니다. 이번 기록은 랭킹에 등록되지 않습니다. ${leaderText}. ${result.difficultyCode}${modeText}${hintText}`;
+  }
+  if (result.ranked) {
+    return `주간 랭킹 ${result.rank}위에 반영됐습니다. ${leaderText}. ${result.difficultyCode}${modeText}${hintText}`;
+  }
+  return `랭킹 TOP ${result.rankingLimit}까지 ${result.shortage}점 부족합니다. ${leaderText}. ${result.difficultyCode}${modeText}${hintText}`;
+}
+
 function showResultModal(result) {
   if (!resultModal || !result) return;
+  state.lastResult = result;
   resultTime.textContent = formatTime(result.time);
   resultMoves.textContent = `${result.moves}`;
   resultScore.textContent = `${result.score}점`;
-  const hintText = result.hintUsed ? ` · 힌트 ${result.hintUsed}회` : '';
-  const modeText = result.mode === 'promotion' ? ' · 승급전' : '';
-  if (result.notBest) {
-    resultRankText.textContent = `최고 점수까지 ${result.shortage}점 부족합니다. 이번 기록은 랭킹에 등록되지 않습니다. ${result.difficultyCode}${modeText}${hintText}`;
-  } else if (result.ranked) {
-    resultRankText.textContent = `주간 랭킹 ${result.rank}위에 반영됐습니다. ${result.difficultyCode}${modeText}${hintText}`;
-  } else {
-    resultRankText.textContent = `랭킹 TOP ${result.rankingLimit}까지 ${result.shortage}점 부족합니다. ${result.difficultyCode}${modeText}${hintText}`;
-  }
+  resultRankText.textContent = getResultRankMessage(result);
   resultModal.hidden = false;
+}
+
+function refreshOpenResultMessage() {
+  if (!resultModal || resultModal.hidden || !state.lastResult) return;
+  resultRankText.textContent = getResultRankMessage(state.lastResult);
 }
 
 function confirmResultModal() {
   if (resultModal) resultModal.hidden = true;
   renderRankings();
-  setStatus('클리어 완료 상태를 유지합니다.');
+  setStatus(`클리어 완료 상태를 유지합니다. ${getLeaderText()}.`);
+}
+
+function openRankingModal() {
+  if (!rankingModal) return;
+  renderRankingDetail();
+  rankingModal.hidden = false;
+}
+
+function closeRankingModal() {
+  if (rankingModal) rankingModal.hidden = true;
+}
+
+function renderRankingDetail() {
+  const entries = getRankedEntries(10);
+  rankingDetailReset.textContent = getResetText();
+  if (!entries.length) {
+    rankingDetailList.innerHTML = '<li><div class="ranking-detail-main">아직 등록된 주간 랭킹이 없습니다.</div></li>';
+    return;
+  }
+  rankingDetailList.innerHTML = entries.map(entry => `
+    <li>
+      <div class="ranking-detail-rank">${entry.rank}위</div>
+      <div class="ranking-detail-main">
+        <div class="ranking-detail-player">
+          <strong>${entry.id}</strong>
+          <span class="ranking-detail-score">${entry.score}점</span>
+        </div>
+        <div class="ranking-detail-meta">${formatTime(entry.time || 0)} · ${entry.moves || 0}수 · ${entry.difficultyCode || 'e1'}${entry.mode === 'promotion' ? ' · 승급' : ''}${entry.hintUsed ? ` · 힌트 ${entry.hintUsed}` : ''}</div>
+        <div class="ranking-detail-meta">등록: ${formatRankingDate(entry.completedAt)}</div>
+      </div>
+    </li>
+  `).join('');
 }
 
 function checkWin() {
@@ -1432,9 +1508,25 @@ function setStatus(message) {
   statusEl.textContent = message;
 }
 
+function handleBlankClick(event) {
+  if (!state.selected && !state.hintTarget) return;
+  if (event.target.closest('.card, .slot, .column, button, a, input, .player-card, .signup-panel, .tutorial, .result-card')) return;
+  state.selected = null;
+  state.hintTarget = null;
+  setStatus('선택을 해제했습니다.');
+  render();
+}
+
 initPlayer();
 renderRankings();
 refreshServerRankings();
+window.setInterval(() => {
+  const topCount = getRankedEntries(5).length;
+  if (topCount > 1) {
+    state.rankingTickerIndex = (state.rankingTickerIndex + 1) % topCount;
+    renderRankings();
+  }
+}, 2000);
 window.setInterval(() => {
   if (state.timerStarted && !state.won) refreshServerRankings({ notify: true });
 }, 30000);
@@ -1451,6 +1543,18 @@ signupCancelBtn.addEventListener('click', closePlayerEditor);
 document.querySelector('.player-card').addEventListener('click', (event) => {
   if (event.target === passwordToggleBtn) return;
   openPlayerEditor();
+});
+document.addEventListener('click', handleBlankClick);
+rankingPanel.addEventListener('click', openRankingModal);
+rankingPanel.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter' || event.key === ' ') {
+    event.preventDefault();
+    openRankingModal();
+  }
+});
+rankingCloseBtn.addEventListener('click', closeRankingModal);
+rankingModal.addEventListener('click', (event) => {
+  if (event.target === rankingModal) closeRankingModal();
 });
 tutorialBtn.addEventListener('click', () => toggleTutorial());
 tutorialCloseBtn.addEventListener('click', () => toggleTutorial(false));

@@ -329,6 +329,13 @@ button:disabled {
   border-radius: 16px;
   background: linear-gradient(135deg, rgba(255,209,102,.18), rgba(0,0,0,.14));
   box-shadow: none;
+  cursor: pointer;
+}
+.top-ranking:hover,
+.top-ranking:focus-visible {
+  border-color: rgba(255, 209, 102, .65);
+  outline: none;
+  background: linear-gradient(135deg, rgba(255,209,102,.24), rgba(0,0,0,.18));
 }
 .ranking-header {
   display: flex;
@@ -351,6 +358,10 @@ button:disabled {
   margin: 8px 0 0;
   padding-left: 22px;
 }
+.ranking-ticker {
+  padding-left: 0;
+  list-style: none;
+}
 .ranking-list li {
   padding: 6px 8px;
   border-radius: 10px;
@@ -361,6 +372,48 @@ button:disabled {
 .ranking-list strong { color: white; }
 .ranking-list span { float: right; color: var(--accent); font-weight: 800; }
 .empty-rank { list-style: none; margin-left: -24px; }
+.ranking-detail-card { width: min(520px, 100%); }
+.ranking-detail-list {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+  text-align: left;
+}
+.ranking-detail-list li {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px 12px;
+  padding: 10px 12px;
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: 14px;
+  background: rgba(0,0,0,.18);
+}
+.ranking-detail-rank {
+  color: var(--accent);
+  font-weight: 950;
+}
+.ranking-detail-main {
+  min-width: 0;
+}
+.ranking-detail-player {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  color: white;
+  font-weight: 900;
+}
+.ranking-detail-meta,
+.ranking-detail-reset {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+.ranking-detail-score {
+  color: var(--accent);
+  white-space: nowrap;
+}
 
 .tutorial {
   margin-top: 18px;
