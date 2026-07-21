@@ -393,7 +393,7 @@ button:disabled {
 }
 .ranking-ticker li {
   padding: 8px 10px;
-  text-align: left;
+  text-align: center;
 }
 .ranking-list strong { color: white; }
 .ranking-list span { float: right; color: var(--accent); font-weight: 800; }
@@ -401,6 +401,7 @@ button:disabled {
 .rank-line {
   display: flex;
   align-items: baseline;
+  justify-content: center;
   gap: 7px;
   min-width: 0;
   white-space: nowrap;
@@ -795,6 +796,7 @@ button:disabled {
   .rank-line {
     display: flex;
     align-items: baseline;
+    justify-content: flex-start;
     gap: 5px;
   }
   .rank-line strong {
