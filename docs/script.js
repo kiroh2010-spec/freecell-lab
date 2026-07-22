@@ -1700,6 +1700,22 @@ function challengePromotion() {
   setStatus(`승급전 시작: ${target.label}에 도전합니다. 클리어하면 승급됩니다.`);
 }
 
+function updateNoticeTicker() {
+  const bar = statusEl?.closest('.statusbar');
+  if (!bar || !statusEl) return;
+  bar.classList.remove('is-ticker');
+  statusEl.style.removeProperty('--notice-duration');
+  window.requestAnimationFrame(() => {
+    const viewport = statusEl.parentElement;
+    if (!viewport) return;
+    const overflow = statusEl.scrollWidth > viewport.clientWidth + 4;
+    bar.classList.toggle('is-ticker', overflow);
+    if (overflow) {
+      const duration = Math.min(22, Math.max(9, Math.round(statusEl.scrollWidth / 28)));
+      statusEl.style.setProperty('--notice-duration', `${duration}s`);
+    }
+  });
+}
 
 function setStatus(message) {
   statusEl.textContent = message;

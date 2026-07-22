@@ -31,7 +31,7 @@ js = src.read_text()
 js = js.replace("const promotionTestBtn = $('promotionTestBtn');\n", "")
 js = re.sub(r"\n  if \(result\.testPromotion\) \{\n    return `승급 테스트 완료입니다\.[\s\S]*?`;\n  \}\n", "\n", js)
 start = js.find("\nfunction runPromotionTest() {")
-end = js.find("\n\nfunction setStatus(message)", start)
+end = js.find("\nfunction updateNoticeTicker()", start)
 if start != -1 and end != -1:
     js = js[:start] + js[end:]
 js = js.replace("if (promotionTestBtn) promotionTestBtn.addEventListener('click', runPromotionTest);\n", "")
