@@ -864,7 +864,10 @@ function persistGameState() {
 
 function restoreSavedGame() {
   const saved = safeJsonParse(localStorage.getItem(STORAGE_KEYS.game));
-  if (!isValidSavedGame(saved)) return false;
+  if (!isValidSavedGame(saved)) {
+    localStorage.removeItem(STORAGE_KEYS.game);
+    return false;
+  }
 
   state.freecells = saved.freecells;
   state.foundations = saved.foundations;
@@ -894,14 +897,13 @@ function restoreSavedGame() {
 }
 
 function isValidSavedGame(saved) {
-  return Boolean(
-    saved &&
-    Array.isArray(saved.freecells) &&
-    saved.freecells.length === 4 &&
-    saved.foundations &&
-    Array.isArray(saved.tableau) &&
-    saved.tableau.length === 8
-  );
+  if (!saved || !Array.isArray(saved.freecells) || saved.freecells.length !== 4 || !saved.foundations || !Array.isArray(saved.tableau) || saved.tableau.length !== 8) {
+    return false;
+  }
+  const foundationCards = Object.values(saved.foundations).reduce((sum, pile) => sum + (Array.isArray(pile) ? pile.length : 0), 0);
+  const tableauCards = saved.tableau.reduce((sum, column) => sum + (Array.isArray(column) ? column.length : 0), 0);
+  const freecellCards = saved.freecells.filter(Boolean).length;
+  return foundationCards + tableauCards + freecellCards === 52;
 }
 
 function resumeTimer() {
