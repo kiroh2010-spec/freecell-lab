@@ -1,6 +1,6 @@
 {
   "devVersion": "0.8",
-  "alphaVersion": "0.2",
+  "alphaVersion": "0.3",
   "launchVersion": "1.0",
   "channels": {
     "dev": {
@@ -13,7 +13,7 @@
     "alpha": {
       "label": "알파",
       "description": "링크로 다른 사람이 테스트하는 공개 테스트 공간. 테스트 관련 기능/데이터는 UI와 코드에서 제거한다.",
-      "visibleLabel": "알파 v0.2",
+      "visibleLabel": "알파 v0.3",
       "allowTestTools": false,
       "public": true
     },
@@ -29,5 +29,9 @@
     "dev": "dev 버전은 로컬 작업판 기준으로 자유롭게 관리한다. 테스트 기능/테스트 데이터 유지.",
     "alpha": "팀장이 배포하자고 하면 alphaVersion을 0.1씩 올린다: 0.1, 0.2, 0.3...",
     "launch": "팀장이 런칭하자고 하면 launchVersion 1.0부터 시작하고 이후 1 단위로 올린다: 1.0, 2.0, 3.0..."
-  }
+  },
+  "channel": "alpha",
+  "buildId": "alpha-0-3",
+  "commit": "369b36d",
+  "builtAt": "2026-07-22T05:29:07.333518+00:00"
 }
