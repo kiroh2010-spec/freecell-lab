@@ -8,14 +8,18 @@ const ranks = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
 
 const RANKING_LIMIT = 50;
 const RANKING_TICKER_LIMIT = 5;
+const TIME_BONUS_TIERS = [
+  { seconds: 3 * 60, bonus: 200 },
+  { seconds: 4 * 60, bonus: 100 },
+  { seconds: 5 * 60, bonus: 50 },
+];
 
 const DIFFICULTY_TIERS = [
-  { code: 'e1', label: 'Easy 1', requiredClears: 0, multiplier: 1.00, totalMax: 6, minLow: 3, minMovable: 4 },
-  { code: 'e2', label: 'Easy 2', requiredClears: 3, multiplier: 1.05, totalMax: 12, minLow: 2, minMovable: 3 },
-  { code: 'n1', label: 'Normal 1', requiredClears: 6, multiplier: 1.15, totalMin: 6, totalMax: 18, minLow: 2, minMovable: 3 },
-  { code: 'n2', label: 'Normal 2', requiredClears: 10, multiplier: 1.25, totalMin: 10, totalMax: 24, minLow: 1, minMovable: 2 },
-  { code: 'n3', label: 'Normal 3', requiredClears: 15, multiplier: 1.40, totalMin: 16, totalMax: 32, minLow: 1, minMovable: 2 },
+  { code: 'e1', label: 'Run', displayName: 'Run', requiredClears: 0, multiplier: 1.00, totalMax: 6, minLow: 3, minMovable: 4 },
+  { code: 'e2', label: 'Rank', displayName: 'Rank', requiredClears: 3, multiplier: 1.08, totalMax: 12, minLow: 2, minMovable: 3 },
+  { code: 'n1', label: 'Duel', displayName: 'Duel', requiredClears: 6, multiplier: 1.20, totalMin: 6, totalMax: 18, minLow: 2, minMovable: 3 },
 ];
+const RETIRED_DIFFICULTY_CODE_MAP = { n2: 'n1', n3: 'n1' };
 
 
 const STORAGE_KEYS = {
@@ -51,6 +55,7 @@ const state = {
   passwordVisible: false,
   isEditingPlayer: false,
   hintLeft: 5,
+  hintAllowance: 5,
   hintTarget: null,
   gameMode: 'normal',
   difficultyCode: 'e1',
@@ -70,11 +75,12 @@ const timerDisplay = $('timerDisplay');
 const hintHud = $('hintHud');
 const versionLabel = $('versionLabel');
 const playerIdEl = $('playerId');
-const playerPasswordEl = $('playerPassword');
 const passwordToggleBtn = $('passwordToggleBtn');
+const signupSaveBtn = $('signupSaveBtn');
 const playerRankEl = $('playerRank');
 const playerTrophyEl = $('playerTrophy');
 const playerDifficultyEl = $('playerDifficulty');
+const promotionBtn = $('promotionBtn');
 const rankingPanel = $('rankingPanel');
 const rankingResetText = $('rankingResetText');
 const rankingList = $('rankingList');
@@ -91,8 +97,21 @@ const resultModal = $('resultModal');
 const resultTime = $('resultTime');
 const resultMoves = $('resultMoves');
 const resultScore = $('resultScore');
+const resultPromotionText = $('resultPromotionText');
 const resultRankText = $('resultRankText');
 const resultCloseBtn = $('resultCloseBtn');
+const promotionNotice = $('promotionNotice');
+const promotionNoticeKicker = $('promotionNoticeKicker');
+const promotionNoticeTitle = $('promotionNoticeTitle');
+const promotionNoticeText = $('promotionNoticeText');
+const promotionNoticeBtn = $('promotionNoticeBtn');
+const promotionModal = $('promotionModal');
+const promotionModalTitle = $('promotionModalTitle');
+const promotionModalText = $('promotionModalText');
+const promotionBenefitText = $('promotionBenefitText');
+const promotionCautionText = $('promotionCautionText');
+const promotionCancelBtn = $('promotionCancelBtn');
+const promotionChallengeBtn = $('promotionChallengeBtn');
 const rankingModal = $('rankingModal');
 const rankingDetailList = $('rankingDetailList');
 const rankingDetailReset = $('rankingDetailReset');
@@ -131,22 +150,24 @@ function newGame({ clearSaved = true, mode = 'normal', difficultyCode = null } =
   state.timerStarted = false;
   state.scoreSaved = false;
   stopTimer();
-  state.hintLeft = 5;
-  state.hintTarget = null;
   state.gameMode = mode;
-  state.difficultyCode = difficultyCode || getActiveDifficultyCode();
+  state.difficultyCode = normalizeDifficultyCode(difficultyCode || getActiveDifficultyCode());
+  state.hintAllowance = getHintAllowance(state.difficultyCode);
+  state.hintLeft = state.hintAllowance;
+  state.hintTarget = null;
   if (clearSaved) localStorage.removeItem(STORAGE_KEYS.game);
 
   const dealScore = dealGame(state.difficultyCode);
   const tier = getDifficultyTier(state.difficultyCode);
   setStatus(mode === 'promotion'
-    ? `승급전 시작! ${tier.label} 난이도에 도전합니다. 클리어하면 승급하고 점수 배수가 올라갑니다.`
-    : `${tier.label} 난이도입니다. 바로 Foundation에 보낼 수 있는 A 카드가 준비됐습니다.`);
+    ? `승급전 시작! ${tier.label}에 도전합니다. 클리어하면 즉시 승급됩니다.`
+    : `${tier.label} 단계입니다. 바로 Foundation에 보낼 수 있는 A 카드가 준비됐습니다.`);
   render();
 }
 
 
 function dealGame(difficultyCode = 'e1') {
+  difficultyCode = normalizeDifficultyCode(difficultyCode);
   const tier = getDifficultyTier(difficultyCode);
   const isHarderTier = difficultyCode.startsWith('n');
   const maxAttempts = isHarderTier ? 180 : 120;
@@ -216,12 +237,19 @@ function isDealInDifficulty(score, tier) {
     score.total <= totalMax;
 }
 
+function normalizeDifficultyCode(code) {
+  const normalized = RETIRED_DIFFICULTY_CODE_MAP[code] || code;
+  return DIFFICULTY_TIERS.some(tier => tier.code === normalized) ? normalized : DIFFICULTY_TIERS[0].code;
+}
+
 function getDifficultyTier(code) {
-  return DIFFICULTY_TIERS.find(tier => tier.code === code) || DIFFICULTY_TIERS[0];
+  const normalized = normalizeDifficultyCode(code);
+  return DIFFICULTY_TIERS.find(tier => tier.code === normalized) || DIFFICULTY_TIERS[0];
 }
 
 function getDifficultyTierIndex(code) {
-  const index = DIFFICULTY_TIERS.findIndex(tier => tier.code === code);
+  const normalized = normalizeDifficultyCode(code);
+  const index = DIFFICULTY_TIERS.findIndex(tier => tier.code === normalized);
   return index === -1 ? 0 : index;
 }
 
@@ -241,21 +269,74 @@ function getScoreMultiplier(code, mode = 'normal') {
   return tier.multiplier + (mode === 'promotion' ? 0.10 : 0);
 }
 
+function getHintAllowance(code = state.difficultyCode) {
+  return normalizeDifficultyCode(code) === 'n1' ? 6 : 5;
+}
+
+function getFreeHintAllowance(code = state.difficultyCode) {
+  return normalizeDifficultyCode(code) === 'n1' ? 1 : 0;
+}
+
+function getChargedHintUsed(hintLeft = state.hintLeft, code = state.difficultyCode) {
+  const used = Math.max(0, getHintAllowance(code) - hintLeft);
+  return Math.max(0, used - getFreeHintAllowance(code));
+}
+
 function renderVersionLabel() {
   if (!versionLabel) return;
   versionLabel.textContent = '초안 v0.8';
   renderPlayerDifficulty();
 }
 
-function formatDifficultyCode(code = state.difficultyCode) {
-  const prefix = state.gameMode === 'promotion' ? 'P' : '';
-  return `${prefix}${String(code || 'e1').toUpperCase()}`;
+function formatDifficultyCode(code = state.difficultyCode, mode = state.gameMode) {
+  const tier = getDifficultyTier(code);
+  const name = tier.displayName || tier.label;
+  return mode === 'promotion' ? `${name} 승급전` : name;
 }
 
 function renderPlayerDifficulty() {
   if (!playerDifficultyEl) return;
   playerDifficultyEl.textContent = formatDifficultyCode();
+  renderPromotionButton();
 }
+
+function renderPromotionButton() {
+  if (!promotionBtn) return;
+  const nextTier = getPromotionTarget(loadStats());
+  const isReady = Boolean(nextTier) && state.gameMode !== 'promotion';
+  promotionBtn.disabled = !isReady;
+  promotionBtn.classList.toggle('is-ready', isReady);
+  promotionBtn.textContent = isReady ? `${nextTier.label} 승급` : '승급 준비';
+  promotionBtn.title = isReady
+    ? `${nextTier.label} 승급전에 도전할 수 있습니다.`
+    : '조건을 채우면 승급전이 열립니다.';
+}
+
+function renderPromotionNotice() {
+  if (promotionNotice) {
+    promotionNotice.hidden = true;
+    if (promotionNoticeBtn) promotionNoticeBtn.hidden = true;
+  }
+
+  if (state.gameMode === 'promotion') {
+    const tier = getDifficultyTier(state.difficultyCode);
+    if (state.won) {
+      setStatus(`승급 성공: ${tier.label} 해금 · 다음 새 게임부터 적용됩니다.`);
+    }
+    return;
+  }
+
+  const nextTier = getPromotionTarget(loadStats());
+  if (nextTier) {
+    setStatus(`${nextTier.label} 승급 가능 · 집중할 수 있을 때 승급 버튼을 눌러 도전하세요.`);
+    return;
+  }
+
+  if (normalizeDifficultyCode(state.difficultyCode) === 'n1') {
+    setStatus('Duel 혜택 적용 중 · 첫 힌트 1회는 점수 차감이 없습니다.');
+  }
+}
+
 
 function getRankTrophy(rank) {
   if (rank === 1) return '🥇';
@@ -331,6 +412,7 @@ function render() {
   hintHud.textContent = state.hintLeft;
   timerDisplay.textContent = formatTime(state.elapsedSeconds);
   renderVersionLabel();
+  renderPromotionNotice();
   $('autoBtn').textContent = `힌트 ${state.hintLeft}`;
   $('autoBtn').disabled = state.hintLeft <= 0;
   checkWin();
@@ -649,7 +731,7 @@ function isSameLocation(a, b) {
 
 function showHint() {
   if (state.hintLeft <= 0) {
-    setStatus('이번 게임의 힌트 5회를 모두 사용했습니다.');
+    setStatus(`이번 게임의 힌트 ${state.hintAllowance}회를 모두 사용했습니다.`);
     playSound('invalid');
     return;
   }
@@ -667,7 +749,9 @@ function showHint() {
   state.hintLeft -= 1;
   state.selected = hint.from;
   state.hintTarget = hint.to;
-  setStatus(`힌트: ${hint.cardLabel} → ${hint.targetLabel}. 직접 이동해보세요. 남은 힌트 ${state.hintLeft}회.`);
+  const chargedHintUsed = getChargedHintUsed();
+  const freeHintText = getFreeHintAllowance() && chargedHintUsed === 0 ? ' Duel 무료 힌트 적용 중.' : '';
+  setStatus(`힌트: ${hint.cardLabel} → ${hint.targetLabel}. 직접 이동해보세요. 남은 힌트 ${state.hintLeft}회.${freeHintText}`);
   playSound('move');
   render();
 }
@@ -770,6 +854,7 @@ function persistGameState() {
     won: state.won,
     scoreSaved: state.scoreSaved,
     hintLeft: state.hintLeft,
+    hintAllowance: state.hintAllowance,
     gameMode: state.gameMode,
     difficultyCode: state.difficultyCode,
     status: statusEl.textContent,
@@ -791,10 +876,11 @@ function restoreSavedGame() {
   state.timerStarted = Boolean(saved.timerStarted && !saved.won);
   state.won = Boolean(saved.won);
   state.scoreSaved = Boolean(saved.scoreSaved);
-  state.hintLeft = Number.isInteger(saved.hintLeft) ? saved.hintLeft : 5;
-  state.hintTarget = null;
   state.gameMode = saved.gameMode === 'promotion' ? 'promotion' : 'normal';
-  state.difficultyCode = typeof saved.difficultyCode === 'string' ? saved.difficultyCode : getActiveDifficultyCode();
+  state.difficultyCode = typeof saved.difficultyCode === 'string' ? normalizeDifficultyCode(saved.difficultyCode) : getActiveDifficultyCode();
+  state.hintAllowance = Number.isInteger(saved.hintAllowance) ? saved.hintAllowance : getHintAllowance(state.difficultyCode);
+  state.hintLeft = Number.isInteger(saved.hintLeft) ? Math.min(saved.hintLeft, state.hintAllowance) : state.hintAllowance;
+  state.hintTarget = null;
 
   if (state.timerStarted && saved.savedAt) {
     const deltaSeconds = Math.max(0, Math.floor((Date.now() - saved.savedAt) / 1000));
@@ -972,7 +1058,7 @@ function maybeNotifyRankingChange(entries, notify) {
     return;
   }
 
-  const hintUsed = Math.max(0, 5 - state.hintLeft);
+  const hintUsed = getChargedHintUsed();
   const projectedScore = calculateScore(
     state.elapsedSeconds,
     state.moves,
@@ -989,15 +1075,11 @@ function maybeNotifyRankingChange(entries, notify) {
 function requestNewGame() {
   const stats = loadStats();
   stats.gamesStarted += 1;
-  const promotionTarget = getPromotionTarget(stats);
   saveStats(stats);
-
-  if (promotionTarget) {
-    newGame({ clearSaved: true, mode: 'promotion', difficultyCode: promotionTarget.code });
-    return;
-  }
-
   newGame({ clearSaved: true, mode: 'normal', difficultyCode: DIFFICULTY_TIERS[stats.difficultyIndex].code });
+  if (getPromotionTarget(stats)) {
+    setStatus('승급전이 준비되어 있습니다. 집중할 수 있을 때 승급 버튼을 눌러 도전하세요.');
+  }
 }
 
 function loadStats() {
@@ -1032,15 +1114,15 @@ function initPlayer() {
 }
 
 function renderPlayerPassword() {
-  if (!playerPasswordEl) return;
-  if (!state.player) return;
-  passwordToggleBtn.disabled = false;
-  playerPasswordEl.textContent = state.passwordVisible ? state.player.password : '••••••';
-  passwordToggleBtn.textContent = state.passwordVisible ? '숨김' : '보기';
+  if (!passwordToggleBtn || !signupPasswordInput) return;
+  signupPasswordInput.type = state.passwordVisible ? 'text' : 'password';
+  passwordToggleBtn.textContent = state.passwordVisible ? '🙈' : '👁';
   passwordToggleBtn.setAttribute('aria-pressed', String(state.passwordVisible));
+  passwordToggleBtn.setAttribute('aria-label', state.passwordVisible ? '비밀번호 숨기기' : '비밀번호 보기');
 }
 
-function togglePasswordVisibility() {
+function togglePasswordVisibility(event) {
+  event?.stopPropagation();
   state.passwordVisible = !state.passwordVisible;
   renderPlayerPassword();
 }
@@ -1048,10 +1130,15 @@ function togglePasswordVisibility() {
 
 function renderSignupPanel() {
   signupPanel.hidden = !state.isEditingPlayer;
-  if (state.isEditingPlayer && state.player) {
-    signupIdInput.value = state.player.id;
-    signupPasswordInput.value = state.player.password;
-  }
+  if (!state.isEditingPlayer || !state.player) return;
+  const readOnly = Boolean(state.player.editUsed);
+  signupIdInput.value = state.player.id;
+  signupPasswordInput.value = state.player.password;
+  signupIdInput.readOnly = readOnly;
+  signupPasswordInput.readOnly = readOnly;
+  signupSaveBtn.disabled = readOnly;
+  signupSaveBtn.textContent = readOnly ? '저장 완료' : '저장';
+  renderPlayerPassword();
 }
 
 function createAutoPlayer() {
@@ -1096,18 +1183,17 @@ function saveCurrentProfile() {
 }
 
 function openPlayerEditor() {
-  if (state.player?.editUsed) {
-    setStatus('ID/PW 변경은 최초 1회만 가능합니다. 이미 변경을 사용했습니다.');
-    playSound('invalid');
-    return;
-  }
   state.isEditingPlayer = true;
+  state.passwordVisible = false;
   renderSignupPanel();
-  setStatus('ID/PW 변경은 최초 1회만 가능합니다. 신중하게 저장해주세요.');
+  setStatus(state.player?.editUsed
+    ? '플레이어 정보 보기입니다. ID/PW 변경은 이미 사용했습니다.'
+    : 'ID/PW 변경은 최초 1회만 가능합니다. 신중하게 저장해주세요.');
 }
 
 function closePlayerEditor() {
   state.isEditingPlayer = false;
+  state.passwordVisible = false;
   renderSignupPanel();
 }
 
@@ -1236,7 +1322,7 @@ function recordWeeklyScore() {
   state.scoreSaved = true;
   const data = loadRankingData();
   const multiplier = getScoreMultiplier(state.difficultyCode, state.gameMode);
-  const hintUsed = Math.max(0, 5 - state.hintLeft);
+  const hintUsed = getChargedHintUsed();
   const score = calculateScore(state.elapsedSeconds, state.moves, multiplier, hintUsed);
   const completedAt = new Date().toISOString();
   const entry = {
@@ -1296,7 +1382,7 @@ function recordWeeklyScore() {
 }
 
 function normalizeRankingEntry(entry) {
-  entry.difficultyCode = entry.difficultyCode || 'e1';
+  entry.difficultyCode = normalizeDifficultyCode(entry.difficultyCode || 'e1');
   entry.mode = entry.mode === 'promotion' ? 'promotion' : 'normal';
   entry.multiplier = Number.isFinite(entry.multiplier) ? entry.multiplier : getScoreMultiplier(entry.difficultyCode, entry.mode);
   entry.hintUsed = Number.isInteger(entry.hintUsed) ? entry.hintUsed : (Number.isInteger(entry.undoUsed) ? entry.undoUsed : 0);
@@ -1315,14 +1401,19 @@ function updateClearProgress() {
     const promotedIndex = getDifficultyTierIndex(state.difficultyCode);
     stats.difficultyIndex = Math.max(stats.difficultyIndex, promotedIndex);
     const tier = getDifficultyTier(state.difficultyCode);
-    setStatus(`승급 성공! 이제 ${tier.label} 난이도로 진행합니다.`);
+    setStatus(`승급 성공: ${tier.label} 해금 · 다음 새 게임부터 적용됩니다.`);
   }
   saveStats(stats);
   saveCurrentProfile();
 }
 
+function getTimeBonus(time) {
+  const tier = TIME_BONUS_TIERS.find(item => time <= item.seconds);
+  return tier?.bonus ?? 0;
+}
+
 function calculateScore(time, moves, multiplier = 1, hintUsed = 0) {
-  const base = Math.max(100, 10000 - time * 10 - moves * 5 - hintUsed * 100);
+  const base = Math.max(100, 10000 - moves * 5 - hintUsed * 100 + getTimeBonus(time));
   return Math.round(base * multiplier);
 }
 
@@ -1355,7 +1446,7 @@ function renderRankings() {
   rankingResetText.textContent = getResetText();
   const myRankIndex = state.player ? entries.findIndex(entry => entry.id === state.player.id) : -1;
   const myRank = myRankIndex === -1 ? null : myRankIndex + 1;
-  playerRankEl.textContent = myRank ? `MY ${myRank}위` : 'MY -';
+  playerRankEl.textContent = myRank ? `내 랭크 ${myRank}위` : '내 랭크 -';
   if (playerTrophyEl) playerTrophyEl.textContent = getRankTrophy(myRank);
   renderPlayerDifficulty();
 
@@ -1368,9 +1459,9 @@ function renderRankings() {
   const chasingEntries = entries.slice(1, RANKING_TICKER_LIMIT);
   if (state.rankingTickerIndex >= chasingEntries.length) state.rankingTickerIndex = 0;
   const chasing = chasingEntries[state.rankingTickerIndex] || null;
-  const leaderMeta = `${leader.difficultyCode || 'e1'}${leader.mode === 'promotion' ? ' · 승급' : ''}${leader.hintUsed ? ` · 💡${leader.hintUsed}` : ''}`;
+  const leaderMeta = `${formatDifficultyCode(leader.difficultyCode, leader.mode)}${leader.hintUsed ? ` · 💡${leader.hintUsed}` : ''}`;
   const chasingMeta = chasing
-    ? `${chasing.difficultyCode || 'e1'}${chasing.mode === 'promotion' ? ' · 승급' : ''}${chasing.hintUsed ? ` · 💡${chasing.hintUsed}` : ''}`
+    ? `${formatDifficultyCode(chasing.difficultyCode, chasing.mode)}${chasing.hintUsed ? ` · 💡${chasing.hintUsed}` : ''}`
     : '';
   rankingList.innerHTML = `
     <li class="rank-line rank-leader">
@@ -1460,22 +1551,34 @@ function playSound(kind) {
 }
 
 
+function getPromotionResultMessage(result) {
+  if (!result || result.mode !== 'promotion') return '';
+  const tier = getDifficultyTier(result.difficultyCode);
+  const benefit = normalizeDifficultyCode(result.difficultyCode) === 'n1' ? ' · Duel 무료 힌트 1회' : '';
+  return `승급 성공: ${tier.label} 해금${benefit}`;
+}
+
 function getResultRankMessage(result) {
   const hintText = result.hintUsed ? ` · 힌트 ${result.hintUsed}회` : '';
-  const modeText = result.mode === 'promotion' ? ' · 승급전' : '';
+  const modeText = '';
   const leaderText = getLeaderText();
   if (result.notBest) {
-    return `최고 점수까지 ${result.shortage}점 부족합니다. 이번 기록은 랭킹에 등록되지 않습니다. ${leaderText}. ${result.difficultyCode}${modeText}${hintText}`;
+    return `최고 점수까지 ${result.shortage}점 부족합니다. 이번 기록은 랭킹에 등록되지 않습니다. ${leaderText}. ${formatDifficultyCode(result.difficultyCode, result.mode)}${modeText}${hintText}`;
   }
   if (result.ranked) {
-    return `주간 랭킹 ${result.rank}위에 반영됐습니다. ${leaderText}. ${result.difficultyCode}${modeText}${hintText}`;
+    return `주간 랭킹 ${result.rank}위에 반영됐습니다. ${leaderText}. ${formatDifficultyCode(result.difficultyCode, result.mode)}${modeText}${hintText}`;
   }
-  return `랭킹 TOP ${result.rankingLimit}까지 ${result.shortage}점 부족합니다. ${leaderText}. ${result.difficultyCode}${modeText}${hintText}`;
+  return `랭킹 TOP ${result.rankingLimit}까지 ${result.shortage}점 부족합니다. ${leaderText}. ${formatDifficultyCode(result.difficultyCode, result.mode)}${modeText}${hintText}`;
 }
 
 function showResultModal(result) {
   if (!resultModal || !result) return;
   state.lastResult = result;
+  const promotionMessage = getPromotionResultMessage(result);
+  if (resultPromotionText) {
+    resultPromotionText.hidden = !promotionMessage;
+    resultPromotionText.textContent = promotionMessage;
+  }
   resultTime.textContent = formatTime(result.time);
   resultMoves.textContent = `${result.moves}`;
   resultScore.textContent = `${result.score}점`;
@@ -1485,6 +1588,11 @@ function showResultModal(result) {
 
 function refreshOpenResultMessage() {
   if (!resultModal || resultModal.hidden || !state.lastResult) return;
+  if (resultPromotionText) {
+    const promotionMessage = getPromotionResultMessage(state.lastResult);
+    resultPromotionText.hidden = !promotionMessage;
+    resultPromotionText.textContent = promotionMessage;
+  }
   resultRankText.textContent = getResultRankMessage(state.lastResult);
 }
 
@@ -1519,7 +1627,7 @@ function renderRankingDetail() {
           <strong>${entry.id}</strong>
           <span class="ranking-detail-score">${entry.score}점</span>
         </div>
-        <div class="ranking-detail-meta">${formatTime(entry.time || 0)} · ${entry.moves || 0}수 · ${entry.difficultyCode || 'e1'}${entry.mode === 'promotion' ? ' · 승급' : ''}${entry.hintUsed ? ` · 힌트 ${entry.hintUsed}` : ''}</div>
+        <div class="ranking-detail-meta">${formatTime(entry.time || 0)} · ${entry.moves || 0}수 · ${formatDifficultyCode(entry.difficultyCode, entry.mode)}${entry.hintUsed ? ` · 힌트 ${entry.hintUsed}` : ''}</div>
         <div class="ranking-detail-meta">등록: ${formatRankingDate(entry.completedAt)}</div>
       </div>
     </li>
@@ -1544,8 +1652,58 @@ function checkWin() {
   }
 }
 
+function getPromotionModalTexts(tier) {
+  const nextIndex = getDifficultyTierIndex(tier.code) + 1;
+  const nextTier = DIFFICULTY_TIERS[nextIndex] || null;
+  const benefits = [`${tier.label} 단계 해금`, `점수 배수 ${tier.multiplier.toFixed(2)}x`, '승급전 보너스 +0.10x'];
+  if (normalizeDifficultyCode(tier.code) === 'n1') benefits.push('Duel 무료 힌트 1회');
+  if (nextTier) benefits.push(`다음 목표: ${nextTier.label}`);
+  return {
+    title: `${tier.label} 승급전`,
+    text: `지금 도전하면 클리어 시 ${tier.label}로 승급합니다. 집중할 수 있을 때 시작하세요.`,
+    benefit: benefits.join(' · '),
+    caution: '일반 판보다 어려울 수 있습니다. 취소해도 승급 자격은 유지됩니다.',
+  };
+}
+
+function openPromotionModal() {
+  const target = getPromotionTarget(loadStats());
+  if (!target) {
+    setStatus('아직 승급 조건을 채우는 중입니다. 클리어를 쌓으면 승급전이 열립니다.');
+    renderPromotionButton();
+    return;
+  }
+  const texts = getPromotionModalTexts(target);
+  promotionModalTitle.textContent = texts.title;
+  promotionModalText.textContent = texts.text;
+  promotionBenefitText.textContent = texts.benefit;
+  promotionCautionText.textContent = texts.caution;
+  promotionModal.hidden = false;
+}
+
+function closePromotionModal() {
+  if (!promotionModal) return;
+  promotionModal.hidden = true;
+  setStatus('승급전은 준비되어 있습니다. 집중할 수 있을 때 도전하세요.');
+  renderPromotionNotice();
+  renderPromotionButton();
+}
+
+function challengePromotion() {
+  const target = getPromotionTarget(loadStats());
+  if (!target) {
+    closePromotionModal();
+    return;
+  }
+  promotionModal.hidden = true;
+  newGame({ clearSaved: true, mode: 'promotion', difficultyCode: target.code });
+  setStatus(`승급전 시작: ${target.label}에 도전합니다. 클리어하면 승급됩니다.`);
+}
+
+
 function setStatus(message) {
   statusEl.textContent = message;
+  updateNoticeTicker();
 }
 
 function handleBlankClick(event) {
@@ -1575,12 +1733,19 @@ updateSoundButton();
 $('newGameBtn').addEventListener('click', requestNewGame);
 resultCloseBtn.addEventListener('click', confirmResultModal);
 $('autoBtn').addEventListener('click', showHint);
+if (promotionBtn) promotionBtn.addEventListener('click', (event) => { event.stopPropagation(); openPromotionModal(); });
+if (promotionNoticeBtn) promotionNoticeBtn.addEventListener('click', (event) => { event.stopPropagation(); openPromotionModal(); });
+if (promotionCancelBtn) promotionCancelBtn.addEventListener('click', closePromotionModal);
+if (promotionChallengeBtn) promotionChallengeBtn.addEventListener('click', challengePromotion);
+if (promotionModal) promotionModal.addEventListener('click', (event) => {
+  if (event.target === promotionModal) closePromotionModal();
+});
 soundBtn.addEventListener('click', toggleSound);
 passwordToggleBtn.addEventListener('click', togglePasswordVisibility);
 signupForm.addEventListener('submit', handleSignup);
-signupCancelBtn.addEventListener('click', closePlayerEditor);
+signupCancelBtn.addEventListener('click', (event) => { event.stopPropagation(); closePlayerEditor(); });
 document.querySelector('.player-card').addEventListener('click', (event) => {
-  if (event.target === passwordToggleBtn) return;
+  if (event.target.closest('button')) return;
   openPlayerEditor();
 });
 document.addEventListener('click', handleBlankClick);
