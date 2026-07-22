@@ -165,23 +165,29 @@ function newGame({ clearSaved = true, mode = 'normal', difficultyCode = null } =
   if (promotionFailModal) promotionFailModal.hidden = true;
   if (clearSaved) localStorage.removeItem(STORAGE_KEYS.game);
 
-  const dealScore = dealGame(state.difficultyCode);
+  const dealDifficultyCode = getDealDifficultyCode(state.difficultyCode, mode);
+  const dealTier = getDealTier(state.difficultyCode, mode);
+  const dealScore = dealGame(dealDifficultyCode, dealTier);
   const tier = getDifficultyTier(state.difficultyCode);
   const transition = mode === 'promotion' ? getPromotionTransitionByTargetCode(state.difficultyCode) : null;
+  const visibleDealTier = getDifficultyTier(dealDifficultyCode);
+  const gentlerPromotionText = mode === 'promotion' && dealDifficultyCode !== state.difficultyCode
+    ? ` 판은 ${visibleDealTier.label} 기준으로 준비했습니다.`
+    : '';
   setStatus(mode === 'promotion'
-    ? `승급전 시작! ${transition.label}에 도전합니다. 클리어하면 즉시 승급됩니다.`
+    ? `승급전 시작! ${transition.label}에 도전합니다.${gentlerPromotionText} 클리어하면 즉시 승급됩니다.`
     : `${tier.label} 단계입니다. 바로 Foundation에 보낼 수 있는 A 카드가 준비됐습니다.`);
   render();
 }
 
 
-function dealGame(difficultyCode = 'e1') {
+function dealGame(difficultyCode = 'e1', tierOverride = null) {
   difficultyCode = normalizeDifficultyCode(difficultyCode);
-  const tier = getDifficultyTier(difficultyCode);
+  const tier = tierOverride || getDifficultyTier(difficultyCode);
   const isHarderTier = difficultyCode.startsWith('n');
-  const maxAttempts = isHarderTier ? 180 : 120;
+  const maxAttempts = tier.promotionFriendly ? 800 : (isHarderTier ? 180 : 300);
   let bestDeal = null;
-  let bestScore = isHarderTier ? -Infinity : Infinity;
+  let bestFit = -Infinity;
 
   for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
     const candidate = Array.from({ length: 8 }, () => []);
@@ -196,13 +202,9 @@ function dealGame(difficultyCode = 'e1') {
       return score;
     }
 
-    if (isHarderTier) {
-      if (score.total > bestScore) {
-        bestScore = score.total;
-        bestDeal = candidate;
-      }
-    } else if (score.total < bestScore) {
-      bestScore = score.total;
+    const fit = getDealFitScore(score, tier, isHarderTier);
+    if (fit > bestFit) {
+      bestFit = fit;
       bestDeal = candidate;
     }
   }
@@ -239,11 +241,24 @@ function evaluateDeal(tableau) {
 function isDealInDifficulty(score, tier) {
   const totalMin = tier.totalMin ?? -Infinity;
   const totalMax = tier.totalMax ?? Infinity;
-  return score.topAces >= 1 &&
+  const minAces = tier.minAces ?? 1;
+  return score.topAces >= minAces &&
     score.topLowCards >= tier.minLow &&
     score.movableTopCards >= tier.minMovable &&
     score.total >= totalMin &&
     score.total <= totalMax;
+}
+
+function getDealFitScore(score, tier, preferHarder = false) {
+  const totalMin = tier.totalMin ?? -Infinity;
+  const totalMax = tier.totalMax ?? Infinity;
+  const minAces = tier.minAces ?? 1;
+  const aceFit = Math.min(score.topAces, minAces) * 30;
+  const lowFit = Math.min(score.topLowCards, tier.minLow) * 12;
+  const movableFit = Math.min(score.movableTopCards, tier.minMovable) * 16;
+  const totalPenalty = score.total < totalMin ? totalMin - score.total : Math.max(0, score.total - totalMax);
+  const difficultyBias = preferHarder ? score.total : -Math.max(0, score.total);
+  return aceFit + lowFit + movableFit + difficultyBias - totalPenalty * 3;
 }
 
 function normalizeDifficultyCode(code) {
@@ -300,6 +315,30 @@ function getPromotionTransitionByTargetCode(targetCode) {
 function getScoreMultiplier(code, mode = 'normal') {
   const tier = getDifficultyTier(code);
   return tier.multiplier + (mode === 'promotion' ? 0.10 : 0);
+}
+
+function getDealDifficultyCode(code = state.difficultyCode, mode = state.gameMode) {
+  const normalized = normalizeDifficultyCode(code);
+  if (mode !== 'promotion') return normalized;
+  const targetIndex = getDifficultyTierIndex(normalized);
+  const fromTier = DIFFICULTY_TIERS[Math.max(0, targetIndex - 1)] || DIFFICULTY_TIERS[0];
+  return fromTier.code;
+}
+
+function getDealTier(code = state.difficultyCode, mode = state.gameMode) {
+  const dealCode = getDealDifficultyCode(code, mode);
+  const tier = getDifficultyTier(dealCode);
+  if (mode === 'promotion' && normalizeDifficultyCode(code) === 'e2') {
+    return {
+      ...tier,
+      minAces: 2,
+      minLow: 5,
+      minMovable: 2,
+      totalMax: 10,
+      promotionFriendly: true,
+    };
+  }
+  return tier;
 }
 
 function getUndoAllowance(code = state.difficultyCode) {
