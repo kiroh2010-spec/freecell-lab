@@ -1480,3 +1480,21 @@ button:disabled {
     display: flex;
   }
 }
+
+.timer-hud.is-danger {
+  border-color: rgba(255, 76, 76, .95);
+  background: rgba(255, 76, 76, .18);
+  animation: promotion-time-danger .7s ease-in-out infinite alternate;
+}
+.timer-hud.is-danger span,
+.timer-hud.is-danger strong {
+  color: #ff4d4f;
+}
+.timer-hud.is-expired {
+  border-color: rgba(255, 76, 76, .75);
+  background: rgba(255, 76, 76, .12);
+}
+@keyframes promotion-time-danger {
+  from { box-shadow: 0 0 0 0 rgba(255, 76, 76, .22); filter: brightness(1); }
+  to { box-shadow: 0 0 0 5px rgba(255, 76, 76, .28); filter: brightness(1.18); }
+}

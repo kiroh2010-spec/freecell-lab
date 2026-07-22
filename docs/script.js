@@ -8,6 +8,8 @@ const ranks = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
 
 const RANKING_LIMIT = 50;
 const RANKING_TICKER_LIMIT = 5;
+const PROMOTION_TIME_LIMIT_SECONDS = 10 * 60;
+const PROMOTION_TIME_WARNING_SECONDS = 30;
 const TIME_BONUS_TIERS = [
   { seconds: 3 * 60, bonus: 200 },
   { seconds: 4 * 60, bonus: 100 },
@@ -46,6 +48,7 @@ const state = {
   dragging: null,
   soundEnabled: true,
   won: false,
+  promotionExpired: false,
   moves: 0,
   elapsedSeconds: 0,
   timerStarted: false,
@@ -145,6 +148,7 @@ function newGame({ clearSaved = true, mode = 'normal', difficultyCode = null } =
   state.selected = null;
   state.dragging = null;
   state.won = false;
+  state.promotionExpired = false;
   state.moves = 0;
   state.elapsedSeconds = 0;
   state.timerStarted = false;
@@ -443,7 +447,7 @@ function render() {
 
   moveHud.textContent = state.moves;
   hintHud.textContent = state.hintLeft;
-  timerDisplay.textContent = formatTime(state.elapsedSeconds);
+  updateTimerDisplay();
   renderVersionLabel();
   renderPromotionNotice();
   $('autoBtn').textContent = `힌트 ${state.hintLeft}`;
@@ -569,6 +573,11 @@ function moveSingleCard(from, to, message, soundKind = 'move') {
 }
 
 function handleCardClick(location) {
+  if (state.promotionExpired) {
+    setStatus('승급전 시간이 종료됐습니다. 다시 도전하려면 승급 버튼을 눌러주세요.');
+    playSound('invalid');
+    return;
+  }
   if (state.selected && !isSameLocation(state.selected, location)) {
     const targetCard = getCard(location);
     if (targetCard && handleTarget(location)) return;
@@ -590,6 +599,11 @@ function handleCardClick(location) {
 }
 
 function handleTarget(target) {
+  if (state.promotionExpired) {
+    setStatus('승급전 시간이 종료됐습니다. 다시 도전하려면 승급 버튼을 눌러주세요.');
+    playSound('invalid');
+    return false;
+  }
   if (!state.selected) {
     setStatus('먼저 이동할 카드를 선택하세요.');
     playSound('invalid');
@@ -624,7 +638,7 @@ function handleTarget(target) {
 }
 
 function canSelect(location) {
-  if (!location) return false;
+  if (state.promotionExpired || !location) return false;
   if (location.type === 'foundation') return false;
   if (location.type === 'freecell') return Boolean(state.freecells[location.index]);
   if (location.type === 'tableau') return isValidTableauSequence(location);
@@ -769,6 +783,11 @@ function isSameLocation(a, b) {
 }
 
 function showHint() {
+  if (state.promotionExpired) {
+    setStatus('승급전 시간이 종료됐습니다. 다시 도전하려면 승급 버튼을 눌러주세요.');
+    playSound('invalid');
+    return;
+  }
   if (state.hintLeft <= 0) {
     setStatus(`이번 게임의 힌트 ${state.hintAllowance}회를 모두 사용했습니다.`);
     playSound('invalid');
@@ -892,6 +911,7 @@ function persistGameState() {
     timerStarted: state.timerStarted,
     won: state.won,
     scoreSaved: state.scoreSaved,
+    promotionExpired: state.promotionExpired,
     hintLeft: state.hintLeft,
     hintAllowance: state.hintAllowance,
     gameMode: state.gameMode,
@@ -918,6 +938,7 @@ function restoreSavedGame() {
   state.timerStarted = Boolean(saved.timerStarted && !saved.won);
   state.won = Boolean(saved.won);
   state.scoreSaved = Boolean(saved.scoreSaved);
+  state.promotionExpired = Boolean(saved.promotionExpired);
   state.gameMode = saved.gameMode === 'promotion' ? 'promotion' : 'normal';
   state.difficultyCode = typeof saved.difficultyCode === 'string' ? normalizeDifficultyCode(saved.difficultyCode) : getActiveDifficultyCode();
   state.hintAllowance = Number.isInteger(saved.hintAllowance) ? saved.hintAllowance : getHintAllowance(state.difficultyCode);
@@ -928,8 +949,13 @@ function restoreSavedGame() {
     const deltaSeconds = Math.max(0, Math.floor((Date.now() - saved.savedAt) / 1000));
     state.elapsedSeconds += deltaSeconds;
   }
+  if (state.gameMode === 'promotion' && state.elapsedSeconds >= PROMOTION_TIME_LIMIT_SECONDS && !state.won) {
+    state.promotionExpired = true;
+    state.timerStarted = false;
+  }
 
   setStatus(saved.status || '저장된 게임을 이어서 진행합니다.');
+  if (state.promotionExpired) setStatus('승급전 시간 초과 · 10분 안에 클리어하지 못했습니다. 다시 도전하려면 승급 버튼을 눌러주세요.');
   render();
   if (state.timerStarted) resumeTimer();
   return true;
@@ -947,10 +973,11 @@ function isValidSavedGame(saved) {
 
 function resumeTimer() {
   stopTimer();
-  if (state.won || !state.timerStarted) return;
+  if (state.won || state.promotionExpired || !state.timerStarted) return;
   state.timerId = window.setInterval(() => {
     state.elapsedSeconds += 1;
-    timerDisplay.textContent = formatTime(state.elapsedSeconds);
+    updateTimerDisplay();
+    if (checkPromotionTimeLimit()) return;
     persistGameState();
   }, 1000);
 }
@@ -1290,11 +1317,12 @@ async function handleSignup(event) {
 }
 
 function startTimer() {
-  if (state.won || state.timerStarted) return;
+  if (state.won || state.promotionExpired || state.timerStarted) return;
   state.timerStarted = true;
   state.timerId = window.setInterval(() => {
     state.elapsedSeconds += 1;
-    timerDisplay.textContent = formatTime(state.elapsedSeconds);
+    updateTimerDisplay();
+    if (checkPromotionTimeLimit()) return;
     persistGameState();
   }, 1000);
 }
@@ -1302,6 +1330,46 @@ function startTimer() {
 function stopTimer() {
   if (state.timerId) window.clearInterval(state.timerId);
   state.timerId = null;
+}
+
+function isPromotionTimedMode() {
+  return state.gameMode === 'promotion' && !state.won && !state.promotionExpired;
+}
+
+function getPromotionTimeLeft() {
+  return Math.max(0, PROMOTION_TIME_LIMIT_SECONDS - state.elapsedSeconds);
+}
+
+function updateTimerDisplay() {
+  const timerHud = timerDisplay?.closest('.timer-hud');
+  const isTimed = state.gameMode === 'promotion' && !state.won;
+  const seconds = isTimed ? getPromotionTimeLeft() : state.elapsedSeconds;
+  timerDisplay.textContent = formatTime(seconds);
+  timerHud?.classList.toggle('is-danger', isTimed && seconds <= PROMOTION_TIME_WARNING_SECONDS);
+  timerHud?.classList.toggle('is-expired', state.promotionExpired);
+  if (isTimed) timerDisplay.title = '승급전 남은 시간';
+  else timerDisplay.title = '경과 시간';
+}
+
+function checkPromotionTimeLimit() {
+  if (state.gameMode !== 'promotion' || state.won || state.promotionExpired) return false;
+  if (state.elapsedSeconds < PROMOTION_TIME_LIMIT_SECONDS) return false;
+  expirePromotionChallenge();
+  return true;
+}
+
+function expirePromotionChallenge() {
+  state.promotionExpired = true;
+  state.timerStarted = false;
+  stopTimer();
+  state.selected = null;
+  state.dragging = null;
+  state.hintTarget = null;
+  updateTimerDisplay();
+  setStatus('승급전 시간 초과 · 10분 안에 클리어하지 못했습니다. 다시 도전하려면 승급 버튼을 눌러주세요.');
+  persistGameState();
+  render();
+  playSound('invalid');
 }
 
 function formatTime(totalSeconds) {
@@ -1677,6 +1745,7 @@ function renderRankingDetail() {
 
 function checkWin() {
   const total = Object.values(state.foundations).reduce((sum, pile) => sum + pile.length, 0);
+  if (state.promotionExpired) return;
   if (total === 52) {
     statusEl.classList.add('win');
     statusEl.textContent = `승리! ${formatTime(state.elapsedSeconds)} · ${state.moves}수 만에 클리어했습니다.`;
@@ -1719,7 +1788,7 @@ function openPromotionModal() {
   promotionModalTitle.textContent = texts.title;
   promotionModalText.textContent = texts.text;
   promotionBenefitText.textContent = texts.benefit;
-  promotionCautionText.textContent = texts.caution;
+  promotionCautionText.textContent = `${texts.caution} · 제한 시간 10분`;
   promotionModal.hidden = false;
 }
 
