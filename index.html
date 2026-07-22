@@ -4,14 +4,14 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Freecell Draft</title>
-  <link rel="stylesheet" href="./style.css" />
+  <link rel="stylesheet" href="./style.css?v=alpha-0-5" />
 </head>
 <body>
   <main class="app">
     <header class="topbar">
       <div class="title-block">
         <h1>Freecell</h1>
-        <p id="versionLabel">초안 v0.8</p>
+        <p id="versionLabel">알파 v0.5</p>
       </div>
       <div class="ranking-stack">
         <button id="promotionBtn" class="promotion-button" type="button" disabled>승급 준비</button>
@@ -32,11 +32,9 @@
         </div>
       </div>
       <div class="actions">
-        <a class="home-link" href="./home.html">홈</a>
         <button id="tutorialBtn" aria-expanded="false" aria-controls="tutorialPanel">게임 방법</button>
         <button id="newGameBtn">새 게임</button>
         <button id="autoBtn">되돌리기 5</button>
-        <button id="promotionTestBtn" type="button">승급 테스트</button>
         <button id="soundBtn" class="sound-button" aria-pressed="true" aria-label="소리 켜짐" title="소리 켜짐">
           <svg class="sound-symbol" aria-hidden="true" viewBox="0 0 24 24" focusable="false">
             <path d="M4 9.25h4.1L13 5.6v12.8l-4.9-3.65H4z" />
@@ -206,6 +204,6 @@
 
   </main>
 
-  <script src="./script.js"></script>
+  <script src="./script.js?v=alpha-0-5"></script>
 </body>
 </html>

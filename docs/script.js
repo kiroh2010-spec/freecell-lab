@@ -317,7 +317,7 @@ function getChargedUndoUsed(undoLeft = state.undoLeft, code = state.difficultyCo
 
 function renderVersionLabel() {
   if (!versionLabel) return;
-  versionLabel.textContent = '알파 v0.4';
+  versionLabel.textContent = '알파 v0.5';
   renderPlayerDifficulty();
 }
 
