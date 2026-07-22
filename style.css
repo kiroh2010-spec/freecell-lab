@@ -1309,3 +1309,75 @@ button:disabled {
     grid-row: auto;
   }
 }
+
+
+/* Mobile gameplay-first compaction: keep Tableau cards visible above the fold. */
+@media (max-width: 780px) {
+  .ranking-stack { gap: 3px; }
+  .ranking-stack .promotion-button {
+    min-height: 20px;
+    padding: 3px 10px;
+    font-size: 10px;
+    line-height: 1;
+  }
+  .top-ranking {
+    padding: 5px 7px;
+  }
+  .ranking-title { font-size: 11px; }
+  .ranking-list {
+    margin-top: 3px;
+    gap: 2px;
+  }
+  .ranking-list li {
+    padding: 3px 6px;
+    font-size: 9px;
+    line-height: 1.05;
+  }
+  .top-ranking > p {
+    display: none;
+  }
+  .player-card {
+    padding: 5px 6px;
+  }
+  .player-trophy { font-size: 16px; }
+  .player-rank { padding: 3px 5px; font-size: 11px; }
+  .player-row { margin-top: 4px; }
+  .player-id { font-size: 9px; }
+  .player-difficulty { padding: 2px 4px; font-size: 9px; }
+  .statusbar {
+    min-height: 23px;
+    margin-top: 4px;
+    padding: 3px 6px;
+  }
+  .notice-icon {
+    width: 16px;
+    height: 16px;
+    font-size: 9px;
+  }
+  #status { font-size: 11px; }
+  .hud {
+    margin-top: 4px;
+    gap: 4px;
+  }
+  .hud-item { padding: 5px 7px; }
+  .hud-item strong { font-size: 14px; }
+  .timer-hud strong { font-size: 16px; }
+  .board { margin-top: 3px; }
+  .tableau-wrap { margin-top: 4px; }
+}
+
+@media (max-width: 780px) {
+  .zone-group h2 { display: none; }
+  .zone-group { padding: 2px; }
+  .slot { height: 50px; }
+  .foundation-stack { height: 48px; }
+  .tableau { min-height: 300px; }
+  .column { min-height: 300px; padding-bottom: 46px; }
+}
+
+@media (max-width: 780px) and (max-height: 740px) {
+  .slot { height: 46px; }
+  .foundation-stack { height: 44px; }
+  .tableau { min-height: 260px; }
+  .column { min-height: 260px; padding-bottom: 42px; }
+}
