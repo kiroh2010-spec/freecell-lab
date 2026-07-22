@@ -88,6 +88,7 @@ const rankingPanel = $('rankingPanel');
 const rankingResetText = $('rankingResetText');
 const rankingList = $('rankingList');
 const soundBtn = $('soundBtn');
+const promotionTestBtn = $('promotionTestBtn');
 const tutorialBtn = $('tutorialBtn');
 const tutorialCloseBtn = $('tutorialCloseBtn');
 const tutorialPanel = $('tutorialPanel');
@@ -317,7 +318,7 @@ function getChargedUndoUsed(undoLeft = state.undoLeft, code = state.difficultyCo
 
 function renderVersionLabel() {
   if (!versionLabel) return;
-  versionLabel.textContent = '알파 v0.5';
+  versionLabel.textContent = '초안 v0.8';
   renderPlayerDifficulty();
 }
 
@@ -1638,6 +1639,9 @@ function getResultRankMessage(result) {
   const hintText = result.hintUsed ? ` · 되돌리기 ${result.hintUsed}회` : '';
   const modeText = '';
   const leaderText = getLeaderText();
+  if (result.testPromotion) {
+    return `승급 테스트 완료입니다. 실제 랭킹에는 등록되지 않습니다. ${formatDifficultyCode(result.difficultyCode, result.mode)}`;
+  }
   if (result.notBest) {
     return `최고 점수까지 ${result.shortage}점 부족합니다. 이번 기록은 랭킹에 등록되지 않습니다. ${leaderText}. ${formatDifficultyCode(result.difficultyCode, result.mode)}${modeText}${hintText}`;
   }
@@ -1779,6 +1783,23 @@ function challengePromotion() {
   setStatus(`승급전 시작: ${transition.label}에 도전합니다. 클리어하면 승급됩니다.`);
 }
 
+function runPromotionTest() {
+  if (!promotionTestBtn) return;
+  const stats = loadStats();
+  const currentIndex = Math.min(stats.difficultyIndex, DIFFICULTY_TIERS.length - 2);
+  const target = DIFFICULTY_TIERS[currentIndex + 1] || DIFFICULTY_TIERS[1];
+  stats.difficultyIndex = currentIndex;
+  stats.clears = Math.max(stats.clears, target.requiredClears);
+  saveStats(stats);
+  if (state.gameMode === 'promotion') {
+    newGame({ clearSaved: true, mode: 'normal', difficultyCode: DIFFICULTY_TIERS[currentIndex].code });
+  }
+  renderPromotionNotice();
+  renderPromotionButton();
+  const transition = getPromotionTransition(target, stats);
+  setStatus(`테스트: ${transition.label} 승급 가능 상태로 강제했습니다. 승급 버튼/배너를 확인하세요.`);
+}
+
 function updateNoticeTicker() {
   const bar = statusEl?.closest('.statusbar');
   if (!bar || !statusEl) return;
@@ -1839,6 +1860,7 @@ if (promotionFailCloseBtn) promotionFailCloseBtn.addEventListener('click', close
 if (promotionFailModal) promotionFailModal.addEventListener('click', (event) => {
   if (event.target === promotionFailModal) closePromotionFailModal();
 });
+if (promotionTestBtn) promotionTestBtn.addEventListener('click', runPromotionTest);
 soundBtn.addEventListener('click', toggleSound);
 passwordToggleBtn.addEventListener('click', togglePasswordVisibility);
 signupForm.addEventListener('submit', handleSignup);
