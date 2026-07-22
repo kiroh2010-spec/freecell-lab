@@ -116,6 +116,9 @@ const promotionBenefitText = $('promotionBenefitText');
 const promotionCautionText = $('promotionCautionText');
 const promotionCancelBtn = $('promotionCancelBtn');
 const promotionChallengeBtn = $('promotionChallengeBtn');
+const promotionFailModal = $('promotionFailModal');
+const promotionFailText = $('promotionFailText');
+const promotionFailCloseBtn = $('promotionFailCloseBtn');
 const rankingModal = $('rankingModal');
 const rankingDetailList = $('rankingDetailList');
 const rankingDetailReset = $('rankingDetailReset');
@@ -160,6 +163,7 @@ function newGame({ clearSaved = true, mode = 'normal', difficultyCode = null } =
   state.hintAllowance = getHintAllowance(state.difficultyCode);
   state.hintLeft = state.hintAllowance;
   state.hintTarget = null;
+  if (promotionFailModal) promotionFailModal.hidden = true;
   if (clearSaved) localStorage.removeItem(STORAGE_KEYS.game);
 
   const dealScore = dealGame(state.difficultyCode);
@@ -956,7 +960,7 @@ function restoreSavedGame() {
   }
 
   setStatus(saved.status || '저장된 게임을 이어서 진행합니다.');
-  if (state.promotionExpired) setStatus('승급전 시간 초과 · 10분 안에 클리어하지 못했습니다. 다시 도전하려면 승급 버튼을 눌러주세요.');
+  if (state.promotionExpired) setStatus('승급전 실패 · 패널티는 없습니다. 준비되면 다시 도전하세요.');
   render();
   if (state.timerStarted) resumeTimer();
   return true;
@@ -1367,10 +1371,28 @@ function expirePromotionChallenge() {
   state.dragging = null;
   state.hintTarget = null;
   updateTimerDisplay();
-  setStatus('승급전 시간 초과 · 10분 안에 클리어하지 못했습니다. 다시 도전하려면 승급 버튼을 눌러주세요.');
+  setStatus('승급전 실패 · 패널티는 없습니다. 준비되면 다시 도전하세요.');
   persistGameState();
   render();
+  showPromotionFailModal();
   playSound('invalid');
+}
+
+function showPromotionFailModal() {
+  if (!promotionFailModal) return;
+  const transition = getPromotionTransitionByTargetCode(state.difficultyCode);
+  if (promotionFailText) {
+    promotionFailText.textContent = `${transition.label} 승급전 제한 시간 10분이 지났습니다. 패널티는 없으니, 다음 판에서 다시 도전해보세요.`;
+  }
+  promotionFailModal.hidden = false;
+}
+
+function closePromotionFailModal() {
+  if (promotionFailModal) promotionFailModal.hidden = true;
+  const activeCode = getActiveDifficultyCode();
+  newGame({ clearSaved: true, mode: 'normal', difficultyCode: activeCode });
+  renderPromotionButton();
+  setStatus('괜찮습니다. 패널티는 없어요. 준비되면 승급 버튼으로 다시 도전하세요.');
 }
 
 function formatTime(totalSeconds) {
@@ -1888,6 +1910,10 @@ if (promotionCancelBtn) promotionCancelBtn.addEventListener('click', closePromot
 if (promotionChallengeBtn) promotionChallengeBtn.addEventListener('click', challengePromotion);
 if (promotionModal) promotionModal.addEventListener('click', (event) => {
   if (event.target === promotionModal) closePromotionModal();
+});
+if (promotionFailCloseBtn) promotionFailCloseBtn.addEventListener('click', closePromotionFailModal);
+if (promotionFailModal) promotionFailModal.addEventListener('click', (event) => {
+  if (event.target === promotionFailModal) closePromotionFailModal();
 });
 if (promotionTestBtn) promotionTestBtn.addEventListener('click', runPromotionTest);
 soundBtn.addEventListener('click', toggleSound);
