@@ -16,7 +16,7 @@ html = src.read_text()
 html = html.replace('        <a class="home-link" href="./home.html">홈</a>\n', '')
 html = html.replace('        <button id="promotionTestBtn" type="button">승급 테스트</button>\n', '')
 # 캐시된 GitHub Pages 자산 때문에 배포판 JS/CSS가 오래 남지 않도록 버전 쿼리를 붙인다.
-asset_version = '20260722-savedgame-fix'
+asset_version = '20260722-foundation-space'
 html = html.replace('href="./style.css"', f'href="./style.css?v={asset_version}"')
 html = html.replace('src="./script.js"', f'src="./script.js?v={asset_version}"')
 dst.write_text(html)

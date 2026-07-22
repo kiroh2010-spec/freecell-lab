@@ -1381,3 +1381,47 @@ button:disabled {
   .tableau { min-height: 260px; }
   .column { min-height: 260px; padding-bottom: 42px; }
 }
+
+/* Keep registered Free Cell/Foundation cards inside their own reserved row. */
+@media (max-width: 780px) {
+  .upper-row {
+    min-height: 76px;
+    overflow: visible;
+  }
+  .zone-group {
+    min-height: 74px;
+  }
+  .slot {
+    min-height: 72px;
+    height: 72px;
+    align-items: start;
+    padding-top: 2px;
+    overflow: visible;
+  }
+  .foundation-stack {
+    height: 70px;
+    max-width: 48px;
+  }
+  .foundation-stack .card.foundation-layer {
+    top: min(calc(var(--stack-offset) * .8px), 3px);
+    left: min(calc(var(--stack-offset) * .6px), 2px);
+  }
+  .slot .card {
+    margin: 0;
+  }
+  .tableau-wrap {
+    margin-top: 8px;
+    clear: both;
+  }
+}
+
+@media (max-width: 780px) and (max-height: 740px) {
+  .upper-row { min-height: 70px; }
+  .zone-group { min-height: 68px; }
+  .slot { min-height: 66px; height: 66px; }
+  .foundation-stack { height: 64px; max-width: 46px; }
+  .slot .card { transform: scale(.92); transform-origin: top center; }
+  .foundation-stack .card.foundation-layer { transform-origin: top center; }
+  .foundation-stack .card.foundation-layer:hover { transform: scale(.92) translateY(-2px); }
+  .tableau-wrap { margin-top: 7px; }
+}
