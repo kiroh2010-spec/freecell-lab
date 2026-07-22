@@ -1,10 +1,33 @@
 {
-  "localVersion": "0.8",
-  "deployVersion": "0.2",
+  "devVersion": "0.8",
+  "alphaVersion": "0.2",
   "launchVersion": "1.0",
+  "channels": {
+    "dev": {
+      "label": "dev",
+      "description": "로컬 개발/테스트 공간. 테스트 기능, 테스트 데이터, 치트성 도구를 유지한다.",
+      "visibleLabel": "초안 v0.8",
+      "allowTestTools": true,
+      "public": false
+    },
+    "alpha": {
+      "label": "알파",
+      "description": "링크로 다른 사람이 테스트하는 공개 테스트 공간. 테스트 관련 기능/데이터는 UI와 코드에서 제거한다.",
+      "visibleLabel": "알파 v0.2",
+      "allowTestTools": false,
+      "public": true
+    },
+    "launch": {
+      "label": "런칭",
+      "description": "정식 런칭 공간. 치트/테스트 관련 내용은 절대 포함하지 않는다.",
+      "visibleLabel": "런칭 v1.0",
+      "allowTestTools": false,
+      "public": true
+    }
+  },
   "versionPolicy": {
-    "local": "로컬은 빠르게 바뀌는 작업판이므로 기존처럼 초안 버전을 사용한다.",
-    "deploy": "배포 버전은 공개 릴리즈마다 0.1씩 올린다: v0.1, v0.2, v0.3...",
-    "launch": "팀장이 런칭을 선언하면 배포 버전을 v1.0으로 올린다."
+    "dev": "dev 버전은 로컬 작업판 기준으로 자유롭게 관리한다. 테스트 기능/테스트 데이터 유지.",
+    "alpha": "팀장이 배포하자고 하면 alphaVersion을 0.1씩 올린다: 0.1, 0.2, 0.3...",
+    "launch": "팀장이 런칭하자고 하면 launchVersion 1.0부터 시작하고 이후 1 단위로 올린다: 1.0, 2.0, 3.0..."
   }
 }
