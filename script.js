@@ -17,9 +17,9 @@ const TIME_BONUS_TIERS = [
 ];
 
 const DIFFICULTY_TIERS = [
-  { code: 'e1', label: 'Run', displayName: 'Run', requiredClears: 0, multiplier: 1.00, totalMax: 6, minLow: 3, minMovable: 4 },
-  { code: 'e2', label: 'Rank', displayName: 'Rank', requiredClears: 3, multiplier: 1.08, totalMax: 12, minLow: 2, minMovable: 3 },
-  { code: 'n1', label: 'Duel', displayName: 'Duel', requiredClears: 6, multiplier: 1.20, totalMin: 6, totalMax: 18, minLow: 2, minMovable: 3 },
+  { code: 'e1', label: '1LV', displayName: '1LV', requiredClears: 0, multiplier: 1.00, totalMax: 6, minLow: 3, minMovable: 4 },
+  { code: 'e2', label: '2LV', displayName: '2LV', requiredClears: 3, multiplier: 1.08, totalMax: 12, minLow: 2, minMovable: 3 },
+  { code: 'n1', label: '3LV', displayName: '3LV', requiredClears: 6, multiplier: 1.20, totalMin: 6, totalMax: 18, minLow: 2, minMovable: 3 },
 ];
 const RETIRED_DIFFICULTY_CODE_MAP = { n2: 'n1', n3: 'n1' };
 
@@ -413,7 +413,7 @@ function renderPromotionNotice() {
   }
 
   if (normalizeDifficultyCode(state.difficultyCode) === 'n1') {
-    setStatus('Duel 혜택 적용 중 · 첫 되돌리기 1회는 점수 차감이 없습니다.');
+    setStatus('3LV 혜택 적용 중 · 첫 되돌리기 1회는 점수 차감이 없습니다.');
   }
 }
 
@@ -875,7 +875,7 @@ function undoMove() {
   stopTimer();
   if (state.timerStarted) resumeTimer();
   const chargedUndoUsed = getChargedUndoUsed();
-  const freeUndoText = getFreeUndoAllowance() && chargedUndoUsed === 0 ? ' Duel 무료 되돌리기 적용 중.' : '';
+  const freeUndoText = getFreeUndoAllowance() && chargedUndoUsed === 0 ? ' 3LV 무료 되돌리기 적용 중.' : '';
   setStatus(`직전 이동을 되돌렸습니다. 남은 되돌리기 ${state.undoLeft}회.${freeUndoText}`);
   playSound('move');
   render();
@@ -1670,7 +1670,7 @@ function playSound(kind) {
 function getPromotionResultMessage(result) {
   if (!result || result.mode !== 'promotion') return '';
   const transition = getPromotionTransitionByTargetCode(result.difficultyCode);
-  const benefit = normalizeDifficultyCode(result.difficultyCode) === 'n1' ? ' · Duel 무료 되돌리기 1회' : '';
+  const benefit = normalizeDifficultyCode(result.difficultyCode) === 'n1' ? ' · 3LV 무료 되돌리기 1회' : '';
   return `승급 성공: ${transition.label} 완료${benefit}`;
 }
 
@@ -1777,7 +1777,7 @@ function getPromotionModalTexts(tier, stats = loadStats()) {
   const nextIndex = getDifficultyTierIndex(tier.code) + 1;
   const nextTier = DIFFICULTY_TIERS[nextIndex] || null;
   const benefits = [`${transition.label} 해금`, `점수 배수 ${tier.multiplier.toFixed(2)}x`, '승급전 보너스 +0.10x'];
-  if (normalizeDifficultyCode(tier.code) === 'n1') benefits.push('Duel 무료 되돌리기 1회');
+  if (normalizeDifficultyCode(tier.code) === 'n1') benefits.push('3LV 무료 되돌리기 1회');
   if (nextTier) benefits.push(`다음 목표: ${nextTier.label}`);
   return {
     title: `${transition.label} 승급전`,
