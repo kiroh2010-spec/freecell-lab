@@ -12,6 +12,19 @@
 - 스타일: `style.css`
 - 게임 로직: `script.js`
 
+
+## 버전 관리 규칙
+
+- 로컬 버전은 빠르게 바뀌는 작업판이므로 기존처럼 `초안 v0.8` 형태를 유지한다.
+- 배포 버전은 공개 릴리즈 기준으로 `v0.1`부터 시작해 배포할 때마다 `0.1`씩 올린다. 예: `v0.1` → `v0.2` → `v0.3`.
+- 팀장이 “런칭하자”라고 하면 배포 버전을 `v1.0`으로 올린다.
+- 기준 파일은 `VERSION.json`이다.
+  - `localVersion`: 로컬 작업판 버전
+  - `deployVersion`: 공개 배포판 버전
+  - `launchVersion`: 런칭 버전
+- `scripts/build-pages.sh`는 배포본 생성 시 `docs/index.html`, `docs/script.js`, `docs/VERSION.json`에 배포 버전을 주입한다.
+- 배포 자산 캐시는 `script.js?v=deploy-0-1`, `style.css?v=deploy-0-1`처럼 배포 버전으로 관리한다.
+
 ## 플레이 방법
 
 1. `index.html`을 브라우저로 엽니다.

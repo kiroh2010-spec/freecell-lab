@@ -284,7 +284,7 @@ function getChargedHintUsed(hintLeft = state.hintLeft, code = state.difficultyCo
 
 function renderVersionLabel() {
   if (!versionLabel) return;
-  versionLabel.textContent = '초안 v0.8';
+  versionLabel.textContent = '배포 v0.1';
   renderPlayerDifficulty();
 }
 
