@@ -57,9 +57,9 @@ const state = {
   player: null,
   passwordVisible: false,
   isEditingPlayer: false,
-  hintLeft: 5,
-  hintAllowance: 5,
-  hintTarget: null,
+  undoLeft: 5,
+  undoAllowance: 5,
+  undoStack: [],
   gameMode: 'normal',
   difficultyCode: 'e1',
   serverLeader: null,
@@ -75,7 +75,7 @@ const tableauEl = $('tableau');
 const statusEl = $('status');
 const moveHud = $('moveHud');
 const timerDisplay = $('timerDisplay');
-const hintHud = $('hintHud');
+const undoHud = $('hintHud');
 const versionLabel = $('versionLabel');
 const playerIdEl = $('playerId');
 const passwordToggleBtn = $('passwordToggleBtn');
@@ -160,9 +160,9 @@ function newGame({ clearSaved = true, mode = 'normal', difficultyCode = null } =
   stopTimer();
   state.gameMode = mode;
   state.difficultyCode = normalizeDifficultyCode(difficultyCode || getActiveDifficultyCode());
-  state.hintAllowance = getHintAllowance(state.difficultyCode);
-  state.hintLeft = state.hintAllowance;
-  state.hintTarget = null;
+  state.undoAllowance = getUndoAllowance(state.difficultyCode);
+  state.undoLeft = state.undoAllowance;
+  state.undoStack = [];
   if (promotionFailModal) promotionFailModal.hidden = true;
   if (clearSaved) localStorage.removeItem(STORAGE_KEYS.game);
 
@@ -303,17 +303,17 @@ function getScoreMultiplier(code, mode = 'normal') {
   return tier.multiplier + (mode === 'promotion' ? 0.10 : 0);
 }
 
-function getHintAllowance(code = state.difficultyCode) {
+function getUndoAllowance(code = state.difficultyCode) {
   return normalizeDifficultyCode(code) === 'n1' ? 6 : 5;
 }
 
-function getFreeHintAllowance(code = state.difficultyCode) {
+function getFreeUndoAllowance(code = state.difficultyCode) {
   return normalizeDifficultyCode(code) === 'n1' ? 1 : 0;
 }
 
-function getChargedHintUsed(hintLeft = state.hintLeft, code = state.difficultyCode) {
-  const used = Math.max(0, getHintAllowance(code) - hintLeft);
-  return Math.max(0, used - getFreeHintAllowance(code));
+function getChargedUndoUsed(undoLeft = state.undoLeft, code = state.difficultyCode) {
+  const used = Math.max(0, getUndoAllowance(code) - undoLeft);
+  return Math.max(0, used - getFreeUndoAllowance(code));
 }
 
 function renderVersionLabel() {
@@ -374,7 +374,7 @@ function renderPromotionNotice() {
   }
 
   if (normalizeDifficultyCode(state.difficultyCode) === 'n1') {
-    setStatus('Duel 혜택 적용 중 · 첫 힌트 1회는 점수 차감이 없습니다.');
+    setStatus('Duel 혜택 적용 중 · 첫 되돌리기 1회는 점수 차감이 없습니다.');
   }
 }
 
@@ -416,7 +416,6 @@ function render() {
   state.freecells.forEach((card, index) => {
     const target = { type: 'freecell', index };
     const slot = slotEl(`F${index + 1}`, () => handleTarget(target));
-    if (isHintTarget(target)) slot.classList.add('hint-destination');
     wireDropTarget(slot, target);
     if (card) slot.appendChild(cardEl(card, { type: 'freecell', index }));
     freecellsEl.appendChild(slot);
@@ -426,7 +425,6 @@ function render() {
     const target = { type: 'foundation', suit: suit.key };
     const slot = slotEl(suit.symbol, () => handleTarget(target));
     slot.classList.add('foundation-slot');
-    if (isHintTarget(target)) slot.classList.add('hint-destination');
     if (isSelectedFoundationTarget(target)) slot.classList.add('move-target');
     wireDropTarget(slot, target);
     const pile = state.foundations[suit.key];
@@ -438,8 +436,6 @@ function render() {
     const col = document.createElement('div');
     col.className = `column ${column.length ? 'has-cards' : 'is-empty'}`;
     const columnTarget = { type: 'tableau', index: colIndex };
-    if (isTableauHintTarget(columnTarget)) col.classList.add('tableau-hint-target');
-    if (isHintTarget(columnTarget)) col.classList.add('hint-destination');
     col.addEventListener('click', (event) => {
       if (event.target === col) handleTarget(columnTarget);
     });
@@ -451,12 +447,12 @@ function render() {
   });
 
   moveHud.textContent = state.moves;
-  hintHud.textContent = state.hintLeft;
+  undoHud.textContent = state.undoLeft;
   updateTimerDisplay();
   renderVersionLabel();
   renderPromotionNotice();
-  $('autoBtn').textContent = `힌트 ${state.hintLeft}`;
-  $('autoBtn').disabled = state.hintLeft <= 0;
+  $('autoBtn').textContent = `되돌리기 ${state.undoLeft}`;
+  $('autoBtn').disabled = state.undoLeft <= 0 || !state.undoStack.length;
   checkWin();
   persistGameState();
 }
@@ -491,7 +487,7 @@ function cardEl(card, location) {
   const isFace = ['J', 'Q', 'K'].includes(card.rank);
   el.className = `card ${card.color === 'red' ? 'red' : ''} ${isFace ? 'face-card' : ''}`;
   if (isInSelectedSequence(location)) el.classList.add('selected');
-  if (isInHintSource(location)) el.classList.add('hint-source');
+
   if (isSameLocation(state.dragging, location)) el.classList.add('dragging');
   if (canSelect(location)) el.classList.add('movable');
   el.innerHTML = isFace
@@ -565,11 +561,12 @@ function handleCardDoubleClick(location) {
 function moveSingleCard(from, to, message, soundKind = 'move') {
   const card = getCard(from);
   if (!card || !canMoveTo(card, to)) return false;
+  pushUndoSnapshot();
   removeCard(from);
   addCard(to, card);
   state.selected = null;
   state.dragging = null;
-  state.hintTarget = null;
+
   state.moves += 1;
   setStatus(message);
   playSound(soundKind);
@@ -595,7 +592,7 @@ function handleCardClick(location) {
   }
 
   startTimer();
-  state.hintTarget = null;
+
   state.selected = isSameLocation(state.selected, location) ? null : location;
   const cards = getMovingCards(location);
   const label = cards.length > 1 ? `${cards[0].rank}${cards[0].symbol}부터 ${cards.length}장` : `${cards[0].rank}${cards[0].symbol}`;
@@ -628,11 +625,12 @@ function handleTarget(target) {
     return false;
   }
 
+  pushUndoSnapshot();
   removeCards(state.selected, movingCards.length);
   addCards(target, movingCards);
   state.selected = null;
   state.dragging = null;
-  state.hintTarget = null;
+
   state.moves += 1;
   const first = movingCards[0];
   const label = movingCards.length > 1 ? `${first.rank}${first.symbol}부터 ${movingCards.length}장` : `${first.rank}${first.symbol}`;
@@ -678,13 +676,6 @@ function isInSelectedSequence(location) {
   return isSameLocation(state.selected, location);
 }
 
-
-function isTableauHintTarget(target) {
-  if (!state.selected || target.type !== 'tableau') return false;
-  if (state.selected.type === 'tableau' && state.selected.index === target.index) return false;
-  const movingCards = getMovingCards(state.selected);
-  return movingCards.length > 0 && canMoveCardsTo(movingCards, target);
-}
 
 function isSelectedFoundationTarget(target) {
   if (!state.selected || !target || target.type !== 'foundation') return false;
@@ -787,118 +778,69 @@ function isSameLocation(a, b) {
   return false;
 }
 
-function showHint() {
+function cloneGameSnapshot() {
+  return {
+    freecells: structuredClone(state.freecells),
+    foundations: structuredClone(state.foundations),
+    tableau: structuredClone(state.tableau),
+    moves: state.moves,
+    elapsedSeconds: state.elapsedSeconds,
+    timerStarted: state.timerStarted,
+    gameMode: state.gameMode,
+    difficultyCode: state.difficultyCode,
+    undoLeft: state.undoLeft,
+    undoAllowance: state.undoAllowance,
+    promotionExpired: state.promotionExpired,
+  };
+}
+
+function pushUndoSnapshot() {
+  state.undoStack.push(cloneGameSnapshot());
+  if (state.undoStack.length > state.undoAllowance) state.undoStack.shift();
+}
+
+function restoreGameSnapshot(snapshot) {
+  state.freecells = structuredClone(snapshot.freecells);
+  state.foundations = structuredClone(snapshot.foundations);
+  state.tableau = structuredClone(snapshot.tableau);
+  state.moves = snapshot.moves;
+  state.elapsedSeconds = snapshot.elapsedSeconds;
+  state.timerStarted = Boolean(snapshot.timerStarted);
+  state.gameMode = snapshot.gameMode === 'promotion' ? 'promotion' : 'normal';
+  state.difficultyCode = normalizeDifficultyCode(snapshot.difficultyCode || state.difficultyCode);
+  state.promotionExpired = Boolean(snapshot.promotionExpired);
+  state.selected = null;
+  state.dragging = null;
+}
+
+function undoMove() {
   if (state.promotionExpired) {
     setStatus('승급전 시간이 종료됐습니다. 다시 도전하려면 승급 버튼을 눌러주세요.');
     playSound('invalid');
     return;
   }
-  if (state.hintLeft <= 0) {
-    setStatus(`이번 게임의 힌트 ${state.hintAllowance}회를 모두 사용했습니다.`);
+  if (state.undoLeft <= 0) {
+    setStatus(`이번 게임의 되돌리기 ${state.undoAllowance}회를 모두 사용했습니다.`);
     playSound('invalid');
     return;
   }
-
-  startTimer();
-  state.selected = null;
-  state.hintTarget = null;
-  const hint = findHintMove();
-  if (!hint) {
-    setStatus('지금 알려줄 수 있는 이동이 없습니다.');
+  const snapshot = state.undoStack.pop();
+  if (!snapshot) {
+    setStatus('되돌릴 이동이 없습니다.');
     playSound('invalid');
+    render();
     return;
   }
-
-  state.hintLeft -= 1;
-  state.selected = hint.from;
-  state.hintTarget = hint.to;
-  const chargedHintUsed = getChargedHintUsed();
-  const freeHintText = getFreeHintAllowance() && chargedHintUsed === 0 ? ' Duel 무료 힌트 적용 중.' : '';
-  setStatus(`힌트: ${hint.cardLabel} → ${hint.targetLabel}. 직접 이동해보세요. 남은 힌트 ${state.hintLeft}회.${freeHintText}`);
+  state.undoLeft -= 1;
+  restoreGameSnapshot(snapshot);
+  stopTimer();
+  if (state.timerStarted) resumeTimer();
+  const chargedUndoUsed = getChargedUndoUsed();
+  const freeUndoText = getFreeUndoAllowance() && chargedUndoUsed === 0 ? ' Duel 무료 되돌리기 적용 중.' : '';
+  setStatus(`직전 이동을 되돌렸습니다. 남은 되돌리기 ${state.undoLeft}회.${freeUndoText}`);
   playSound('move');
   render();
 }
-
-function findHintMove() {
-  const sources = getHintSources();
-
-  for (const source of sources) {
-    const target = { type: 'foundation', suit: source.cards[0].suit };
-    if (canMoveCardsTo(source.cards, target)) return buildHint(source, target);
-  }
-
-  for (const source of sources) {
-    for (let index = 0; index < state.tableau.length; index += 1) {
-      if (source.from.type === 'tableau' && source.from.index === index) continue;
-      const target = { type: 'tableau', index };
-      if (canMoveCardsTo(source.cards, target)) return buildHint(source, target);
-    }
-  }
-
-  for (const source of sources) {
-    const emptyIndex = state.freecells.findIndex(cell => cell === null);
-    if (emptyIndex !== -1 && source.cards.length === 1) {
-      const target = { type: 'freecell', index: emptyIndex };
-      if (canMoveCardsTo(source.cards, target)) return buildHint(source, target);
-    }
-  }
-
-  return null;
-}
-
-function getHintSources() {
-  const sources = [];
-  state.freecells.forEach((card, index) => {
-    if (card) sources.push({ from: { type: 'freecell', index }, cards: [card] });
-  });
-
-  state.tableau.forEach((column, index) => {
-    for (let cardIndex = 0; cardIndex < column.length; cardIndex += 1) {
-      const location = { type: 'tableau', index, cardIndex };
-      if (canSelect(location)) sources.push({ from: location, cards: getMovingCards(location) });
-    }
-  });
-
-  return sources;
-}
-
-function buildHint(source, target) {
-  const first = source.cards[0];
-  const cardLabel = source.cards.length > 1 ? `${first.rank}${first.symbol}부터 ${source.cards.length}장` : `${first.rank}${first.symbol}`;
-  return { from: source.from, to: target, cards: source.cards, cardLabel, targetLabel: getTargetLabel(target) };
-}
-
-function getTargetLabel(target) {
-  if (target.type === 'foundation') {
-    const suit = suits.find(item => item.key === target.suit);
-    return `Foundation ${suit?.symbol || target.suit}`;
-  }
-  if (target.type === 'freecell') return `Free Cell ${target.index + 1}`;
-  if (target.type === 'tableau') return `Tableau ${target.index + 1}`;
-  return '이동 가능 위치';
-}
-
-function isHintTarget(target) {
-  if (!state.hintTarget || !target) return false;
-  const normalizedTarget = normalizeDropTarget(target);
-  return isSameTarget(state.hintTarget, normalizedTarget);
-}
-
-function isSameTarget(a, b) {
-  if (!a || !b || a.type !== b.type) return false;
-  if (a.type === 'freecell' || a.type === 'tableau') return a.index === b.index;
-  if (a.type === 'foundation') return a.suit === b.suit;
-  return false;
-}
-
-function isInHintSource(location) {
-  if (!state.hintTarget || !state.selected || !location) return false;
-  return isInSelectedSequence(location);
-}
-
-
-
-
 
 
 function persistGameState() {
@@ -917,8 +859,9 @@ function persistGameState() {
     won: state.won,
     scoreSaved: state.scoreSaved,
     promotionExpired: state.promotionExpired,
-    hintLeft: state.hintLeft,
-    hintAllowance: state.hintAllowance,
+    undoLeft: state.undoLeft,
+    undoAllowance: state.undoAllowance,
+    undoStack: state.undoStack,
     gameMode: state.gameMode,
     difficultyCode: state.difficultyCode,
     status: statusEl.textContent,
@@ -946,9 +889,10 @@ function restoreSavedGame() {
   state.promotionExpired = Boolean(saved.promotionExpired);
   state.gameMode = saved.gameMode === 'promotion' ? 'promotion' : 'normal';
   state.difficultyCode = typeof saved.difficultyCode === 'string' ? normalizeDifficultyCode(saved.difficultyCode) : getActiveDifficultyCode();
-  state.hintAllowance = Number.isInteger(saved.hintAllowance) ? saved.hintAllowance : getHintAllowance(state.difficultyCode);
-  state.hintLeft = Number.isInteger(saved.hintLeft) ? Math.min(saved.hintLeft, state.hintAllowance) : state.hintAllowance;
-  state.hintTarget = null;
+  state.undoAllowance = Number.isInteger(saved.undoAllowance) ? saved.undoAllowance : (Number.isInteger(saved.hintAllowance) ? saved.hintAllowance : getUndoAllowance(state.difficultyCode));
+  state.undoLeft = Number.isInteger(saved.undoLeft) ? Math.min(saved.undoLeft, state.undoAllowance) : (Number.isInteger(saved.hintLeft) ? Math.min(saved.hintLeft, state.undoAllowance) : state.undoAllowance);
+  state.undoStack = Array.isArray(saved.undoStack) ? saved.undoStack : [];
+
 
   if (state.timerStarted && saved.savedAt) {
     const deltaSeconds = Math.max(0, Math.floor((Date.now() - saved.savedAt) / 1000));
@@ -1131,12 +1075,12 @@ function maybeNotifyRankingChange(entries, notify) {
     return;
   }
 
-  const hintUsed = getChargedHintUsed();
+  const undoUsed = getChargedUndoUsed();
   const projectedScore = calculateScore(
     state.elapsedSeconds,
     state.moves,
     getScoreMultiplier(state.difficultyCode, state.gameMode),
-    hintUsed
+    undoUsed
   );
   const gap = leader.score - projectedScore;
   if (gap > 0 && gap <= 500) {
@@ -1369,7 +1313,7 @@ function expirePromotionChallenge() {
   stopTimer();
   state.selected = null;
   state.dragging = null;
-  state.hintTarget = null;
+
   updateTimerDisplay();
   setStatus('승급전 실패 · 패널티는 없습니다. 준비되면 다시 도전하세요.');
   persistGameState();
@@ -1454,15 +1398,16 @@ function recordWeeklyScore() {
   state.scoreSaved = true;
   const data = loadRankingData();
   const multiplier = getScoreMultiplier(state.difficultyCode, state.gameMode);
-  const hintUsed = getChargedHintUsed();
-  const score = calculateScore(state.elapsedSeconds, state.moves, multiplier, hintUsed);
+  const undoUsed = getChargedUndoUsed();
+  const score = calculateScore(state.elapsedSeconds, state.moves, multiplier, undoUsed);
   const completedAt = new Date().toISOString();
   const entry = {
     id: state.player.id,
     time: state.elapsedSeconds,
     moves: state.moves,
     score,
-    hintUsed,
+    hintUsed: undoUsed,
+    undoUsed,
     multiplier,
     difficultyCode: state.difficultyCode,
     mode: state.gameMode,
@@ -1544,8 +1489,8 @@ function getTimeBonus(time) {
   return tier?.bonus ?? 0;
 }
 
-function calculateScore(time, moves, multiplier = 1, hintUsed = 0) {
-  const base = Math.max(100, 10000 - moves * 5 - hintUsed * 100 + getTimeBonus(time));
+function calculateScore(time, moves, multiplier = 1, undoUsed = 0) {
+  const base = Math.max(100, 10000 - moves * 5 - undoUsed * 100 + getTimeBonus(time));
   return Math.round(base * multiplier);
 }
 
@@ -1591,9 +1536,9 @@ function renderRankings() {
   const chasingEntries = entries.slice(1, RANKING_TICKER_LIMIT);
   if (state.rankingTickerIndex >= chasingEntries.length) state.rankingTickerIndex = 0;
   const chasing = chasingEntries[state.rankingTickerIndex] || null;
-  const leaderMeta = `${formatDifficultyCode(leader.difficultyCode, leader.mode)}${leader.hintUsed ? ` · 💡${leader.hintUsed}` : ''}`;
+  const leaderMeta = `${formatDifficultyCode(leader.difficultyCode, leader.mode)}${leader.hintUsed ? ` · ↩${leader.hintUsed}` : ''}`;
   const chasingMeta = chasing
-    ? `${formatDifficultyCode(chasing.difficultyCode, chasing.mode)}${chasing.hintUsed ? ` · 💡${chasing.hintUsed}` : ''}`
+    ? `${formatDifficultyCode(chasing.difficultyCode, chasing.mode)}${chasing.hintUsed ? ` · ↩${chasing.hintUsed}` : ''}`
     : '';
   rankingList.innerHTML = `
     <li class="rank-line rank-leader">
@@ -1686,12 +1631,12 @@ function playSound(kind) {
 function getPromotionResultMessage(result) {
   if (!result || result.mode !== 'promotion') return '';
   const transition = getPromotionTransitionByTargetCode(result.difficultyCode);
-  const benefit = normalizeDifficultyCode(result.difficultyCode) === 'n1' ? ' · Duel 무료 힌트 1회' : '';
+  const benefit = normalizeDifficultyCode(result.difficultyCode) === 'n1' ? ' · Duel 무료 되돌리기 1회' : '';
   return `승급 성공: ${transition.label} 완료${benefit}`;
 }
 
 function getResultRankMessage(result) {
-  const hintText = result.hintUsed ? ` · 힌트 ${result.hintUsed}회` : '';
+  const hintText = result.hintUsed ? ` · 되돌리기 ${result.hintUsed}회` : '';
   const modeText = '';
   const leaderText = getLeaderText();
   if (result.testPromotion) {
@@ -1762,7 +1707,7 @@ function renderRankingDetail() {
           <strong>${entry.id}</strong>
           <span class="ranking-detail-score">${entry.score}점</span>
         </div>
-        <div class="ranking-detail-meta">${formatTime(entry.time || 0)} · ${entry.moves || 0}수 · ${formatDifficultyCode(entry.difficultyCode, entry.mode)}${entry.hintUsed ? ` · 힌트 ${entry.hintUsed}` : ''}</div>
+        <div class="ranking-detail-meta">${formatTime(entry.time || 0)} · ${entry.moves || 0}수 · ${formatDifficultyCode(entry.difficultyCode, entry.mode)}${entry.hintUsed ? ` · 되돌리기 ${entry.hintUsed}` : ''}</div>
         <div class="ranking-detail-meta">등록: ${formatRankingDate(entry.completedAt)}</div>
       </div>
     </li>
@@ -1793,7 +1738,7 @@ function getPromotionModalTexts(tier, stats = loadStats()) {
   const nextIndex = getDifficultyTierIndex(tier.code) + 1;
   const nextTier = DIFFICULTY_TIERS[nextIndex] || null;
   const benefits = [`${transition.label} 해금`, `점수 배수 ${tier.multiplier.toFixed(2)}x`, '승급전 보너스 +0.10x'];
-  if (normalizeDifficultyCode(tier.code) === 'n1') benefits.push('Duel 무료 힌트 1회');
+  if (normalizeDifficultyCode(tier.code) === 'n1') benefits.push('Duel 무료 되돌리기 1회');
   if (nextTier) benefits.push(`다음 목표: ${nextTier.label}`);
   return {
     title: `${transition.label} 승급전`,
@@ -1878,10 +1823,10 @@ function setStatus(message) {
 }
 
 function handleBlankClick(event) {
-  if (!state.selected && !state.hintTarget) return;
+  if (!state.selected) return;
   if (event.target.closest('.card, .slot, .column, button, a, input, .player-card, .signup-panel, .tutorial, .result-card')) return;
   state.selected = null;
-  state.hintTarget = null;
+
   setStatus('선택을 해제했습니다.');
   render();
 }
@@ -1903,7 +1848,7 @@ updateSoundButton();
 
 $('newGameBtn').addEventListener('click', requestNewGame);
 resultCloseBtn.addEventListener('click', confirmResultModal);
-$('autoBtn').addEventListener('click', showHint);
+$('autoBtn').addEventListener('click', undoMove);
 if (promotionBtn) promotionBtn.addEventListener('click', (event) => { event.stopPropagation(); openPromotionModal(); });
 if (promotionNoticeBtn) promotionNoticeBtn.addEventListener('click', (event) => { event.stopPropagation(); openPromotionModal(); });
 if (promotionCancelBtn) promotionCancelBtn.addEventListener('click', closePromotionModal);
