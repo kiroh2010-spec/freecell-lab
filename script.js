@@ -313,7 +313,7 @@ function render() {
 
   state.tableau.forEach((column, colIndex) => {
     const col = document.createElement('div');
-    col.className = 'column';
+    col.className = `column ${column.length ? 'has-cards' : 'is-empty'}`;
     const columnTarget = { type: 'tableau', index: colIndex };
     if (isTableauHintTarget(columnTarget)) col.classList.add('tableau-hint-target');
     if (isHintTarget(columnTarget)) col.classList.add('hint-destination');
