@@ -160,8 +160,9 @@ function newGame({ clearSaved = true, mode = 'normal', difficultyCode = null } =
 
   const dealScore = dealGame(state.difficultyCode);
   const tier = getDifficultyTier(state.difficultyCode);
+  const transition = mode === 'promotion' ? getPromotionTransitionByTargetCode(state.difficultyCode) : null;
   setStatus(mode === 'promotion'
-    ? `승급전 시작! ${tier.label}에 도전합니다. 클리어하면 즉시 승급됩니다.`
+    ? `승급전 시작! ${transition.label}에 도전합니다. 클리어하면 즉시 승급됩니다.`
     : `${tier.label} 단계입니다. 바로 Foundation에 보낼 수 있는 A 카드가 준비됐습니다.`);
   render();
 }
@@ -265,6 +266,30 @@ function getPromotionTarget(stats = loadStats()) {
   return stats.clears >= nextTier.requiredClears ? nextTier : null;
 }
 
+function getCurrentTier(stats = loadStats()) {
+  return DIFFICULTY_TIERS[stats.difficultyIndex] || DIFFICULTY_TIERS[0];
+}
+
+function getPromotionTransition(targetTier, stats = loadStats()) {
+  const fromTier = getCurrentTier(stats);
+  return {
+    fromTier,
+    toTier: targetTier,
+    label: `${fromTier.label} → ${targetTier.label}`,
+  };
+}
+
+function getPromotionTransitionByTargetCode(targetCode) {
+  const toIndex = getDifficultyTierIndex(targetCode);
+  const fromTier = DIFFICULTY_TIERS[Math.max(0, toIndex - 1)] || DIFFICULTY_TIERS[0];
+  const toTier = getDifficultyTier(targetCode);
+  return {
+    fromTier,
+    toTier,
+    label: `${fromTier.label} → ${toTier.label}`,
+  };
+}
+
 function getScoreMultiplier(code, mode = 'normal') {
   const tier = getDifficultyTier(code);
   return tier.multiplier + (mode === 'promotion' ? 0.10 : 0);
@@ -292,7 +317,10 @@ function renderVersionLabel() {
 function formatDifficultyCode(code = state.difficultyCode, mode = state.gameMode) {
   const tier = getDifficultyTier(code);
   const name = tier.displayName || tier.label;
-  return mode === 'promotion' ? `${name} 승급전` : name;
+  if (mode === 'promotion') {
+    return `${getPromotionTransitionByTargetCode(code).label} 승급전`;
+  }
+  return name;
 }
 
 function renderPlayerDifficulty() {
@@ -303,13 +331,15 @@ function renderPlayerDifficulty() {
 
 function renderPromotionButton() {
   if (!promotionBtn) return;
-  const nextTier = getPromotionTarget(loadStats());
+  const stats = loadStats();
+  const nextTier = getPromotionTarget(stats);
+  const transition = nextTier ? getPromotionTransition(nextTier, stats) : null;
   const isReady = Boolean(nextTier) && state.gameMode !== 'promotion';
   promotionBtn.disabled = !isReady;
   promotionBtn.classList.toggle('is-ready', isReady);
-  promotionBtn.textContent = isReady ? `${nextTier.label} 승급` : '승급 준비';
+  promotionBtn.textContent = isReady ? `${transition.label} 승급` : '승급 준비';
   promotionBtn.title = isReady
-    ? `${nextTier.label} 승급전에 도전할 수 있습니다.`
+    ? `${transition.label} 승급전에 도전할 수 있습니다.`
     : '조건을 채우면 승급전이 열립니다.';
 }
 
@@ -320,16 +350,18 @@ function renderPromotionNotice() {
   }
 
   if (state.gameMode === 'promotion') {
-    const tier = getDifficultyTier(state.difficultyCode);
+    const transition = getPromotionTransitionByTargetCode(state.difficultyCode);
     if (state.won) {
-      setStatus(`승급 성공: ${tier.label} 해금 · 다음 새 게임부터 적용됩니다.`);
+      setStatus(`승급 성공: ${transition.label} 완료 · 다음 새 게임부터 적용됩니다.`);
     }
     return;
   }
 
-  const nextTier = getPromotionTarget(loadStats());
+  const stats = loadStats();
+  const nextTier = getPromotionTarget(stats);
   if (nextTier) {
-    setStatus(`${nextTier.label} 승급 가능 · 집중할 수 있을 때 승급 버튼을 눌러 도전하세요.`);
+    const transition = getPromotionTransition(nextTier, stats);
+    setStatus(`${transition.label} 승급 가능 · 집중할 수 있을 때 승급 버튼을 눌러 도전하세요.`);
     return;
   }
 
@@ -1410,8 +1442,8 @@ function updateClearProgress() {
   if (state.gameMode === 'promotion') {
     const promotedIndex = getDifficultyTierIndex(state.difficultyCode);
     stats.difficultyIndex = Math.max(stats.difficultyIndex, promotedIndex);
-    const tier = getDifficultyTier(state.difficultyCode);
-    setStatus(`승급 성공: ${tier.label} 해금 · 다음 새 게임부터 적용됩니다.`);
+    const transition = getPromotionTransitionByTargetCode(state.difficultyCode);
+    setStatus(`승급 성공: ${transition.label} 완료 · 다음 새 게임부터 적용됩니다.`);
   }
   saveStats(stats);
   saveCurrentProfile();
@@ -1563,9 +1595,9 @@ function playSound(kind) {
 
 function getPromotionResultMessage(result) {
   if (!result || result.mode !== 'promotion') return '';
-  const tier = getDifficultyTier(result.difficultyCode);
+  const transition = getPromotionTransitionByTargetCode(result.difficultyCode);
   const benefit = normalizeDifficultyCode(result.difficultyCode) === 'n1' ? ' · Duel 무료 힌트 1회' : '';
-  return `승급 성공: ${tier.label} 해금${benefit}`;
+  return `승급 성공: ${transition.label} 완료${benefit}`;
 }
 
 function getResultRankMessage(result) {
@@ -1665,15 +1697,16 @@ function checkWin() {
   }
 }
 
-function getPromotionModalTexts(tier) {
+function getPromotionModalTexts(tier, stats = loadStats()) {
+  const transition = getPromotionTransition(tier, stats);
   const nextIndex = getDifficultyTierIndex(tier.code) + 1;
   const nextTier = DIFFICULTY_TIERS[nextIndex] || null;
-  const benefits = [`${tier.label} 단계 해금`, `점수 배수 ${tier.multiplier.toFixed(2)}x`, '승급전 보너스 +0.10x'];
+  const benefits = [`${transition.label} 해금`, `점수 배수 ${tier.multiplier.toFixed(2)}x`, '승급전 보너스 +0.10x'];
   if (normalizeDifficultyCode(tier.code) === 'n1') benefits.push('Duel 무료 힌트 1회');
   if (nextTier) benefits.push(`다음 목표: ${nextTier.label}`);
   return {
-    title: `${tier.label} 승급전`,
-    text: `지금 도전하면 클리어 시 ${tier.label}로 승급합니다. 집중할 수 있을 때 시작하세요.`,
+    title: `${transition.label} 승급전`,
+    text: `지금 도전하면 클리어 시 ${transition.fromTier.label}에서 ${transition.toTier.label}로 승급합니다. 집중할 수 있을 때 시작하세요.`,
     benefit: benefits.join(' · '),
     caution: '일반 판보다 어려울 수 있습니다. 취소해도 승급 자격은 유지됩니다.',
   };
@@ -1686,7 +1719,7 @@ function openPromotionModal() {
     renderPromotionButton();
     return;
   }
-  const texts = getPromotionModalTexts(target);
+  const texts = getPromotionModalTexts(target, loadStats());
   promotionModalTitle.textContent = texts.title;
   promotionModalText.textContent = texts.text;
   promotionBenefitText.textContent = texts.benefit;
@@ -1710,7 +1743,8 @@ function challengePromotion() {
   }
   promotionModal.hidden = true;
   newGame({ clearSaved: true, mode: 'promotion', difficultyCode: target.code });
-  setStatus(`승급전 시작: ${target.label}에 도전합니다. 클리어하면 승급됩니다.`);
+  const transition = getPromotionTransition(target, loadStats());
+  setStatus(`승급전 시작: ${transition.label}에 도전합니다. 클리어하면 승급됩니다.`);
 }
 
 function runPromotionTest() {
@@ -1726,7 +1760,8 @@ function runPromotionTest() {
   }
   renderPromotionNotice();
   renderPromotionButton();
-  setStatus(`테스트: ${target.label} 승급 가능 상태로 강제했습니다. 승급 버튼/배너를 확인하세요.`);
+  const transition = getPromotionTransition(target, stats);
+  setStatus(`테스트: ${transition.label} 승급 가능 상태로 강제했습니다. 승급 버튼/배너를 확인하세요.`);
 }
 
 function updateNoticeTicker() {
