@@ -376,7 +376,6 @@ function render() {
     const target = { type: 'freecell', index };
     const slot = slotEl(`F${index + 1}`, () => handleTarget(target));
     if (isHintTarget(target)) slot.classList.add('hint-destination');
-    if (isSelectedMoveTarget(target)) slot.classList.add('move-target');
     wireDropTarget(slot, target);
     if (card) slot.appendChild(cardEl(card, { type: 'freecell', index }));
     freecellsEl.appendChild(slot);
@@ -387,7 +386,7 @@ function render() {
     const slot = slotEl(suit.symbol, () => handleTarget(target));
     slot.classList.add('foundation-slot');
     if (isHintTarget(target)) slot.classList.add('hint-destination');
-    if (isSelectedMoveTarget(target)) slot.classList.add('move-target');
+    if (isSelectedFoundationTarget(target)) slot.classList.add('move-target');
     wireDropTarget(slot, target);
     const pile = state.foundations[suit.key];
     if (pile.length) slot.appendChild(foundationPileEl(pile, suit.key));
@@ -400,7 +399,6 @@ function render() {
     const columnTarget = { type: 'tableau', index: colIndex };
     if (isTableauHintTarget(columnTarget)) col.classList.add('tableau-hint-target');
     if (isHintTarget(columnTarget)) col.classList.add('hint-destination');
-    if (isSelectedMoveTarget(columnTarget)) col.classList.add('move-target');
     col.addEventListener('click', (event) => {
       if (event.target === col) handleTarget(columnTarget);
     });
@@ -637,12 +635,10 @@ function isTableauHintTarget(target) {
   return movingCards.length > 0 && canMoveCardsTo(movingCards, target);
 }
 
-function isSelectedMoveTarget(target) {
-  if (!state.selected || !target) return false;
-  const normalizedTarget = normalizeDropTarget(target);
-  if (isSameLocation(state.selected, normalizedTarget)) return false;
+function isSelectedFoundationTarget(target) {
+  if (!state.selected || !target || target.type !== 'foundation') return false;
   const movingCards = getMovingCards(state.selected);
-  return movingCards.length > 0 && canMoveCardsTo(movingCards, normalizedTarget);
+  return movingCards.length === 1 && canMoveCardsTo(movingCards, target);
 }
 
 function normalizeDropTarget(location) {
