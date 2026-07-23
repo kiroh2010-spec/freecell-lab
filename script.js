@@ -1342,6 +1342,42 @@ async function submitScoreToServer(result) {
   }
 }
 
+function mapServerRankingRow(row, { legacyScore = false } = {}) {
+  const time = row.elapsed_time ?? row.time;
+  const moves = row.moves;
+  const hintUsed = row.hint_used || 0;
+  const difficultyCode = row.difficulty_code || 'e1';
+  const mode = row.mode || 'normal';
+  const multiplier = getScoreMultiplier(difficultyCode, mode);
+  const scoreV2 = calculateReformScore(time || 0, moves || 0, multiplier, hintUsed, 0);
+  return {
+    id: row.player_id,
+    score: row.score,
+    scoreV2: legacyScore ? scoreV2 : (Number.isFinite(row.score) ? row.score : scoreV2),
+    time,
+    moves,
+    hintUsed,
+    difficultyCode,
+    mode,
+    completedAt: row.created_at,
+    legacyScore,
+  };
+}
+
+function mergeReformRankingRows(reformRows, legacyRows) {
+  const byPlayer = new Map();
+  legacyRows.map(row => mapServerRankingRow(row, { legacyScore: true })).forEach(entry => {
+    byPlayer.set(entry.id, entry);
+  });
+  reformRows.map(row => mapServerRankingRow(row)).forEach(entry => {
+    const previous = byPlayer.get(entry.id);
+    if (!previous || entry.scoreV2 > previous.scoreV2 || (entry.scoreV2 === previous.scoreV2 && entry.time < previous.time)) {
+      byPlayer.set(entry.id, entry);
+    }
+  });
+  return [...byPlayer.values()].sort(compareRankingEntries).slice(0, RANKING_LIMIT);
+}
+
 async function refreshServerRankings({ notify = false } = {}) {
   if (!SERVER_RANKING_ENABLED) return;
   try {
@@ -1349,18 +1385,17 @@ async function refreshServerRankings({ notify = false } = {}) {
       p_week_key: getRankingWeekKey(),
       p_limit: RANKING_LIMIT,
     });
+    let entries = rows.map(row => mapServerRankingRow(row));
+    if (RANKING_SCORE_VERSION === 'reform') {
+      const legacyRows = await supabaseRpc('freecell_weekly_leaderboard', {
+        p_week_key: getWeekKey(),
+        p_limit: RANKING_LIMIT,
+      });
+      entries = mergeReformRankingRows(rows, legacyRows);
+    }
     const data = {
       weekKey: getRankingWeekKey(),
-      entries: rows.map(row => ({
-        id: row.player_id,
-        score: row.score,
-        time: row.elapsed_time ?? row.time,
-        moves: row.moves,
-        hintUsed: row.hint_used || 0,
-        difficultyCode: row.difficulty_code || 'e1',
-        mode: row.mode || 'normal',
-        completedAt: row.created_at,
-      })),
+      entries,
     };
     saveRankingData(data);
     maybeNotifyRankingChange(data.entries, notify);
@@ -1379,23 +1414,22 @@ function maybeNotifyRankingChange(entries, notify) {
   if (now - state.lastRankNoticeAt < 120000) return;
 
   const leader = entries[0];
+  const leaderScore = getRankingScore(leader);
   const previousLeader = state.serverLeader;
-  state.serverLeader = { id: leader.id, score: leader.score };
+  state.serverLeader = { id: leader.id, score: leaderScore };
 
-  if (previousLeader && (previousLeader.id !== leader.id || previousLeader.score !== leader.score)) {
+  if (previousLeader && (previousLeader.id !== leader.id || previousLeader.score !== leaderScore)) {
     state.lastRankNoticeAt = now;
-    setStatus(`1위 변경: ${leader.id} · ${leader.score}점`);
+    setStatus(`1위 변경: ${leader.id} · ${leaderScore}점`);
     return;
   }
 
   const undoUsed = getChargedUndoUsed();
-  const projectedScore = calculateScore(
-    state.elapsedSeconds,
-    state.moves,
-    getScoreMultiplier(state.difficultyCode, state.gameMode),
-    undoUsed
-  );
-  const gap = leader.score - projectedScore;
+  const multiplier = getScoreMultiplier(state.difficultyCode, state.gameMode);
+  const projectedScore = RANKING_SCORE_VERSION === 'reform'
+    ? calculateReformScore(state.elapsedSeconds, state.moves, multiplier, undoUsed, state.specialUsed ? 1 : 0)
+    : calculateScore(state.elapsedSeconds, state.moves, multiplier, undoUsed, state.specialUsed ? 1 : 0);
+  const gap = leaderScore - projectedScore;
   if (gap > 0 && gap <= 500) {
     state.lastRankNoticeAt = now;
     setStatus(`현재 페이스 기준 1위까지 ${gap}점 차이입니다.`);
