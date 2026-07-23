@@ -37,6 +37,16 @@ const STORAGE_KEYS = {
 
 const PATCH_NOTES = [
   {
+    "version": "알파 v0.73",
+    "date": "2026-07-23",
+    "title": "공지 편집 구조 개선",
+    "items": [
+      "공지 내용을 NOTICE.json으로 분리",
+      "dev에서 기존 공지 모달 안에서 바로 편집/저장 가능하도록 개선",
+      "알파 공개 빌드에서는 편집/저장 기능 없이 공지만 표시"
+    ]
+  },
+  {
     "version": "알파 v0.72",
     "date": "2026-07-23",
     "title": "운영자 공지 업데이트",
@@ -65,8 +75,8 @@ const PATCH_NOTES = [
   }
 ];
 const CURRENT_PATCH_NOTE_VERSION = PATCH_NOTES[0]?.version || '';
-const AVAILABLE_ALPHA_VERSION = '0.72';
-const CLIENT_ALPHA_VERSION = '0.72'; // dev-only update-check test baseline; public builds inject their channel version.
+const AVAILABLE_ALPHA_VERSION = '0.73';
+const CLIENT_ALPHA_VERSION = '0.73'; // dev-only update-check test baseline; public builds inject their channel version.
 
 const SUPABASE_CONFIG = {
   url: 'https://zhhvyvjbqdwurwlgseod.supabase.co',
@@ -110,6 +120,7 @@ const freecellsEl = $('freecells');
 const foundationsEl = $('foundations');
 const tableauEl = $('tableau');
 const statusEl = $('status');
+const noticeFlowEl = $('noticeFlow');
 const moveHud = $('moveHud');
 const timerDisplay = $('timerDisplay');
 const undoHud = $('hintHud');
@@ -162,6 +173,7 @@ const rankingDetailReset = $('rankingDetailReset');
 const rankingCloseBtn = $('rankingCloseBtn');
 const operatorNoticeBtn = $('operatorNoticeBtn');
 const operatorNoticeModal = $('operatorNoticeModal');
+const operatorNoticeBody = $('operatorNoticeBody');
 const operatorNoticeCloseBtn = $('operatorNoticeCloseBtn');
 const patchNotesBtn = $('patchNotesBtn');
 const patchNotesModal = $('patchNotesModal');
@@ -390,7 +402,7 @@ function getChargedUndoUsed(undoLeft = state.undoLeft, code = state.difficultyCo
 
 function renderVersionLabel() {
   if (!versionLabel) return;
-  versionLabel.textContent = '알파 v0.72';
+  versionLabel.textContent = '알파 v0.73';
   renderPlayerDifficulty();
 }
 
@@ -1838,7 +1850,45 @@ function closeRankingModal() {
   if (rankingModal) rankingModal.hidden = true;
 }
 
-function openOperatorNotice() {
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
+}
+
+function renderOperatorNotice(notice) {
+  if (!operatorNoticeBody || !notice) return;
+  const operator = escapeHtml(notice.operator || '운영자');
+  const message = escapeHtml(notice.message || '성원 감사합니다.');
+  const sections = Array.isArray(notice.sections) ? notice.sections : [];
+  operatorNoticeBody.innerHTML = `
+    <p><strong>${operator} :</strong> ${message}</p>
+    ${sections.map(section => `
+      <h3>${escapeHtml(section.title || '')}</h3>
+      <ol>
+        ${(Array.isArray(section.items) ? section.items : []).map(item => `
+          <li>${escapeHtml(item.text || '')}${item.note ? ` <span>${escapeHtml(item.note)}</span>` : ''}</li>
+        `).join('')}
+      </ol>
+    `).join('')}
+  `;
+}
+
+async function loadOperatorNotice() {
+  try {
+    const response = await fetch(`./NOTICE.json?notice=${Date.now()}`, { cache: 'no-store' });
+    if (!response.ok) throw new Error(`NOTICE.json ${response.status}`);
+    renderOperatorNotice(await response.json());
+  } catch (error) {
+    console.warn('공지 로드 실패, 내장 공지를 표시합니다.', error);
+  }
+}
+
+async function openOperatorNotice() {
+  await loadOperatorNotice();
   if (operatorNoticeModal) operatorNoticeModal.hidden = false;
 }
 
@@ -2004,15 +2054,16 @@ function updateNoticeTicker() {
   const bar = statusEl?.closest('.statusbar');
   if (!bar || !statusEl) return;
   bar.classList.remove('is-ticker');
-  statusEl.style.removeProperty('--notice-duration');
+  noticeFlowEl?.style.removeProperty('--notice-duration');
   window.requestAnimationFrame(() => {
     const viewport = statusEl.parentElement;
     if (!viewport) return;
-    const overflow = statusEl.scrollWidth > viewport.clientWidth + 4;
+    const flow = noticeFlowEl || statusEl;
+    const overflow = flow.scrollWidth > viewport.clientWidth + 4;
     bar.classList.toggle('is-ticker', overflow);
     if (overflow) {
-      const duration = Math.min(22, Math.max(9, Math.round(statusEl.scrollWidth / 28)));
-      statusEl.style.setProperty('--notice-duration', `${duration}s`);
+      const duration = Math.min(22, Math.max(9, Math.round(flow.scrollWidth / 28)));
+      flow.style.setProperty('--notice-duration', `${duration}s`);
     }
   });
 }

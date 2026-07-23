@@ -105,6 +105,7 @@ const freecellsEl = $('freecells');
 const foundationsEl = $('foundations');
 const tableauEl = $('tableau');
 const statusEl = $('status');
+const noticeFlowEl = $('noticeFlow');
 const moveHud = $('moveHud');
 const timerDisplay = $('timerDisplay');
 const undoHud = $('hintHud');
@@ -122,6 +123,11 @@ const rankingResetText = $('rankingResetText');
 const rankingList = $('rankingList');
 const soundBtn = $('soundBtn');
 const promotionTestBtn = $('promotionTestBtn');
+const devNoticeEditorPanel = $('devNoticeEditorPanel');
+const devNoticeEditorInput = $('devNoticeEditorInput');
+const devNoticeEditorStatus = $('devNoticeEditorStatus');
+const devNoticeEditorEditBtn = $('devNoticeEditorEditBtn');
+const devNoticeEditorSaveBtn = $('devNoticeEditorSaveBtn');
 const devAutoPlayBtn = $('devAutoPlayBtn');
 const tutorialBtn = $('tutorialBtn');
 const tutorialCloseBtn = $('tutorialCloseBtn');
@@ -159,6 +165,7 @@ const rankingDetailReset = $('rankingDetailReset');
 const rankingCloseBtn = $('rankingCloseBtn');
 const operatorNoticeBtn = $('operatorNoticeBtn');
 const operatorNoticeModal = $('operatorNoticeModal');
+const operatorNoticeBody = $('operatorNoticeBody');
 const operatorNoticeCloseBtn = $('operatorNoticeCloseBtn');
 const patchNotesBtn = $('patchNotesBtn');
 const patchNotesModal = $('patchNotesModal');
@@ -1839,11 +1846,50 @@ function closeRankingModal() {
   if (rankingModal) rankingModal.hidden = true;
 }
 
-function openOperatorNotice() {
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
+}
+
+function renderOperatorNotice(notice) {
+  if (!operatorNoticeBody || !notice) return;
+  const operator = escapeHtml(notice.operator || '운영자');
+  const message = escapeHtml(notice.message || '성원 감사합니다.');
+  const sections = Array.isArray(notice.sections) ? notice.sections : [];
+  operatorNoticeBody.innerHTML = `
+    <p><strong>${operator} :</strong> ${message}</p>
+    ${sections.map(section => `
+      <h3>${escapeHtml(section.title || '')}</h3>
+      <ol>
+        ${(Array.isArray(section.items) ? section.items : []).map(item => `
+          <li>${escapeHtml(item.text || '')}${item.note ? ` <span>${escapeHtml(item.note)}</span>` : ''}</li>
+        `).join('')}
+      </ol>
+    `).join('')}
+  `;
+}
+
+async function loadOperatorNotice() {
+  try {
+    const response = await fetch(`./NOTICE.json?notice=${Date.now()}`, { cache: 'no-store' });
+    if (!response.ok) throw new Error(`NOTICE.json ${response.status}`);
+    renderOperatorNotice(await response.json());
+  } catch (error) {
+    console.warn('공지 로드 실패, 내장 공지를 표시합니다.', error);
+  }
+}
+
+async function openOperatorNotice() {
+  await loadOperatorNotice();
   if (operatorNoticeModal) operatorNoticeModal.hidden = false;
 }
 
 function closeOperatorNotice() {
+  disableDevNoticeEditMode();
   if (operatorNoticeModal) operatorNoticeModal.hidden = true;
 }
 
@@ -2156,6 +2202,57 @@ function runDevAutoPlayStep() {
   scheduleDevAutoPlayStep();
 }
 
+async function enableDevNoticeEditMode() {
+  if (!devNoticeEditorPanel || !devNoticeEditorInput) return;
+  devNoticeEditorPanel.hidden = false;
+  if (devNoticeEditorSaveBtn) devNoticeEditorSaveBtn.hidden = false;
+  if (devNoticeEditorEditBtn) devNoticeEditorEditBtn.hidden = true;
+  if (devNoticeEditorStatus) devNoticeEditorStatus.textContent = 'NOTICE.json을 불러오는 중입니다.';
+  try {
+    const response = await fetch(`./NOTICE.json?edit=${Date.now()}`, { cache: 'no-store' });
+    if (!response.ok) throw new Error(`NOTICE.json ${response.status}`);
+    const notice = await response.json();
+    devNoticeEditorInput.value = JSON.stringify(notice, null, 2);
+    if (devNoticeEditorStatus) devNoticeEditorStatus.textContent = '수정 후 저장을 누르세요.';
+  } catch (error) {
+    if (devNoticeEditorStatus) devNoticeEditorStatus.textContent = `공지 로드 실패: ${error.message}`;
+  }
+}
+
+function disableDevNoticeEditMode() {
+  if (devNoticeEditorPanel) devNoticeEditorPanel.hidden = true;
+  if (devNoticeEditorSaveBtn) devNoticeEditorSaveBtn.hidden = true;
+  if (devNoticeEditorEditBtn) devNoticeEditorEditBtn.hidden = false;
+}
+
+async function saveDevNoticeEditor() {
+  if (!devNoticeEditorInput) return;
+  let parsed;
+  try {
+    parsed = JSON.parse(devNoticeEditorInput.value);
+  } catch (error) {
+    if (devNoticeEditorStatus) devNoticeEditorStatus.textContent = `JSON 오류: ${error.message}`;
+    return;
+  }
+  if (devNoticeEditorStatus) devNoticeEditorStatus.textContent = '저장 중입니다.';
+  try {
+    const response = await fetch('./__dev/notice', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(parsed),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || result.status !== 'ok') throw new Error(result.error || `저장 실패 ${response.status}`);
+    devNoticeEditorInput.value = JSON.stringify(parsed, null, 2);
+    renderOperatorNotice(parsed);
+    disableDevNoticeEditMode();
+    if (devNoticeEditorStatus) devNoticeEditorStatus.textContent = '저장 완료. 공지 버튼으로 미리 확인할 수 있습니다.';
+    setStatus('개발용 공지 저장 완료. 알파 배포 전 제가 NOTICE.json을 확인하겠습니다.');
+  } catch (error) {
+    if (devNoticeEditorStatus) devNoticeEditorStatus.textContent = `저장 실패: ${error.message}`;
+  }
+}
+
 function toggleDevAutoPlay() {
   if (state.devAutoPlayActive) {
     stopDevAutoPlay('자동 플레이를 중지했습니다.');
@@ -2174,15 +2271,16 @@ function updateNoticeTicker() {
   const bar = statusEl?.closest('.statusbar');
   if (!bar || !statusEl) return;
   bar.classList.remove('is-ticker');
-  statusEl.style.removeProperty('--notice-duration');
+  noticeFlowEl?.style.removeProperty('--notice-duration');
   window.requestAnimationFrame(() => {
     const viewport = statusEl.parentElement;
     if (!viewport) return;
-    const overflow = statusEl.scrollWidth > viewport.clientWidth + 4;
+    const flow = noticeFlowEl || statusEl;
+    const overflow = flow.scrollWidth > viewport.clientWidth + 4;
     bar.classList.toggle('is-ticker', overflow);
     if (overflow) {
-      const duration = Math.min(22, Math.max(9, Math.round(statusEl.scrollWidth / 28)));
-      statusEl.style.setProperty('--notice-duration', `${duration}s`);
+      const duration = Math.min(22, Math.max(9, Math.round(flow.scrollWidth / 28)));
+      flow.style.setProperty('--notice-duration', `${duration}s`);
     }
   });
 }
@@ -2233,6 +2331,8 @@ if (promotionFailModal) promotionFailModal.addEventListener('click', (event) => 
   if (event.target === promotionFailModal) closePromotionFailModal();
 });
 if (promotionTestBtn) promotionTestBtn.addEventListener('click', runPromotionTest);
+if (devNoticeEditorEditBtn) devNoticeEditorEditBtn.addEventListener('click', enableDevNoticeEditMode);
+if (devNoticeEditorSaveBtn) devNoticeEditorSaveBtn.addEventListener('click', saveDevNoticeEditor);
 if (devAutoPlayBtn) devAutoPlayBtn.addEventListener('click', toggleDevAutoPlay);
 updateDevAutoPlayButton();
 soundBtn.addEventListener('click', toggleSound);

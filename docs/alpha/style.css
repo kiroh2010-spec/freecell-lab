@@ -1355,13 +1355,22 @@ button:disabled {
   overflow: hidden;
   white-space: nowrap;
 }
-#status {
-  display: inline-block;
+.notice-flow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   max-width: 100%;
   white-space: nowrap;
   vertical-align: middle;
 }
-.statusbar.is-ticker #status {
+.notice-flow .notice-icon {
+  flex: 0 0 auto;
+}
+#status {
+  min-width: 0;
+  white-space: nowrap;
+}
+.statusbar.is-ticker .notice-flow {
   max-width: none;
   padding-left: 100%;
   animation: noticeTicker var(--notice-duration, 12s) linear infinite;

@@ -30,11 +30,19 @@ def remove_public_dev_html(html: str) -> str:
     html = html.replace('        <a class="home-link" href="./home.html">홈</a>\n', '')
     html = html.replace('        <button id="promotionTestBtn" type="button">레벨업 테스트</button>\n', '')
     html = html.replace('        <button id="devAutoPlayBtn" type="button">자동 플레이</button>\n', '')
+    html = re.sub(r"\n        <div id=\"devNoticeEditorPanel\"[\s\S]*?\n        </div>", "", html, count=1)
+    html = html.replace('          <button id="devNoticeEditorEditBtn" type="button">편집</button>\n', '')
+    html = html.replace('          <button id="devNoticeEditorSaveBtn" type="button" hidden>저장</button>\n', '')
     return html
 
 
 def remove_public_dev_js(js: str) -> str:
     js = js.replace("const promotionTestBtn = $('promotionTestBtn');\n", "")
+    js = js.replace("const devNoticeEditorPanel = $('devNoticeEditorPanel');\n", "")
+    js = js.replace("const devNoticeEditorInput = $('devNoticeEditorInput');\n", "")
+    js = js.replace("const devNoticeEditorStatus = $('devNoticeEditorStatus');\n", "")
+    js = js.replace("const devNoticeEditorEditBtn = $('devNoticeEditorEditBtn');\n", "")
+    js = js.replace("const devNoticeEditorSaveBtn = $('devNoticeEditorSaveBtn');\n", "")
     js = js.replace("  devAutoPlayActive: false,\n", "")
     js = js.replace("  devAutoPlayTimerId: null,\n", "")
     js = js.replace("  devAutoPlayLastMoveKey: '',\n", "")
@@ -46,7 +54,14 @@ def remove_public_dev_js(js: str) -> str:
     end = js.find("\nfunction updateNoticeTicker()", start)
     if start != -1 and end != -1:
         js = js[:start] + js[end:]
+    start = js.find("\nasync function enableDevNoticeEditMode() {")
+    end = js.find("\nfunction toggleDevAutoPlay()", start)
+    if start != -1 and end != -1:
+        js = js[:start] + js[end:]
+    js = js.replace("  disableDevNoticeEditMode();\n", "")
     js = js.replace("if (promotionTestBtn) promotionTestBtn.addEventListener('click', runPromotionTest);\n", "")
+    js = js.replace("if (devNoticeEditorEditBtn) devNoticeEditorEditBtn.addEventListener('click', enableDevNoticeEditMode);\n", "")
+    js = js.replace("if (devNoticeEditorSaveBtn) devNoticeEditorSaveBtn.addEventListener('click', saveDevNoticeEditor);\n", "")
     js = js.replace("  if (state.devAutoPlayActive) stopDevAutoPlay('자동 플레이를 중지하고 새 게임을 시작합니다.');\n", "")
     js = js.replace("if (devAutoPlayBtn) devAutoPlayBtn.addEventListener('click', toggleDevAutoPlay);\n", "")
     js = js.replace("updateDevAutoPlayButton();\n", "")
@@ -64,7 +79,11 @@ def build_channel(out_dir: Path, channel: str, visible_label: str, public_versio
     html = re.sub(r'>패치 v[0-9]+(?:\.[0-9]+)?</button>', f'>패치 v{public_version}</button>', html)
     (out_dir / 'index.html').write_text(html)
 
-    shutil.copyfile(root / 'style.css', out_dir / 'style.css')
+    css = (root / 'style.css').read_text()
+    css = css.replace('.operator-notice-card,\n.dev-notice-editor-card,\n.patch-notes-card', '.operator-notice-card,\n.patch-notes-card')
+    css = re.sub(r"\n\.dev-notice-editor-help,[\s\S]*?\.dev-notice-editor-input:focus \{[\s\S]*?\n\}", "", css, count=1)
+    (out_dir / 'style.css').write_text(css)
+    shutil.copyfile(root / 'NOTICE.json', out_dir / 'NOTICE.json')
 
     js = remove_public_dev_js((root / 'script.js').read_text())
     notes_json = json.dumps(notes, ensure_ascii=False, indent=2)

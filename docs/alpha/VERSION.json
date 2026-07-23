@@ -1,9 +1,19 @@
 {
   "devVersion": "0.9",
-  "alphaVersion": "0.72",
+  "alphaVersion": "0.73",
   "betaVersion": "0.12",
   "launchVersion": "1.0",
   "patchNotes": [
+    {
+      "version": "알파 v0.73",
+      "date": "2026-07-23",
+      "title": "공지 편집 구조 개선",
+      "items": [
+        "공지 내용을 NOTICE.json으로 분리",
+        "dev에서 기존 공지 모달 안에서 바로 편집/저장 가능하도록 개선",
+        "알파 공개 빌드에서는 편집/저장 기능 없이 공지만 표시"
+      ]
+    },
     {
       "version": "알파 v0.72",
       "date": "2026-07-23",
@@ -43,7 +53,7 @@
     "alpha": {
       "label": "알파",
       "description": "dev 변경을 베타와 분리해 사람 테스트하는 공개 알파 공간. 테스트 기능/데이터는 UI와 코드에서 제거한다.",
-      "visibleLabel": "알파 v0.72",
+      "visibleLabel": "알파 v0.73",
       "allowTestTools": false,
       "public": true
     },
@@ -76,7 +86,7 @@
     "pipeline": "기본 흐름은 dev에서 개발하고, 알파에서 사람 테스트한 뒤, 검증된 알파를 베타에 거의 그대로 적용하는 것이다. 베타 적용 시에는 알파에서 확인한 스펙을 큰 재작업 없이 승격하는 것을 목표로 한다."
   },
   "channel": "alpha",
-  "buildId": "alpha-0-72",
-  "commit": "cc83095",
-  "builtAt": "2026-07-23T09:13:08.738702+00:00"
+  "buildId": "alpha-0-73",
+  "commit": "8c70744",
+  "builtAt": "2026-07-23T10:29:27.636982+00:00"
 }

@@ -51,9 +51,8 @@
     </header>
 
     <section class="statusbar" aria-live="polite" aria-label="게임 알림">
-      <span class="notice-icon" aria-hidden="true">🔊</span>
       <button id="operatorNoticeBtn" class="notice-action-button" type="button" aria-label="운영자 공지 보기">공지</button>
-      <span class="notice-viewport"><span id="status">게임을 시작합니다.</span></span>
+      <span class="notice-viewport"><span id="noticeFlow" class="notice-flow"><span class="notice-icon" aria-hidden="true">🔊</span><span id="status">게임을 시작합니다.</span></span></span>
       <button id="patchNotesBtn" class="patch-notes-button" type="button" aria-label="패치노트 보기">패치 v0.6</button>
     </section>
 
@@ -214,7 +213,7 @@
       <div class="result-card operator-notice-card" role="dialog" aria-modal="true" aria-labelledby="operatorNoticeTitle">
         <div class="result-kicker">NOTICE</div>
         <h2 id="operatorNoticeTitle">운영자 공지</h2>
-        <div class="operator-notice-body">
+        <div id="operatorNoticeBody" class="operator-notice-body">
           <p><strong>운영자 :</strong> 성원 감사합니다.</p>
           <h3>패치 예정 사항</h3>
           <ol>
@@ -223,7 +222,14 @@
             <li>밸런스 패치 <span>점수가 너무 커서 3/1 예정 · 점수 계산 방식 변경</span></li>
           </ol>
         </div>
+        <div id="devNoticeEditorPanel" class="dev-notice-editor-panel" hidden>
+          <p class="dev-notice-editor-help">NOTICE.json을 직접 수정합니다. 저장 전 JSON 형식을 검사합니다.</p>
+          <textarea id="devNoticeEditorInput" class="dev-notice-editor-input" spellcheck="false"></textarea>
+          <p id="devNoticeEditorStatus" class="dev-notice-editor-status">공지 JSON을 불러오는 중</p>
+        </div>
         <div class="result-actions">
+          <button id="devNoticeEditorEditBtn" type="button">편집</button>
+          <button id="devNoticeEditorSaveBtn" type="button" hidden>저장</button>
           <button id="operatorNoticeCloseBtn" class="ghost-button" type="button">닫기</button>
         </div>
       </div>
