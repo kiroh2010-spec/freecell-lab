@@ -37,6 +37,14 @@ const STORAGE_KEYS = {
 
 const PATCH_NOTES = [
   {
+    "version": "베타 v0.12",
+    "date": "2026-07-23",
+    "title": "운영자 공지 업데이트",
+    "items": [
+      "패치 예정 사항에 밸런스 패치 안내 추가"
+    ]
+  },
+  {
     "version": "베타 v0.11",
     "date": "2026-07-23",
     "title": "운영자 공지 추가",
@@ -64,8 +72,8 @@ const PATCH_NOTES = [
   }
 ];
 const CURRENT_PATCH_NOTE_VERSION = PATCH_NOTES[0]?.version || '';
-const AVAILABLE_ALPHA_VERSION = '0.11';
-const CLIENT_ALPHA_VERSION = '0.11'; // dev-only update-check test baseline; public builds inject their channel version.
+const AVAILABLE_ALPHA_VERSION = '0.12';
+const CLIENT_ALPHA_VERSION = '0.12'; // dev-only update-check test baseline; public builds inject their channel version.
 
 const SUPABASE_CONFIG = {
   url: 'https://zhhvyvjbqdwurwlgseod.supabase.co',
@@ -389,7 +397,7 @@ function getChargedUndoUsed(undoLeft = state.undoLeft, code = state.difficultyCo
 
 function renderVersionLabel() {
   if (!versionLabel) return;
-  versionLabel.textContent = '베타 v0.11';
+  versionLabel.textContent = '베타 v0.12';
   renderPlayerDifficulty();
 }
 

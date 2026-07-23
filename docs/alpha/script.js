@@ -37,6 +37,14 @@ const STORAGE_KEYS = {
 
 const PATCH_NOTES = [
   {
+    "version": "알파 v0.72",
+    "date": "2026-07-23",
+    "title": "운영자 공지 업데이트",
+    "items": [
+      "패치 예정 사항에 밸런스 패치 안내 추가"
+    ]
+  },
+  {
     "version": "알파 v0.71",
     "date": "2026-07-23",
     "title": "운영자 공지 추가",
@@ -57,8 +65,8 @@ const PATCH_NOTES = [
   }
 ];
 const CURRENT_PATCH_NOTE_VERSION = PATCH_NOTES[0]?.version || '';
-const AVAILABLE_ALPHA_VERSION = '0.71';
-const CLIENT_ALPHA_VERSION = '0.71'; // dev-only update-check test baseline; public builds inject their channel version.
+const AVAILABLE_ALPHA_VERSION = '0.72';
+const CLIENT_ALPHA_VERSION = '0.72'; // dev-only update-check test baseline; public builds inject their channel version.
 
 const SUPABASE_CONFIG = {
   url: 'https://zhhvyvjbqdwurwlgseod.supabase.co',
@@ -382,7 +390,7 @@ function getChargedUndoUsed(undoLeft = state.undoLeft, code = state.difficultyCo
 
 function renderVersionLabel() {
   if (!versionLabel) return;
-  versionLabel.textContent = '알파 v0.71';
+  versionLabel.textContent = '알파 v0.72';
   renderPlayerDifficulty();
 }
 

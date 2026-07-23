@@ -1,10 +1,18 @@
 {
   "devVersion": "0.9",
-  "alphaVersion": "0.71",
-  "alphaPublicVersion": "0.71",
-  "betaVersion": "0.11",
+  "alphaVersion": "0.72",
+  "alphaPublicVersion": "0.72",
+  "betaVersion": "0.12",
   "launchVersion": "1.0",
   "patchNotes": [
+    {
+      "version": "베타 v0.12",
+      "date": "2026-07-23",
+      "title": "운영자 공지 업데이트",
+      "items": [
+        "패치 예정 사항에 밸런스 패치 안내 추가"
+      ]
+    },
     {
       "version": "베타 v0.11",
       "date": "2026-07-23",
@@ -33,6 +41,14 @@
     }
   ],
   "alphaPatchNotes": [
+    {
+      "version": "알파 v0.72",
+      "date": "2026-07-23",
+      "title": "운영자 공지 업데이트",
+      "items": [
+        "패치 예정 사항에 밸런스 패치 안내 추가"
+      ]
+    },
     {
       "version": "알파 v0.71",
       "date": "2026-07-23",
@@ -64,14 +80,14 @@
     "alpha": {
       "label": "알파",
       "description": "dev 변경을 베타와 분리해 사람 테스트하는 공개 알파 공간. 테스트 기능/데이터는 UI와 코드에서 제거한다.",
-      "visibleLabel": "알파 v0.71",
+      "visibleLabel": "알파 v0.72",
       "allowTestTools": false,
       "public": true
     },
     "beta": {
       "label": "베타",
       "description": "알파에서 사람 테스트를 통과한 내용을 거의 그대로 적용하는 안정 테스트 공간. 기존 공개 사용자가 보는 기본 채널이다.",
-      "visibleLabel": "베타 v0.11",
+      "visibleLabel": "베타 v0.12",
       "allowTestTools": false,
       "public": true
     },
@@ -97,7 +113,7 @@
     "pipeline": "기본 흐름은 dev에서 개발하고, 알파에서 사람 테스트한 뒤, 검증된 알파를 베타에 거의 그대로 적용하는 것이다. 베타 적용 시에는 알파에서 확인한 스펙을 큰 재작업 없이 승격하는 것을 목표로 한다."
   },
   "channel": "beta",
-  "buildId": "beta-0-11",
-  "commit": "f9e6828",
-  "builtAt": "2026-07-23T09:09:12.689119+00:00"
+  "buildId": "beta-0-12",
+  "commit": "cc83095",
+  "builtAt": "2026-07-23T09:13:08.736993+00:00"
 }
