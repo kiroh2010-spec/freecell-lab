@@ -1641,9 +1641,23 @@ function formatRankingDate(value) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
 }
 
+function getRankingDifficultyLabel(entry) {
+  return getDifficultyTier(entry?.difficultyCode).displayName || formatDifficultyCode(entry?.difficultyCode, entry?.mode);
+}
+
+function getRankingPlayerLabel(entry) {
+  if (!entry) return '-';
+  return `${entry.id} ${getRankingDifficultyLabel(entry)}`;
+}
+
+function getRankingMetricLabel(entry) {
+  if (!entry) return '';
+  return `TIME ${formatTime(entry.time || 0)} · MOVE ${entry.moves || 0}회${entry.hintUsed ? ` · 되돌리기 ${entry.hintUsed}` : ''}`;
+}
+
 function getLeaderText() {
   const [leader] = getRankedEntries(1);
-  return leader ? `현재 1위: ${leader.id} · ${leader.score}점` : '현재 1위 없음';
+  return leader ? `현재 1위: ${getRankingPlayerLabel(leader)} · ${leader.score}점` : '현재 1위 없음';
 }
 
 function renderRankings() {
@@ -1664,20 +1678,18 @@ function renderRankings() {
   const chasingEntries = entries.slice(1, RANKING_TICKER_LIMIT);
   if (state.rankingTickerIndex >= chasingEntries.length) state.rankingTickerIndex = 0;
   const chasing = chasingEntries[state.rankingTickerIndex] || null;
-  const leaderMeta = `${formatDifficultyCode(leader.difficultyCode, leader.mode)}${leader.hintUsed ? ` · ↩${leader.hintUsed}` : ''}`;
-  const chasingMeta = chasing
-    ? `${formatDifficultyCode(chasing.difficultyCode, chasing.mode)}${chasing.hintUsed ? ` · ↩${chasing.hintUsed}` : ''}`
-    : '';
+  const leaderMeta = getRankingMetricLabel(leader);
+  const chasingMeta = chasing ? getRankingMetricLabel(chasing) : '';
   rankingList.innerHTML = `
     <li class="rank-line rank-leader">
       <strong>🏆 현재 1위</strong>
-      <span class="rank-id">${leader.id}</span>
+      <span class="rank-id">${getRankingPlayerLabel(leader)}</span>
       <span class="rank-score">${leader.score}점</span>
       <span class="rank-meta">${leaderMeta}</span>
     </li>
     <li class="rank-line rank-chaser">
       <strong>${chasing ? `${chasing.rank}위` : '2위'}</strong>
-      <span class="rank-id">${chasing ? chasing.id : '-'}</span>
+      <span class="rank-id">${chasing ? getRankingPlayerLabel(chasing) : '-'}</span>
       <span class="rank-score">${chasing ? `${chasing.score}점` : '도전자를 기다리는 중'}</span>
       <span class="rank-meta">${chasingMeta}</span>
     </li>
@@ -1894,10 +1906,10 @@ function renderRankingDetail() {
       <div class="ranking-detail-rank">${entry.rank}위</div>
       <div class="ranking-detail-main">
         <div class="ranking-detail-player">
-          <strong>${entry.id}</strong>
+          <strong>${getRankingPlayerLabel(entry)}</strong>
           <span class="ranking-detail-score">${entry.score}점</span>
         </div>
-        <div class="ranking-detail-meta">${formatTime(entry.time || 0)} · ${entry.moves || 0}수 · ${formatDifficultyCode(entry.difficultyCode, entry.mode)}${entry.hintUsed ? ` · 되돌리기 ${entry.hintUsed}` : ''}</div>
+        <div class="ranking-detail-meta">${getRankingMetricLabel(entry)}</div>
         <div class="ranking-detail-meta">등록: ${formatRankingDate(entry.completedAt)}</div>
       </div>
     </li>
