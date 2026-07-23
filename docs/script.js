@@ -8,7 +8,7 @@ const ranks = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
 
 const RANKING_LIMIT = 50;
 const RANKING_TICKER_LIMIT = 5;
-const PROMOTION_TIME_LIMIT_SECONDS = 10 * 60;
+const PROMOTION_TIME_LIMIT_SECONDS = 7 * 60;
 const PROMOTION_TIME_WARNING_SECONDS = 30;
 const TIME_BONUS_TIERS = [
   { seconds: 3 * 60, bonus: 200 },
@@ -18,8 +18,8 @@ const TIME_BONUS_TIERS = [
 
 const DIFFICULTY_TIERS = [
   { code: 'e1', label: '1LV', displayName: '1LV', requiredClears: 0, multiplier: 1.00, totalMax: 6, minLow: 3, minMovable: 4 },
-  { code: 'e2', label: '2LV', displayName: '2LV', requiredClears: 3, multiplier: 1.08, totalMax: 12, minLow: 2, minMovable: 3 },
-  { code: 'n1', label: '3LV', displayName: '3LV', requiredClears: 6, multiplier: 1.20, totalMin: 6, totalMax: 18, minLow: 2, minMovable: 3 },
+  { code: 'e2', label: '2LV', displayName: '2LV', requiredClears: 3, multiplier: 1.08, totalMin: 3, totalMax: 5, minLow: 3, minMovable: 3 },
+  { code: 'n1', label: '3LV', displayName: '3LV', requiredClears: 6, multiplier: 1.20, totalMin: 5, totalMax: 7, minLow: 3, minMovable: 3 },
 ];
 const RETIRED_DIFFICULTY_CODE_MAP = { n2: 'n1', n3: 'n1' };
 
@@ -30,7 +30,29 @@ const STORAGE_KEYS = {
   game: 'freecell.currentGame.v1',
   stats: 'freecell.stats.v1',
   profiles: 'freecell.profiles.v1',
+  patchNotesSeen: 'freecell.patchNotesSeen.v1',
+  acceptedAlphaPatch: 'freecell.acceptedAlphaPatch.v1',
+  pendingUpdatePatchNotes: 'freecell.pendingUpdatePatchNotes.v1',
 };
+
+const PATCH_NOTES = [
+  {
+    version: '알파 v0.6',
+    date: '2026-07-23',
+    title: '랭킹·난이도·조작감 개선',
+    items: [
+      '랭킹 상세 목록이 길어져도 화면 안에서 스크롤되도록 수정',
+      '내 순위 행을 별도 테두리로 강조',
+      'Tableau 선택 시 이동 가능한 컬럼 표시',
+      'A 카드를 다른 숫자보다 더 잘 보이도록 강조',
+      'LV1은 유지하고 LV2/LV3 난이도 기준을 더 부드럽게 조정',
+      '레벨업 테스트는 현재 단계 난이도를 7분 안에 클리어하는 방식으로 변경',
+    ],
+  },
+];
+const CURRENT_PATCH_NOTE_VERSION = PATCH_NOTES[0]?.version || '';
+const AVAILABLE_ALPHA_VERSION = '0.6';
+const CLIENT_ALPHA_VERSION = '0.6'; // dev-only update-check test baseline; alpha build injects VERSION.json alphaVersion.
 
 const SUPABASE_CONFIG = {
   url: 'https://zhhvyvjbqdwurwlgseod.supabase.co',
@@ -66,6 +88,7 @@ const state = {
   lastRankNoticeAt: 0,
   rankingTickerIndex: 0,
   lastResult: null,
+  availablePatchNotes: null,
 };
 
 const $ = (id) => document.getElementById(id);
@@ -77,6 +100,7 @@ const moveHud = $('moveHud');
 const timerDisplay = $('timerDisplay');
 const undoHud = $('hintHud');
 const versionLabel = $('versionLabel');
+const updateReloadBtn = $('updateReloadBtn');
 const playerIdEl = $('playerId');
 const passwordToggleBtn = $('passwordToggleBtn');
 const signupSaveBtn = $('signupSaveBtn');
@@ -122,6 +146,10 @@ const rankingModal = $('rankingModal');
 const rankingDetailList = $('rankingDetailList');
 const rankingDetailReset = $('rankingDetailReset');
 const rankingCloseBtn = $('rankingCloseBtn');
+const patchNotesBtn = $('patchNotesBtn');
+const patchNotesModal = $('patchNotesModal');
+const patchNotesList = $('patchNotesList');
+const patchNotesCloseBtn = $('patchNotesCloseBtn');
 let audioContext = null;
 
 function makeDeck() {
@@ -175,7 +203,7 @@ function newGame({ clearSaved = true, mode = 'normal', difficultyCode = null } =
     ? ` 판은 ${visibleDealTier.label} 기준으로 준비했습니다.`
     : '';
   setStatus(mode === 'promotion'
-    ? `승급전 시작! ${transition.label}에 도전합니다.${gentlerPromotionText} 클리어하면 즉시 승급됩니다.`
+    ? `레벨업 테스트 시작! ${transition.label}에 도전합니다.${gentlerPromotionText} 클리어하면 즉시 레벨업됩니다.`
     : `${tier.label} 단계입니다. 바로 Foundation에 보낼 수 있는 A 카드가 준비됐습니다.`);
   render();
 }
@@ -327,18 +355,7 @@ function getDealDifficultyCode(code = state.difficultyCode, mode = state.gameMod
 
 function getDealTier(code = state.difficultyCode, mode = state.gameMode) {
   const dealCode = getDealDifficultyCode(code, mode);
-  const tier = getDifficultyTier(dealCode);
-  if (mode === 'promotion' && normalizeDifficultyCode(code) === 'e2') {
-    return {
-      ...tier,
-      minAces: 2,
-      minLow: 5,
-      minMovable: 2,
-      totalMax: 10,
-      promotionFriendly: true,
-    };
-  }
-  return tier;
+  return getDifficultyTier(dealCode);
 }
 
 function getUndoAllowance(code = state.difficultyCode) {
@@ -356,15 +373,71 @@ function getChargedUndoUsed(undoLeft = state.undoLeft, code = state.difficultyCo
 
 function renderVersionLabel() {
   if (!versionLabel) return;
-  versionLabel.textContent = '알파 v0.5';
+  versionLabel.textContent = '알파 v0.6';
   renderPlayerDifficulty();
+}
+
+function parseVersionNumber(value) {
+  const parsed = Number(String(value || '').replace(/[^0-9.]/g, ''));
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function showUpdateReloadButton(version) {
+  if (!updateReloadBtn) return;
+  const wasHidden = updateReloadBtn.hidden;
+  updateReloadBtn.dataset.version = version;
+  updateReloadBtn.hidden = false;
+  updateReloadBtn.textContent = `업데이트 v${version} 버전`;
+  updateReloadBtn.title = `알파 v${version} 업데이트를 받으려면 새로고침하세요.`;
+  if (wasHidden) setStatus(`새 업데이트 v${version} 버전이 있습니다. 제목 옆 업데이트 버튼을 누르면 적용됩니다.`);
+}
+
+function hideUpdateReloadButton() {
+  if (!updateReloadBtn) return;
+  updateReloadBtn.hidden = true;
+  updateReloadBtn.removeAttribute('data-version');
+}
+
+function applyAvailableAlphaPatchState(remoteAlpha, patchNotes = null) {
+  state.availablePatchNotes = Array.isArray(patchNotes) && patchNotes.length ? patchNotes : null;
+  const acceptedAlpha = sessionStorage.getItem(STORAGE_KEYS.acceptedAlphaPatch) || '';
+  if (parseVersionNumber(remoteAlpha) > parseVersionNumber(CLIENT_ALPHA_VERSION) && acceptedAlpha !== remoteAlpha) {
+    showUpdateReloadButton(remoteAlpha);
+  } else {
+    hideUpdateReloadButton();
+  }
+}
+
+async function checkAvailableAlphaPatch() {
+  if (!updateReloadBtn) return;
+  try {
+    const response = await fetch(`./VERSION.json?check=${Date.now()}`, { cache: 'no-store' });
+    if (!response.ok) throw new Error(`VERSION.json ${response.status}`);
+    const version = await response.json();
+    applyAvailableAlphaPatchState(version.alphaVersion || AVAILABLE_ALPHA_VERSION, version.patchNotes);
+  } catch (error) {
+    console.warn('패치 확인 실패, 내장 버전으로 확인합니다.', error);
+    applyAvailableAlphaPatchState(AVAILABLE_ALPHA_VERSION);
+  }
+}
+
+function reloadForAlphaPatch() {
+  const acceptedVersion = updateReloadBtn?.dataset.version;
+  if (acceptedVersion) {
+    sessionStorage.setItem(STORAGE_KEYS.acceptedAlphaPatch, acceptedVersion);
+    sessionStorage.setItem(STORAGE_KEYS.pendingUpdatePatchNotes, acceptedVersion);
+  }
+  hideUpdateReloadButton();
+  const url = new URL(window.location.href);
+  url.searchParams.set('v', `alpha-${Date.now()}`);
+  window.location.replace(url.toString());
 }
 
 function formatDifficultyCode(code = state.difficultyCode, mode = state.gameMode) {
   const tier = getDifficultyTier(code);
   const name = tier.displayName || tier.label;
   if (mode === 'promotion') {
-    return `${getPromotionTransitionByTargetCode(code).label} 승급전`;
+    return `${getPromotionTransitionByTargetCode(code).label} 레벨업 테스트`;
   }
   return name;
 }
@@ -383,10 +456,10 @@ function renderPromotionButton() {
   const isReady = Boolean(nextTier) && state.gameMode !== 'promotion';
   promotionBtn.disabled = !isReady;
   promotionBtn.classList.toggle('is-ready', isReady);
-  promotionBtn.textContent = isReady ? `${transition.label} 승급` : '승급 준비';
+  promotionBtn.textContent = isReady ? `${transition.label} 레벨업` : '레벨업 준비';
   promotionBtn.title = isReady
-    ? `${transition.label} 승급전에 도전할 수 있습니다.`
-    : '조건을 채우면 승급전이 열립니다.';
+    ? `${transition.label} 레벨업 테스트에 도전할 수 있습니다.`
+    : '조건을 채우면 레벨업 테스트가 열립니다.';
 }
 
 function renderPromotionNotice() {
@@ -398,7 +471,7 @@ function renderPromotionNotice() {
   if (state.gameMode === 'promotion') {
     const transition = getPromotionTransitionByTargetCode(state.difficultyCode);
     if (state.won) {
-      setStatus(`승급 성공: ${transition.label} 완료 · 다음 새 게임부터 적용됩니다.`);
+      setStatus(`레벨업 성공: ${transition.label} 완료 · 다음 새 게임부터 적용됩니다.`);
     }
     return;
   }
@@ -407,7 +480,7 @@ function renderPromotionNotice() {
   const nextTier = getPromotionTarget(stats);
   if (nextTier) {
     const transition = getPromotionTransition(nextTier, stats);
-    setStatus(`${transition.label} 승급 가능 · 집중할 수 있을 때 승급 버튼을 눌러 도전하세요.`);
+    setStatus(`${transition.label} 레벨업 가능 · 집중할 수 있을 때 레벨업 버튼을 눌러 도전하세요.`);
     return;
   }
 
@@ -474,6 +547,7 @@ function render() {
     const col = document.createElement('div');
     col.className = `column ${column.length ? 'has-cards' : 'is-empty'}`;
     const columnTarget = { type: 'tableau', index: colIndex };
+    if (isSelectedTableauTarget(columnTarget)) col.classList.add('move-target');
     col.addEventListener('click', (event) => {
       if (event.target === col) handleTarget(columnTarget);
     });
@@ -523,7 +597,8 @@ function slotEl(label, onClick) {
 function cardEl(card, location) {
   const el = document.createElement('div');
   const isFace = ['J', 'Q', 'K'].includes(card.rank);
-  el.className = `card ${card.color === 'red' ? 'red' : ''} ${isFace ? 'face-card' : ''}`;
+  const isAce = card.value === 1;
+  el.className = `card ${card.color === 'red' ? 'red' : ''} ${isFace ? 'face-card' : ''} ${isAce ? 'ace-card' : ''}`;
   if (isInSelectedSequence(location)) el.classList.add('selected');
 
   if (isSameLocation(state.dragging, location)) el.classList.add('dragging');
@@ -614,7 +689,7 @@ function moveSingleCard(from, to, message, soundKind = 'move') {
 
 function handleCardClick(location) {
   if (state.promotionExpired) {
-    setStatus('승급전 시간이 종료됐습니다. 다시 도전하려면 승급 버튼을 눌러주세요.');
+    setStatus('레벨업 테스트 시간이 종료됐습니다. 다시 도전하려면 레벨업 버튼을 눌러주세요.');
     playSound('invalid');
     return;
   }
@@ -640,7 +715,7 @@ function handleCardClick(location) {
 
 function handleTarget(target) {
   if (state.promotionExpired) {
-    setStatus('승급전 시간이 종료됐습니다. 다시 도전하려면 승급 버튼을 눌러주세요.');
+    setStatus('레벨업 테스트 시간이 종료됐습니다. 다시 도전하려면 레벨업 버튼을 눌러주세요.');
     playSound('invalid');
     return false;
   }
@@ -719,6 +794,13 @@ function isSelectedFoundationTarget(target) {
   if (!state.selected || !target || target.type !== 'foundation') return false;
   const movingCards = getMovingCards(state.selected);
   return movingCards.length === 1 && canMoveCardsTo(movingCards, target);
+}
+
+function isSelectedTableauTarget(target) {
+  if (!state.selected || !target || target.type !== 'tableau') return false;
+  if (state.selected.type === 'tableau' && state.selected.index === target.index) return false;
+  const movingCards = getMovingCards(state.selected);
+  return movingCards.length > 0 && canMoveCardsTo(movingCards, target);
 }
 
 function normalizeDropTarget(location) {
@@ -853,7 +935,7 @@ function restoreGameSnapshot(snapshot) {
 
 function undoMove() {
   if (state.promotionExpired) {
-    setStatus('승급전 시간이 종료됐습니다. 다시 도전하려면 승급 버튼을 눌러주세요.');
+    setStatus('레벨업 테스트 시간이 종료됐습니다. 다시 도전하려면 레벨업 버튼을 눌러주세요.');
     playSound('invalid');
     return;
   }
@@ -942,7 +1024,7 @@ function restoreSavedGame() {
   }
 
   setStatus(saved.status || '저장된 게임을 이어서 진행합니다.');
-  if (state.promotionExpired) setStatus('승급전 실패 · 패널티는 없습니다. 준비되면 다시 도전하세요.');
+  if (state.promotionExpired) setStatus('레벨업 테스트 실패 · 패널티는 없습니다. 준비되면 다시 도전하세요.');
   render();
   if (state.timerStarted) resumeTimer();
   return true;
@@ -1133,7 +1215,7 @@ function requestNewGame() {
   saveStats(stats);
   newGame({ clearSaved: true, mode: 'normal', difficultyCode: DIFFICULTY_TIERS[stats.difficultyIndex].code });
   if (getPromotionTarget(stats)) {
-    setStatus('승급전이 준비되어 있습니다. 집중할 수 있을 때 승급 버튼을 눌러 도전하세요.');
+    setStatus('레벨업 테스트가 준비되어 있습니다. 집중할 수 있을 때 레벨업 버튼을 눌러 도전하세요.');
   }
 }
 
@@ -1334,7 +1416,7 @@ function updateTimerDisplay() {
   timerDisplay.textContent = formatTime(seconds);
   timerHud?.classList.toggle('is-danger', isTimed && seconds <= PROMOTION_TIME_WARNING_SECONDS);
   timerHud?.classList.toggle('is-expired', state.promotionExpired);
-  if (isTimed) timerDisplay.title = '승급전 남은 시간';
+  if (isTimed) timerDisplay.title = '레벨업 테스트 남은 시간';
   else timerDisplay.title = '경과 시간';
 }
 
@@ -1353,7 +1435,7 @@ function expirePromotionChallenge() {
   state.dragging = null;
 
   updateTimerDisplay();
-  setStatus('승급전 실패 · 패널티는 없습니다. 준비되면 다시 도전하세요.');
+  setStatus('레벨업 테스트 실패 · 패널티는 없습니다. 준비되면 다시 도전하세요.');
   persistGameState();
   render();
   showPromotionFailModal();
@@ -1364,7 +1446,7 @@ function showPromotionFailModal() {
   if (!promotionFailModal) return;
   const transition = getPromotionTransitionByTargetCode(state.difficultyCode);
   if (promotionFailText) {
-    promotionFailText.textContent = `${transition.label} 승급전 제한 시간 10분이 지났습니다. 패널티는 없으니, 다음 판에서 다시 도전해보세요.`;
+    promotionFailText.textContent = `${transition.label} 레벨업 테스트 제한 시간 7분이 지났습니다. 패널티는 없으니, 다음 판에서 다시 도전해보세요.`;
   }
   promotionFailModal.hidden = false;
 }
@@ -1374,7 +1456,7 @@ function closePromotionFailModal() {
   const activeCode = getActiveDifficultyCode();
   newGame({ clearSaved: true, mode: 'normal', difficultyCode: activeCode });
   renderPromotionButton();
-  setStatus('괜찮습니다. 패널티는 없어요. 준비되면 승급 버튼으로 다시 도전하세요.');
+  setStatus('괜찮습니다. 패널티는 없어요. 준비되면 레벨업 버튼으로 다시 도전하세요.');
 }
 
 function formatTime(totalSeconds) {
@@ -1516,7 +1598,7 @@ function updateClearProgress() {
     const promotedIndex = getDifficultyTierIndex(state.difficultyCode);
     stats.difficultyIndex = Math.max(stats.difficultyIndex, promotedIndex);
     const transition = getPromotionTransitionByTargetCode(state.difficultyCode);
-    setStatus(`승급 성공: ${transition.label} 완료 · 다음 새 게임부터 적용됩니다.`);
+    setStatus(`레벨업 성공: ${transition.label} 완료 · 다음 새 게임부터 적용됩니다.`);
   }
   saveStats(stats);
   saveCurrentProfile();
@@ -1670,7 +1752,7 @@ function getPromotionResultMessage(result) {
   if (!result || result.mode !== 'promotion') return '';
   const transition = getPromotionTransitionByTargetCode(result.difficultyCode);
   const benefit = normalizeDifficultyCode(result.difficultyCode) === 'n1' ? ' · 3LV 무료 되돌리기 1회' : '';
-  return `승급 성공: ${transition.label} 완료${benefit}`;
+  return `레벨업 성공: ${transition.label} 완료${benefit}`;
 }
 
 function getResultRankMessage(result) {
@@ -1727,6 +1809,68 @@ function closeRankingModal() {
   if (rankingModal) rankingModal.hidden = true;
 }
 
+function hasSeenCurrentPatchNotes() {
+  return localStorage.getItem(STORAGE_KEYS.patchNotesSeen) === CURRENT_PATCH_NOTE_VERSION;
+}
+
+function updatePatchNotesButton() {
+  if (!patchNotesBtn) return;
+  const unseen = !hasSeenCurrentPatchNotes();
+  patchNotesBtn.textContent = CURRENT_PATCH_NOTE_VERSION.replace('알파', '패치') || '패치노트';
+  patchNotesBtn.classList.toggle('has-unseen-patch', unseen);
+  patchNotesBtn.setAttribute('aria-pressed', String(unseen));
+  patchNotesBtn.title = unseen ? '새 패치노트가 있습니다' : '패치노트 보기';
+}
+
+function getPatchNoteVersionNumber(note) {
+  const match = String(note.version || '').match(/v([0-9]+(?:\.[0-9]+)?)/i);
+  return match ? Number(match[1]) : 0;
+}
+
+function renderPatchNotes(notesSource = null) {
+  if (!patchNotesList) return;
+  const source = Array.isArray(notesSource) && notesSource.length ? notesSource : PATCH_NOTES;
+  const notes = [...source].sort((a, b) => getPatchNoteVersionNumber(b) - getPatchNoteVersionNumber(a));
+  patchNotesList.innerHTML = notes.map(note => `
+    <article class="patch-note-entry">
+      <div class="patch-note-version">${note.version}</div>
+      <h3>${note.title}</h3>
+      <p>${note.date}</p>
+      <ul>
+        ${note.items.map(item => `<li>${item}</li>`).join('')}
+      </ul>
+    </article>
+  `).join('');
+}
+
+function openPatchNotes({ markSeen = true, notes = null } = {}) {
+  if (!patchNotesModal) return;
+  renderPatchNotes(notes);
+  patchNotesModal.hidden = false;
+  if (markSeen && CURRENT_PATCH_NOTE_VERSION) {
+    localStorage.setItem(STORAGE_KEYS.patchNotesSeen, CURRENT_PATCH_NOTE_VERSION);
+    updatePatchNotesButton();
+  }
+}
+
+function closePatchNotes() {
+  if (patchNotesModal) patchNotesModal.hidden = true;
+}
+
+function maybeOpenPatchNotesOnFirstVisit() {
+  updatePatchNotesButton();
+  const pendingUpdateVersion = sessionStorage.getItem(STORAGE_KEYS.pendingUpdatePatchNotes) || '';
+  const currentPatchVersion = CURRENT_PATCH_NOTE_VERSION.replace('알파 v', '');
+  if (pendingUpdateVersion && pendingUpdateVersion === currentPatchVersion) {
+    sessionStorage.removeItem(STORAGE_KEYS.pendingUpdatePatchNotes);
+    window.setTimeout(() => openPatchNotes(), 250);
+    return;
+  }
+  if (CURRENT_PATCH_NOTE_VERSION && !hasSeenCurrentPatchNotes()) {
+    window.setTimeout(() => openPatchNotes(), 250);
+  }
+}
+
 function renderRankingDetail() {
   const entries = getRankedEntries(RANKING_LIMIT);
   rankingDetailReset.textContent = getResetText();
@@ -1735,7 +1879,7 @@ function renderRankingDetail() {
     return;
   }
   rankingDetailList.innerHTML = entries.map(entry => `
-    <li>
+    <li class="${state.player?.id === entry.id ? 'current-player-rank' : ''}">
       <div class="ranking-detail-rank">${entry.rank}위</div>
       <div class="ranking-detail-main">
         <div class="ranking-detail-player">
@@ -1772,21 +1916,21 @@ function getPromotionModalTexts(tier, stats = loadStats()) {
   const transition = getPromotionTransition(tier, stats);
   const nextIndex = getDifficultyTierIndex(tier.code) + 1;
   const nextTier = DIFFICULTY_TIERS[nextIndex] || null;
-  const benefits = [`${transition.label} 해금`, `점수 배수 ${tier.multiplier.toFixed(2)}x`, '승급전 보너스 +0.10x'];
+  const benefits = [`${transition.label} 해금`, `점수 배수 ${tier.multiplier.toFixed(2)}x`, '레벨업 테스트 보너스 +0.10x'];
   if (normalizeDifficultyCode(tier.code) === 'n1') benefits.push('3LV 무료 되돌리기 1회');
   if (nextTier) benefits.push(`다음 목표: ${nextTier.label}`);
   return {
-    title: `${transition.label} 승급전`,
-    text: `지금 도전하면 클리어 시 ${transition.fromTier.label}에서 ${transition.toTier.label}로 승급합니다. 집중할 수 있을 때 시작하세요.`,
+    title: `${transition.label} 레벨업 테스트`,
+    text: `지금 도전하면 클리어 시 ${transition.fromTier.label}에서 ${transition.toTier.label}로 레벨업합니다. 집중할 수 있을 때 시작하세요.`,
     benefit: benefits.join(' · '),
-    caution: '일반 판보다 어려울 수 있습니다. 취소해도 승급 자격은 유지됩니다.',
+    caution: '현재 단계 난이도를 7분 안에 클리어하면 레벨업합니다. 취소해도 레벨업 자격은 유지됩니다.',
   };
 }
 
 function openPromotionModal() {
   const target = getPromotionTarget(loadStats());
   if (!target) {
-    setStatus('아직 승급 조건을 채우는 중입니다. 클리어를 쌓으면 승급전이 열립니다.');
+    setStatus('아직 레벨업 조건을 채우는 중입니다. 클리어를 쌓으면 레벨업 테스트가 열립니다.');
     renderPromotionButton();
     return;
   }
@@ -1794,14 +1938,14 @@ function openPromotionModal() {
   promotionModalTitle.textContent = texts.title;
   promotionModalText.textContent = texts.text;
   promotionBenefitText.textContent = texts.benefit;
-  promotionCautionText.textContent = `${texts.caution} · 제한 시간 10분`;
+  promotionCautionText.textContent = `${texts.caution} · 제한 시간 7분`;
   promotionModal.hidden = false;
 }
 
 function closePromotionModal() {
   if (!promotionModal) return;
   promotionModal.hidden = true;
-  setStatus('승급전은 준비되어 있습니다. 집중할 수 있을 때 도전하세요.');
+  setStatus('레벨업 테스트는 준비되어 있습니다. 집중할 수 있을 때 도전하세요.');
   renderPromotionNotice();
   renderPromotionButton();
 }
@@ -1815,7 +1959,7 @@ function challengePromotion() {
   promotionModal.hidden = true;
   newGame({ clearSaved: true, mode: 'promotion', difficultyCode: target.code });
   const transition = getPromotionTransition(target, loadStats());
-  setStatus(`승급전 시작: ${transition.label}에 도전합니다. 클리어하면 승급됩니다.`);
+  setStatus(`레벨업 테스트 시작: ${transition.label}에 도전합니다. 클리어하면 레벨업됩니다.`);
 }
 
 function updateNoticeTicker() {
@@ -1862,6 +2006,8 @@ window.setInterval(() => {
 window.setInterval(() => {
   if (state.timerStarted && !state.won) refreshServerRankings({ notify: true });
 }, 30000);
+checkAvailableAlphaPatch();
+window.setInterval(checkAvailableAlphaPatch, 30 * 1000);
 updateSoundButton();
 
 $('newGameBtn').addEventListener('click', requestNewGame);
@@ -1898,6 +2044,13 @@ rankingCloseBtn.addEventListener('click', closeRankingModal);
 rankingModal.addEventListener('click', (event) => {
   if (event.target === rankingModal) closeRankingModal();
 });
+if (updateReloadBtn) updateReloadBtn.addEventListener('click', reloadForAlphaPatch);
+if (patchNotesBtn) patchNotesBtn.addEventListener('click', () => openPatchNotes());
+if (patchNotesCloseBtn) patchNotesCloseBtn.addEventListener('click', closePatchNotes);
+if (patchNotesModal) patchNotesModal.addEventListener('click', (event) => {
+  if (event.target === patchNotesModal) closePatchNotes();
+});
 tutorialBtn.addEventListener('click', () => toggleTutorial());
 tutorialCloseBtn.addEventListener('click', () => toggleTutorial(false));
+maybeOpenPatchNotesOnFirstVisit();
 if (!restoreSavedGame()) newGame({ clearSaved: false, difficultyCode: getActiveDifficultyCode() });

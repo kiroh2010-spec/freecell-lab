@@ -4,17 +4,20 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Freecell Draft</title>
-  <link rel="stylesheet" href="./style.css?v=alpha-0-5" />
+  <link rel="stylesheet" href="./style.css?v=alpha-0-6" />
 </head>
 <body>
   <main class="app">
     <header class="topbar">
       <div class="title-block">
-        <h1>Freecell</h1>
-        <p id="versionLabel">알파 v0.5</p>
+        <div class="title-row">
+          <h1>Freecell</h1>
+          <button id="updateReloadBtn" class="update-reload-button" type="button" hidden>업데이트</button>
+        </div>
+        <p id="versionLabel">알파 v0.6</p>
       </div>
       <div class="ranking-stack">
-        <button id="promotionBtn" class="promotion-button" type="button" disabled>승급 준비</button>
+        <button id="promotionBtn" class="promotion-button" type="button" disabled>레벨업 준비</button>
         <section id="rankingPanel" class="ranking-panel top-ranking" aria-label="주간 랭킹" role="button" tabindex="0">
           <div class="ranking-title">주간 랭킹 · TOP50 보기</div>
           <ol id="rankingList" class="ranking-list ranking-ticker"></ol>
@@ -47,6 +50,7 @@
     <section class="statusbar" aria-live="polite" aria-label="게임 알림">
       <span class="notice-icon" aria-hidden="true">🔊</span>
       <span class="notice-viewport"><span id="status">게임을 시작합니다.</span></span>
+      <button id="patchNotesBtn" class="patch-notes-button" type="button" aria-label="패치노트 보기">패치 v0.6</button>
     </section>
 
     <section id="signupPanel" class="signup-panel" aria-label="플레이어 정보 수정" hidden>
@@ -90,11 +94,11 @@
 
     <section id="promotionNotice" class="promotion-notice" aria-live="polite" hidden>
       <div>
-        <span id="promotionNoticeKicker">PROMOTION</span>
-        <strong id="promotionNoticeTitle">승급전 준비</strong>
+        <span id="promotionNoticeKicker">LEVEL UP</span>
+        <strong id="promotionNoticeTitle">레벨업 테스트 준비</strong>
         <p id="promotionNoticeText">다음 단계에 도전할 수 있습니다.</p>
       </div>
-      <button id="promotionNoticeBtn" class="promotion-notice-button" type="button">승급전</button>
+      <button id="promotionNoticeBtn" class="promotion-notice-button" type="button">레벨업 테스트</button>
     </section>
 
     <section id="tutorialPanel" class="tutorial" hidden>
@@ -108,8 +112,8 @@
         <li><strong>Free Cell:</strong> 왼쪽 위 4칸은 카드를 잠깐 빼두는 공간입니다. 한 칸에 한 장만 둘 수 있습니다.</li>
         <li><strong>이동:</strong> 카드를 클릭한 뒤 옮길 위치를 클릭하세요. 데스크톱에서는 드래그도 됩니다.</li>
         <li><strong>빠른 이동:</strong> Tableau 맨 아래 카드나 Free Cell 카드를 더블클릭하면, 가능한 경우 Foundation으로 바로 이동합니다.</li>
-        <li><strong>난이도:</strong> 처음은 1LV에서 시작합니다. 클리어 횟수가 쌓이면 승급전이 열리고, 2LV → 3LV 순서로 올라갑니다.</li>
-        <li><strong>난이도 단계:</strong> 1LV는 부담 없는 시작, 2LV는 랭킹 표준, 3LV는 집중 승부 단계입니다. 높은 단계일수록 점수 배수가 올라가며, 3LV는 무료 되돌리기 1회 혜택이 있습니다.</li>
+        <li><strong>난이도:</strong> 처음은 1LV에서 시작합니다. 클리어 횟수가 쌓이면 레벨업 테스트가 열리고, 2LV → 3LV 순서로 올라갑니다.</li>
+        <li><strong>난이도 단계:</strong> 1LV는 부담 없는 시작, 2LV는 랭킹 표준, 3LV는 집중 승부 단계입니다. 레벨업 테스트는 현재 단계 난이도를 7분 안에 클리어하면 성공하며, 3LV는 무료 되돌리기 1회 혜택이 있습니다.</li>
       </ol>
     </section>
 
@@ -156,10 +160,10 @@
       </div>
     </section>
 
-    <section id="promotionModal" class="result-modal promotion-modal" aria-label="승급전 안내" hidden>
+    <section id="promotionModal" class="result-modal promotion-modal" aria-label="레벨업 테스트 안내" hidden>
       <div class="result-card promotion-card" role="dialog" aria-modal="true" aria-labelledby="promotionModalTitle">
-        <div class="result-kicker">PROMOTION</div>
-        <h2 id="promotionModalTitle">승급전</h2>
+        <div class="result-kicker">LEVEL UP</div>
+        <h2 id="promotionModalTitle">레벨업 테스트</h2>
         <p id="promotionModalText" class="promotion-modal-text">집중할 수 있을 때 도전하세요.</p>
         <div class="promotion-summary">
           <div>
@@ -168,7 +172,7 @@
           </div>
           <div>
             <span>주의</span>
-            <strong id="promotionCautionText">일반 판보다 어려울 수 있습니다</strong>
+            <strong id="promotionCautionText">7분 안에 클리어하면 레벨업</strong>
           </div>
         </div>
         <div class="result-actions">
@@ -179,11 +183,11 @@
     </section>
 
 
-    <section id="promotionFailModal" class="result-modal promotion-fail-modal" aria-label="승급전 실패 안내" hidden>
+    <section id="promotionFailModal" class="result-modal promotion-fail-modal" aria-label="레벨업 테스트 실패 안내" hidden>
       <div class="result-card promotion-card" role="dialog" aria-modal="true" aria-labelledby="promotionFailTitle">
         <div class="result-kicker">TIME OVER</div>
-        <h2 id="promotionFailTitle">승급전 실패</h2>
-        <p id="promotionFailText" class="promotion-modal-text">제한 시간 10분이 지났습니다. 패널티는 없으니 준비되면 다시 도전하세요.</p>
+        <h2 id="promotionFailTitle">레벨업 테스트 실패</h2>
+        <p id="promotionFailText" class="promotion-modal-text">제한 시간 7분이 지났습니다. 패널티는 없으니 준비되면 다시 도전하세요.</p>
         <div class="result-actions">
           <button id="promotionFailCloseBtn" type="button">다음에 다시 도전</button>
         </div>
@@ -202,8 +206,19 @@
       </div>
     </section>
 
+    <section id="patchNotesModal" class="result-modal patch-notes-modal" aria-label="패치노트" hidden>
+      <div class="result-card patch-notes-card" role="dialog" aria-modal="true" aria-labelledby="patchNotesTitle">
+        <div class="result-kicker">PATCH NOTES</div>
+        <h2 id="patchNotesTitle">패치노트</h2>
+        <div id="patchNotesList" class="patch-notes-list"></div>
+        <div class="result-actions">
+          <button id="patchNotesCloseBtn" class="ghost-button" type="button">닫기</button>
+        </div>
+      </div>
+    </section>
+
   </main>
 
-  <script src="./script.js?v=alpha-0-5"></script>
+  <script src="./script.js?v=alpha-0-6"></script>
 </body>
 </html>

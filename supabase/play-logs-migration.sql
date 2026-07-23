@@ -1,3 +1,34 @@
+-- Freecell Lab completed-play logging migration.
+-- Run in Supabase SQL Editor after the base schema is installed.
+
+create table if not exists public.play_logs (
+  id uuid primary key default gen_random_uuid(),
+  player_id text not null,
+  week_key text not null,
+  score integer not null,
+  elapsed_time integer not null,
+  moves integer not null,
+  hint_used integer not null default 0,
+  difficulty_code text not null default 'e1',
+  mode text not null default 'normal',
+  result text not null default 'cleared',
+  created_at timestamptz not null default now()
+);
+
+create index if not exists play_logs_created_at_idx
+  on public.play_logs (created_at desc);
+create index if not exists play_logs_week_player_idx
+  on public.play_logs (week_key, player_id, created_at desc);
+
+alter table public.play_logs enable row level security;
+
+drop policy if exists "play_logs_select_public" on public.play_logs;
+create policy "play_logs_select_public"
+  on public.play_logs
+  for select
+  to anon, authenticated
+  using (true);
+
 drop function if exists public.freecell_submit_score(text, text, text, integer, integer, integer, integer, text, text);
 
 create function public.freecell_submit_score(
@@ -103,6 +134,10 @@ begin
 
   update public.players
   set clears = clears + 1,
+      difficulty_index = greatest(
+        difficulty_index,
+        case when p_mode = 'promotion' then public.freecell_difficulty_index(p_difficulty_code) else difficulty_index end
+      ),
       updated_at = now()
   where public.players.player_id = p_player_id;
 

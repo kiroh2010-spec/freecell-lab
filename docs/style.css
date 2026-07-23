@@ -131,6 +131,24 @@ body {
 }
 
 h1 { margin: 0; font-size: 34px; letter-spacing: -0.04em; }
+.title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.update-reload-button {
+  padding: 5px 9px;
+  border: 1px solid rgba(255, 209, 102, .9);
+  border-radius: 999px;
+  color: #18321f;
+  background: var(--accent);
+  font-size: 11px;
+  font-weight: 950;
+  line-height: 1;
+  white-space: nowrap;
+  box-shadow: 0 0 0 3px rgba(255, 209, 102, .14);
+}
+.update-reload-button[hidden] { display: none; }
 p { margin: 4px 0 0; color: var(--muted); }
 h2 { margin: 0 0 10px; font-size: 14px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
 
@@ -271,6 +289,11 @@ button, .home-link {
   box-shadow: none;
 }
 button:hover, .home-link:hover { filter: brightness(1.04); transform: translateY(-1px); }
+button.is-active {
+  border-color: rgba(255, 209, 102, .9);
+  color: #18321f;
+  background: var(--accent);
+}
 button:disabled {
   opacity: .45;
   cursor: not-allowed;
@@ -487,14 +510,22 @@ button:disabled {
   font-weight: 800;
 }
 .empty-rank { list-style: none; margin-left: -24px; }
-.ranking-detail-card { width: min(520px, 100%); }
+.ranking-detail-card {
+  display: flex;
+  flex-direction: column;
+  width: min(520px, 100%);
+  max-height: calc(100vh - 40px);
+}
 .ranking-detail-list {
   display: grid;
   gap: 8px;
+  min-height: 0;
   margin: 12px 0 0;
-  padding: 0;
+  padding: 0 2px 2px;
   list-style: none;
   text-align: left;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 .ranking-detail-list li {
   display: grid;
@@ -504,6 +535,11 @@ button:disabled {
   border: 1px solid rgba(255,255,255,.14);
   border-radius: 14px;
   background: rgba(0,0,0,.18);
+}
+.ranking-detail-list li.current-player-rank {
+  border: 2px solid rgba(255, 209, 102, .98);
+  background: linear-gradient(135deg, rgba(255,209,102,.18), rgba(0,0,0,.20));
+  box-shadow: 0 0 0 3px rgba(255, 209, 102, .14), 0 8px 18px rgba(0,0,0,.20);
 }
 .ranking-detail-rank {
   color: var(--accent);
@@ -528,6 +564,50 @@ button:disabled {
 .ranking-detail-score {
   color: var(--accent);
   white-space: nowrap;
+}
+.patch-notes-card {
+  display: flex;
+  flex-direction: column;
+  width: min(560px, 100%);
+  max-height: calc(100vh - 40px);
+}
+.patch-notes-list {
+  display: grid;
+  gap: 12px;
+  min-height: 0;
+  margin-top: 4px;
+  padding: 0 2px 2px;
+  overflow-y: auto;
+  text-align: left;
+  -webkit-overflow-scrolling: touch;
+}
+.patch-note-entry {
+  padding: 14px;
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: 18px;
+  background: rgba(0,0,0,.18);
+}
+.patch-note-version {
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 950;
+  letter-spacing: .12em;
+}
+.patch-note-entry h3 {
+  margin: 4px 0 0;
+  color: white;
+  font-size: 18px;
+}
+.patch-note-entry p {
+  margin-top: 2px;
+  font-size: 12px;
+}
+.patch-note-entry ul {
+  margin: 10px 0 0;
+  padding-left: 18px;
+  color: rgba(255,255,255,.86);
+  font-size: 13px;
+  line-height: 1.45;
 }
 
 .tutorial {
@@ -705,6 +785,10 @@ button:disabled {
   background: rgba(255, 209, 102, .48);
   border: 1px solid rgba(120, 80, 0, .18);
 }
+.card.ace-card .corner {
+  font-size: 22px;
+  font-weight: 1000;
+}
 .card.selected {
   outline: 3px solid var(--accent);
   outline-offset: 1px;
@@ -779,6 +863,24 @@ button:disabled {
   font-size: 13px;
   line-height: 1;
   box-shadow: 0 4px 10px rgba(0,0,0,.18);
+}
+.patch-notes-button {
+  flex: 0 0 auto;
+  min-height: 24px;
+  padding: 3px 8px;
+  border: 1px solid rgba(255,255,255,.18);
+  border-radius: 999px;
+  color: var(--muted);
+  background: rgba(0,0,0,.18);
+  font-size: 11px;
+  font-weight: 950;
+  line-height: 1;
+}
+.patch-notes-button.has-unseen-patch {
+  border-color: rgba(255, 209, 102, .95);
+  color: #18321f;
+  background: var(--accent);
+  box-shadow: 0 0 0 3px rgba(255, 209, 102, .16);
 }
 #status {
   min-width: 0;
@@ -1007,9 +1109,11 @@ button:disabled {
     padding: 1px 2px;
     border-radius: 4px;
   }
+  .card.ace-card .corner { font-size: 17px; }
   .card .center-suit { font-size: 21px; }
   .face-mark { display: none; }
   .slot .card .corner { font-size: 13px; }
+  .slot .card.ace-card .corner { font-size: 15px; }
   .statusbar {
     margin-top: 4px;
     flex-direction: row;
@@ -1031,6 +1135,7 @@ button:disabled {
   .column { min-height: 280px; padding-bottom: 48px; }
   .card { width: 48px; max-width: none; height: 68px; margin-bottom: -39px; }
   .card .corner { font-size: 14px; min-height: 18px; }
+  .card.ace-card .corner { font-size: 16px; }
   .card .center-suit { font-size: 18px; }
   .face-mark { width: 15px; height: 15px; font-size: 11px; }
 }

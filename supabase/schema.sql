@@ -26,15 +26,41 @@ create table if not exists public.weekly_scores (
   created_at timestamptz not null default now()
 );
 
+create table if not exists public.play_logs (
+  id uuid primary key default gen_random_uuid(),
+  player_id text not null,
+  week_key text not null,
+  score integer not null,
+  elapsed_time integer not null,
+  moves integer not null,
+  hint_used integer not null default 0,
+  difficulty_code text not null default 'e1',
+  mode text not null default 'normal',
+  result text not null default 'cleared',
+  created_at timestamptz not null default now()
+);
+
 create index if not exists weekly_scores_week_score_idx
   on public.weekly_scores (week_key, score desc, elapsed_time asc, moves asc);
+create index if not exists play_logs_created_at_idx
+  on public.play_logs (created_at desc);
+create index if not exists play_logs_week_player_idx
+  on public.play_logs (week_key, player_id, created_at desc);
 
 alter table public.players enable row level security;
 alter table public.weekly_scores enable row level security;
+alter table public.play_logs enable row level security;
 
 drop policy if exists "weekly_scores_select_public" on public.weekly_scores;
 create policy "weekly_scores_select_public"
   on public.weekly_scores
+  for select
+  to anon, authenticated
+  using (true);
+
+drop policy if exists "play_logs_select_public" on public.play_logs;
+create policy "play_logs_select_public"
+  on public.play_logs
   for select
   to anon, authenticated
   using (true);
@@ -166,6 +192,12 @@ begin
     return query select 'invalid_player'::text, null::integer;
     return;
   end if;
+
+  delete from play_logs
+  where created_at < now() - interval '7 days';
+
+  insert into play_logs(player_id, week_key, score, elapsed_time, moves, hint_used, difficulty_code, mode, result)
+  values (p_player_id, p_week_key, p_score, p_time, p_moves, coalesce(p_hint_used, 0), p_difficulty_code, coalesce(p_mode, 'normal'), 'cleared');
 
   insert into weekly_scores(player_id, week_key, score, elapsed_time, moves, hint_used, difficulty_code, mode)
   values (p_player_id, p_week_key, p_score, p_time, p_moves, coalesce(p_hint_used, 0), p_difficulty_code, coalesce(p_mode, 'normal'))
