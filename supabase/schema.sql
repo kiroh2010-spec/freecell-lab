@@ -187,6 +187,7 @@ as $$
 declare
   inserted_id uuid;
   new_index integer;
+  best_score integer;
 begin
   if not exists(select 1 from players where player_id = p_player_id and pin = p_pin) then
     return query select 'invalid_player'::text, null::integer;
@@ -199,16 +200,39 @@ begin
   insert into play_logs(player_id, week_key, score, elapsed_time, moves, hint_used, difficulty_code, mode, result)
   values (p_player_id, p_week_key, p_score, p_time, p_moves, coalesce(p_hint_used, 0), p_difficulty_code, coalesce(p_mode, 'normal'), 'cleared');
 
-  insert into weekly_scores(player_id, week_key, score, elapsed_time, moves, hint_used, difficulty_code, mode)
-  values (p_player_id, p_week_key, p_score, p_time, p_moves, coalesce(p_hint_used, 0), p_difficulty_code, coalesce(p_mode, 'normal'))
-  returning id into inserted_id;
-
   new_index := public.freecell_difficulty_index(p_difficulty_code);
   update players
     set clears = clears + 1,
         difficulty_index = greatest(difficulty_index, case when p_mode = 'promotion' then new_index else difficulty_index end),
         updated_at = now()
     where player_id = p_player_id;
+
+  select max(score)
+  into best_score
+  from weekly_scores
+  where player_id = p_player_id
+    and week_key = p_week_key;
+
+  if best_score is not null and p_score <= best_score then
+    return query
+    select 'not_best'::text, ranked.rank::integer
+    from (
+      select weekly_scores.player_id,
+             row_number() over (order by score desc, elapsed_time asc, moves asc) as rank
+      from weekly_scores
+      where week_key = p_week_key
+    ) ranked
+    where ranked.player_id = p_player_id;
+    return;
+  end if;
+
+  delete from weekly_scores
+  where weekly_scores.player_id = p_player_id
+    and weekly_scores.week_key = p_week_key;
+
+  insert into weekly_scores(player_id, week_key, score, elapsed_time, moves, hint_used, difficulty_code, mode)
+  values (p_player_id, p_week_key, p_score, p_time, p_moves, coalesce(p_hint_used, 0), p_difficulty_code, coalesce(p_mode, 'normal'))
+  returning id into inserted_id;
 
   return query
   select 'ok'::text, ranked.rank::integer

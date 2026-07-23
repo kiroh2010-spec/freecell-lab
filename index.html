@@ -39,7 +39,9 @@
         <button id="tutorialBtn" aria-expanded="false" aria-controls="tutorialPanel">게임 방법</button>
         <button id="newGameBtn">새 게임</button>
         <button id="autoBtn">되돌리기 5</button>
+        <button id="specialBtn" class="special-button" type="button"><span>필살기</span><small>(3LV 사용가능)</small></button>
         <button id="promotionTestBtn" type="button">레벨업 테스트</button>
+        <button id="devScoreViewBtn" type="button">개편 랭킹</button>
         <button id="devAutoPlayBtn" type="button">자동 플레이</button>
         <button id="soundBtn" class="sound-button" aria-pressed="true" aria-label="소리 켜짐" title="소리 켜짐">
           <svg class="sound-symbol" aria-hidden="true" viewBox="0 0 24 24" focusable="false">
@@ -110,13 +112,16 @@
         <button id="tutorialCloseBtn" class="ghost-button" aria-label="튜토리얼 닫기">닫기</button>
       </div>
       <ol>
-        <li><strong>목표:</strong> 오른쪽 위 Foundation에 A부터 K까지 같은 무늬로 쌓으면 됩니다.</li>
-        <li><strong>Tableau:</strong> 아래 카드 위에는 색이 다른 카드만, 숫자가 하나 작은 순서로 올릴 수 있습니다. 예: 검은 8 위에 빨간 7.</li>
-        <li><strong>Free Cell:</strong> 왼쪽 위 4칸은 카드를 잠깐 빼두는 공간입니다. 한 칸에 한 장만 둘 수 있습니다.</li>
+        <li><strong>목표:</strong> 화면 오른쪽 위 <strong>완성 칸</strong>에 같은 무늬 카드를 A부터 K까지 순서대로 쌓으면 클리어입니다.</li>
+        <li><strong>임시 보관:</strong> 화면 왼쪽 위 4칸입니다. 막힌 카드를 잠깐 빼두는 공간이며, 한 칸에 카드 한 장만 둘 수 있습니다.</li>
+        <li><strong>완성 칸:</strong> 화면 오른쪽 위 4칸입니다. 각 무늬별로 A → 2 → 3 … → K 순서로만 올라갑니다.</li>
+        <li><strong>테이블:</strong> 화면 아래의 세로 8줄입니다. 실제로 카드를 풀어가는 주요 영역이며, 아래 카드 위에는 색이 다른 카드만 숫자가 하나 작은 순서로 올릴 수 있습니다. 예: 검은 8 위에 빨간 7.</li>
         <li><strong>이동:</strong> 카드를 클릭한 뒤 옮길 위치를 클릭하세요. 데스크톱에서는 드래그도 됩니다.</li>
-        <li><strong>빠른 이동:</strong> Tableau 맨 아래 카드나 Free Cell 카드를 더블클릭하면, 가능한 경우 Foundation으로 바로 이동합니다.</li>
-        <li><strong>난이도:</strong> 처음은 1LV에서 시작합니다. 클리어 횟수가 쌓이면 레벨업 테스트가 열리고, 2LV → 3LV 순서로 올라갑니다.</li>
-        <li><strong>난이도 단계:</strong> 1LV는 부담 없는 시작, 2LV는 랭킹 표준, 3LV는 집중 승부 단계입니다. 레벨업 테스트는 현재 단계 난이도를 7분 안에 클리어하면 성공하며, 3LV는 무료 되돌리기 1회 혜택이 있습니다.</li>
+        <li><strong>빠른 이동:</strong> 테이블 맨 아래 카드나 임시 보관 카드를 더블클릭하면, 가능한 경우 완성 칸으로 바로 이동합니다.</li>
+        <li><strong>레벨:</strong> 처음은 1LV에서 시작합니다. 클리어 횟수가 쌓이면 레벨업 테스트가 열리고, 2LV → 3LV 순서로 올라갑니다.</li>
+        <li><strong>레벨업 테스트:</strong> 현재 레벨의 난이도를 7분 안에 클리어하면 다음 레벨로 올라갑니다.</li>
+        <li><strong>되돌리기:</strong> 모든 레벨에서 한 게임당 5회 사용할 수 있습니다. 점수 계산에서는 사용한 되돌리기 횟수만큼 감점됩니다.</li>
+        <li><strong>필살기:</strong> 버튼은 되돌리기 오른쪽에 있으며 3LV부터 활성화됩니다. 한 게임에 1번, 필살기를 누른 뒤 섞고 싶은 테이블 한 줄을 선택하면 그 줄의 카드 순서가 갱신됩니다. 사용 시 점수에서 200점이 감점됩니다.</li>
       </ol>
     </section>
 
@@ -185,6 +190,17 @@
       </div>
     </section>
 
+
+    <section id="level3SkillModal" class="result-modal level3-skill-modal" aria-label="3LV 필살기 안내" hidden>
+      <div class="result-card promotion-card" role="dialog" aria-modal="true" aria-labelledby="level3SkillTitle">
+        <div class="result-kicker">3LV UNLOCK</div>
+        <h2 id="level3SkillTitle">3LV 달성 축하합니다!</h2>
+        <p id="level3SkillText" class="promotion-modal-text">이제 필살기를 사용할 수 있습니다. 한 게임에 1번, 필살기 버튼을 누른 뒤 섞고 싶은 테이블 한 줄을 선택하세요. 사용하면 점수에서 200점이 감점됩니다.</p>
+        <div class="result-actions">
+          <button id="level3SkillCloseBtn" type="button">확인</button>
+        </div>
+      </div>
+    </section>
 
     <section id="promotionFailModal" class="result-modal promotion-fail-modal" aria-label="레벨업 테스트 실패 안내" hidden>
       <div class="result-card promotion-card" role="dialog" aria-modal="true" aria-labelledby="promotionFailTitle">

@@ -87,6 +87,15 @@ begin
     'cleared'
   );
 
+  update public.players
+  set clears = clears + 1,
+      difficulty_index = greatest(
+        difficulty_index,
+        case when p_mode = 'promotion' then public.freecell_difficulty_index(p_difficulty_code) else difficulty_index end
+      ),
+      updated_at = now()
+  where public.players.player_id = p_player_id;
+
   select max(score)
   into best_score
   from public.weekly_scores
@@ -131,15 +140,6 @@ begin
     coalesce(p_mode, 'normal')
   )
   returning id into inserted_id;
-
-  update public.players
-  set clears = clears + 1,
-      difficulty_index = greatest(
-        difficulty_index,
-        case when p_mode = 'promotion' then public.freecell_difficulty_index(p_difficulty_code) else difficulty_index end
-      ),
-      updated_at = now()
-  where public.players.player_id = p_player_id;
 
   return query
   select 'ok'::text, r.rank::integer

@@ -56,6 +56,11 @@ begin
     'cleared'
   );
 
+  update public.players
+  set clears = clears + 1,
+      updated_at = now()
+  where public.players.player_id = p_player_id;
+
   select max(score)
   into best_score
   from public.weekly_scores
@@ -100,11 +105,6 @@ begin
     coalesce(p_mode, 'normal')
   )
   returning id into inserted_id;
-
-  update public.players
-  set clears = clears + 1,
-      updated_at = now()
-  where public.players.player_id = p_player_id;
 
   return query
   select 'ok'::text, r.rank::integer

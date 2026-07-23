@@ -29,6 +29,7 @@ except Exception:
 def remove_public_dev_html(html: str) -> str:
     html = html.replace('        <a class="home-link" href="./home.html">홈</a>\n', '')
     html = html.replace('        <button id="promotionTestBtn" type="button">레벨업 테스트</button>\n', '')
+    html = html.replace('        <button id="devScoreViewBtn" type="button">개편 랭킹</button>\n', '')
     html = html.replace('        <button id="devAutoPlayBtn" type="button">자동 플레이</button>\n', '')
     html = re.sub(r"\n        <div id=\"devNoticeEditorPanel\"[\s\S]*?\n        </div>", "", html, count=1)
     html = html.replace('          <button id="devNoticeEditorEditBtn" type="button">편집</button>\n', '')
@@ -38,6 +39,7 @@ def remove_public_dev_html(html: str) -> str:
 
 def remove_public_dev_js(js: str) -> str:
     js = js.replace("const promotionTestBtn = $('promotionTestBtn');\n", "")
+    js = js.replace("const devScoreViewBtn = $('devScoreViewBtn');\n", "")
     js = js.replace("const devNoticeEditorPanel = $('devNoticeEditorPanel');\n", "")
     js = js.replace("const devNoticeEditorInput = $('devNoticeEditorInput');\n", "")
     js = js.replace("const devNoticeEditorStatus = $('devNoticeEditorStatus');\n", "")
@@ -59,11 +61,17 @@ def remove_public_dev_js(js: str) -> str:
     if start != -1 and end != -1:
         js = js[:start] + js[end:]
     js = js.replace("  disableDevNoticeEditMode();\n", "")
+    start = js.find("\nfunction updateDevScoreViewButton() {")
+    end = js.find("\nfunction updateDevAutoPlayButton()", start)
+    if start != -1 and end != -1:
+        js = js[:start] + js[end:]
     js = js.replace("if (promotionTestBtn) promotionTestBtn.addEventListener('click', runPromotionTest);\n", "")
+    js = js.replace("if (devScoreViewBtn) devScoreViewBtn.addEventListener('click', toggleDevScoreView);\n", "")
     js = js.replace("if (devNoticeEditorEditBtn) devNoticeEditorEditBtn.addEventListener('click', enableDevNoticeEditMode);\n", "")
     js = js.replace("if (devNoticeEditorSaveBtn) devNoticeEditorSaveBtn.addEventListener('click', saveDevNoticeEditor);\n", "")
     js = js.replace("  if (state.devAutoPlayActive) stopDevAutoPlay('자동 플레이를 중지하고 새 게임을 시작합니다.');\n", "")
     js = js.replace("if (devAutoPlayBtn) devAutoPlayBtn.addEventListener('click', toggleDevAutoPlay);\n", "")
+    js = js.replace("updateDevScoreViewButton();\n", "")
     js = js.replace("updateDevAutoPlayButton();\n", "")
     return js
 
@@ -86,6 +94,9 @@ def build_channel(out_dir: Path, channel: str, visible_label: str, public_versio
     shutil.copyfile(root / 'NOTICE.json', out_dir / 'NOTICE.json')
 
     js = remove_public_dev_js((root / 'script.js').read_text())
+    js = js.replace('const DEV_FORCE_SPECIAL_UNLOCK = true;', 'const DEV_FORCE_SPECIAL_UNLOCK = false;')
+    if channel == 'alpha':
+        js = js.replace("  scoreViewMode: 'current',", "  scoreViewMode: 'reform',")
     notes_json = json.dumps(notes, ensure_ascii=False, indent=2)
     js = re.sub(r"const PATCH_NOTES = \[[\s\S]*?\];\nconst CURRENT_PATCH_NOTE_VERSION", f"const PATCH_NOTES = {notes_json};\nconst CURRENT_PATCH_NOTE_VERSION", js, count=1)
     js = re.sub(r"const AVAILABLE_ALPHA_VERSION = '[^']*';", f"const AVAILABLE_ALPHA_VERSION = '{update_version}';", js)
