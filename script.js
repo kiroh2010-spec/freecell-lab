@@ -67,6 +67,8 @@ const SUPABASE_CONFIG = {
 };
 
 const SERVER_RANKING_ENABLED = Boolean(SUPABASE_CONFIG.url && SUPABASE_CONFIG.key);
+const RANKING_SCORE_VERSION = 'current';
+const SHOW_LEGACY_SCORE_IN_REFORM = true;
 
 
 const state = {
@@ -1319,8 +1321,8 @@ async function submitScoreToServer(result) {
     const [serverResult] = await supabaseRpc('freecell_submit_score', {
       p_player_id: state.player.id,
       p_pin: state.player.password,
-      p_week_key: getWeekKey(),
-      p_score: result.score,
+      p_week_key: getRankingWeekKey(),
+      p_score: getServerSubmitScore(result),
       p_time: result.time,
       p_moves: result.moves,
       p_hint_used: result.hintUsed || 0,
@@ -1344,11 +1346,11 @@ async function refreshServerRankings({ notify = false } = {}) {
   if (!SERVER_RANKING_ENABLED) return;
   try {
     const rows = await supabaseRpc('freecell_weekly_leaderboard', {
-      p_week_key: getWeekKey(),
+      p_week_key: getRankingWeekKey(),
       p_limit: RANKING_LIMIT,
     });
     const data = {
-      weekKey: getWeekKey(),
+      weekKey: getRankingWeekKey(),
       entries: rows.map(row => ({
         id: row.player_id,
         score: row.score,
@@ -1735,6 +1737,15 @@ function getWeekKey(date = new Date()) {
   return formatLocalDateKey(d);
 }
 
+function getRankingWeekKey(date = new Date()) {
+  const weekKey = getWeekKey(date);
+  return RANKING_SCORE_VERSION === 'reform' ? `${weekKey}-v2` : weekKey;
+}
+
+function getServerSubmitScore(result) {
+  return RANKING_SCORE_VERSION === 'reform' ? result.scoreV2 : result.score;
+}
+
 function getNextResetDate(date = new Date()) {
   const d = new Date(date);
   d.setHours(0, 0, 0, 0);
@@ -1745,7 +1756,7 @@ function getNextResetDate(date = new Date()) {
 }
 
 function loadRankingData() {
-  const weekKey = getWeekKey();
+  const weekKey = getRankingWeekKey();
   const data = safeJsonParse(localStorage.getItem(STORAGE_KEYS.rankings)) || {};
   if (data.weekKey !== weekKey) {
     return { weekKey, entries: [] };
@@ -2281,7 +2292,7 @@ function renderRankingDetail() {
       <div class="ranking-detail-main">
         <div class="ranking-detail-player">
           <strong>${getRankingPlayerLabelHtml(entry)}</strong>
-          <span class="ranking-detail-score">${getRankingScore(entry)}점${state.scoreViewMode === 'reform' ? ` <small>기존 ${entry.score}점</small>` : ''}</span>
+          <span class="ranking-detail-score">${getRankingScore(entry)}점${state.scoreViewMode === 'reform' && SHOW_LEGACY_SCORE_IN_REFORM ? ` <small>기존 ${entry.score}점</small>` : ''}</span>
         </div>
         <div class="ranking-detail-meta">${getRankingMetricLabel(entry)}</div>
         <div class="ranking-detail-meta">등록: ${formatRankingDate(entry.completedAt)}</div>

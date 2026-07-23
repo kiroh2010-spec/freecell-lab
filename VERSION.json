@@ -2,9 +2,20 @@
   "devVersion": "0.9",
   "alphaVersion": "0.8",
   "alphaPublicVersion": "0.8",
-  "betaVersion": "0.12",
+  "betaVersion": "0.22",
   "launchVersion": "1.0",
   "patchNotes": [
+    {
+      "version": "베타 v0.22",
+      "date": "2026-07-23",
+      "title": "개편 랭킹 전환",
+      "items": [
+        "베타 랭킹을 개편 점수식 기준으로 전환",
+        "기존 랭킹 점수는 화면에서 숨기고 내부 보존",
+        "앞으로 베타 플레이 기록은 개편 랭킹에 반영",
+        "게임 방법 설명, 랭킹 배지, 3LV 필살기, 셔플 연출 반영"
+      ]
+    },
     {
       "version": "베타 v0.12",
       "date": "2026-07-23",
@@ -111,7 +122,7 @@
     "beta": {
       "label": "베타",
       "description": "알파에서 사람 테스트를 통과한 내용을 거의 그대로 적용하는 안정 테스트 공간. 기존 공개 사용자가 보는 기본 채널이다.",
-      "visibleLabel": "베타 v0.12",
+      "visibleLabel": "베타 v0.22",
       "allowTestTools": false,
       "public": true
     },
