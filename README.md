@@ -27,7 +27,9 @@
   - dev 변경을 먼저 공개 테스트하는 공간이다.
   - 링크를 통해 사람 테스트를 진행하되, 베타 사용자에게 바로 영향을 주지 않는다.
   - 테스트 관련 기능/데이터는 UI와 코드에서 제거한다.
-  - 새 실험 흐름은 `알파 v0.1`부터 시작한다.
+  - 기존 알파 계보를 이어가며, 현재 새 알파 테스트 공간은 `알파 v0.7`이다.
+  - 버전은 포함 스펙 규모에 따라 증가한다. 메이저급 변경은 `+0.1`, 마이너/트레비얼 변경은 `+0.01`.
+  - 메이저/마이너/트레비얼 판단은 배포 전 포함 스펙을 보고 에이전트가 한다.
   - 기준 필드: `VERSION.json`의 `alphaPublicVersion`.
   - 공개 경로: `/alpha/`.
 - **베타**
@@ -43,7 +45,7 @@
   - `1.0`부터 시작하고 이후 스펙 규모에 따라 관리한다.
   - 기준 필드: `VERSION.json`의 `launchVersion`.
 
-`scripts/build-pages.sh`는 공개 빌드를 생성한다. 베타는 `docs/index.html`, `docs/script.js`, `docs/VERSION.json`에 반영되고, 알파는 `docs/alpha/index.html`, `docs/alpha/script.js`, `docs/alpha/VERSION.json`에 반영된다. 자산 캐시는 각각 `beta-0-1`, `alpha-0-1`처럼 채널 버전으로 관리한다.
+`scripts/build-pages.sh`는 공개 빌드를 생성한다. 베타는 `docs/index.html`, `docs/script.js`, `docs/VERSION.json`에 반영되고, 알파는 `docs/alpha/index.html`, `docs/alpha/script.js`, `docs/alpha/VERSION.json`에 반영된다. 자산 캐시는 각각 `beta-0-1`, `alpha-0-7`처럼 채널 버전으로 관리한다.
 
 ## 플레이 방법
 

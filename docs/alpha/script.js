@@ -37,18 +37,19 @@ const STORAGE_KEYS = {
 
 const PATCH_NOTES = [
   {
-    "version": "알파 v0.1",
+    "version": "알파 v0.7",
     "date": "2026-07-23",
-    "title": "새 알파 테스트 공간",
+    "title": "알파 테스트 채널 정리",
     "items": [
-      "베타와 분리된 새 알파 테스트 링크 생성",
+      "베타와 분리된 알파 테스트 링크 생성",
+      "알파는 기존 알파 계보를 이어 v0.7로 버전업",
       "테스트 중인 변경을 베타 사용자와 분리해서 확인 가능"
     ]
   }
 ];
 const CURRENT_PATCH_NOTE_VERSION = PATCH_NOTES[0]?.version || '';
-const AVAILABLE_ALPHA_VERSION = '0.1';
-const CLIENT_ALPHA_VERSION = '0.1'; // dev-only update-check test baseline; public builds inject their channel version.
+const AVAILABLE_ALPHA_VERSION = '0.7';
+const CLIENT_ALPHA_VERSION = '0.7'; // dev-only update-check test baseline; public builds inject their channel version.
 
 const SUPABASE_CONFIG = {
   url: 'https://zhhvyvjbqdwurwlgseod.supabase.co',
@@ -369,7 +370,7 @@ function getChargedUndoUsed(undoLeft = state.undoLeft, code = state.difficultyCo
 
 function renderVersionLabel() {
   if (!versionLabel) return;
-  versionLabel.textContent = '알파 v0.1';
+  versionLabel.textContent = '알파 v0.7';
   renderPlayerDifficulty();
 }
 
