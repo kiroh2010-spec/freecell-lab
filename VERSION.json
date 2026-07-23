@@ -1,10 +1,19 @@
 {
   "devVersion": "0.9",
-  "alphaVersion": "0.7",
-  "alphaPublicVersion": "0.7",
-  "betaVersion": "0.1",
+  "alphaVersion": "0.71",
+  "alphaPublicVersion": "0.71",
+  "betaVersion": "0.11",
   "launchVersion": "1.0",
   "patchNotes": [
+    {
+      "version": "베타 v0.11",
+      "date": "2026-07-23",
+      "title": "운영자 공지 추가",
+      "items": [
+        "스피커 옆 공지 버튼 추가",
+        "운영자 감사 인사와 패치 예정 사항 안내 추가"
+      ]
+    },
     {
       "version": "베타 v0.1",
       "date": "2026-07-23",
@@ -24,6 +33,15 @@
     }
   ],
   "alphaPatchNotes": [
+    {
+      "version": "알파 v0.71",
+      "date": "2026-07-23",
+      "title": "운영자 공지 추가",
+      "items": [
+        "스피커 옆 공지 버튼 추가",
+        "운영자 감사 인사와 패치 예정 사항 안내 추가"
+      ]
+    },
     {
       "version": "알파 v0.7",
       "date": "2026-07-23",
@@ -46,14 +64,14 @@
     "alpha": {
       "label": "알파",
       "description": "dev 변경을 베타와 분리해 사람 테스트하는 공개 알파 공간. 테스트 기능/데이터는 UI와 코드에서 제거한다.",
-      "visibleLabel": "알파 v0.7",
+      "visibleLabel": "알파 v0.71",
       "allowTestTools": false,
       "public": true
     },
     "beta": {
       "label": "베타",
       "description": "알파에서 사람 테스트를 통과한 내용을 거의 그대로 적용하는 안정 테스트 공간. 기존 공개 사용자가 보는 기본 채널이다.",
-      "visibleLabel": "베타 v0.1",
+      "visibleLabel": "베타 v0.11",
       "allowTestTools": false,
       "public": true
     },

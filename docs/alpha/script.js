@@ -37,6 +37,15 @@ const STORAGE_KEYS = {
 
 const PATCH_NOTES = [
   {
+    "version": "알파 v0.71",
+    "date": "2026-07-23",
+    "title": "운영자 공지 추가",
+    "items": [
+      "스피커 옆 공지 버튼 추가",
+      "운영자 감사 인사와 패치 예정 사항 안내 추가"
+    ]
+  },
+  {
     "version": "알파 v0.7",
     "date": "2026-07-23",
     "title": "알파 테스트 채널 정리",
@@ -48,8 +57,8 @@ const PATCH_NOTES = [
   }
 ];
 const CURRENT_PATCH_NOTE_VERSION = PATCH_NOTES[0]?.version || '';
-const AVAILABLE_ALPHA_VERSION = '0.7';
-const CLIENT_ALPHA_VERSION = '0.7'; // dev-only update-check test baseline; public builds inject their channel version.
+const AVAILABLE_ALPHA_VERSION = '0.71';
+const CLIENT_ALPHA_VERSION = '0.71'; // dev-only update-check test baseline; public builds inject their channel version.
 
 const SUPABASE_CONFIG = {
   url: 'https://zhhvyvjbqdwurwlgseod.supabase.co',
@@ -143,6 +152,9 @@ const rankingModal = $('rankingModal');
 const rankingDetailList = $('rankingDetailList');
 const rankingDetailReset = $('rankingDetailReset');
 const rankingCloseBtn = $('rankingCloseBtn');
+const operatorNoticeBtn = $('operatorNoticeBtn');
+const operatorNoticeModal = $('operatorNoticeModal');
+const operatorNoticeCloseBtn = $('operatorNoticeCloseBtn');
 const patchNotesBtn = $('patchNotesBtn');
 const patchNotesModal = $('patchNotesModal');
 const patchNotesList = $('patchNotesList');
@@ -370,7 +382,7 @@ function getChargedUndoUsed(undoLeft = state.undoLeft, code = state.difficultyCo
 
 function renderVersionLabel() {
   if (!versionLabel) return;
-  versionLabel.textContent = '알파 v0.7';
+  versionLabel.textContent = '알파 v0.71';
   renderPlayerDifficulty();
 }
 
@@ -1818,6 +1830,14 @@ function closeRankingModal() {
   if (rankingModal) rankingModal.hidden = true;
 }
 
+function openOperatorNotice() {
+  if (operatorNoticeModal) operatorNoticeModal.hidden = false;
+}
+
+function closeOperatorNotice() {
+  if (operatorNoticeModal) operatorNoticeModal.hidden = true;
+}
+
 function hasSeenCurrentPatchNotes() {
   return localStorage.getItem(STORAGE_KEYS.patchNotesSeen) === CURRENT_PATCH_NOTE_VERSION;
 }
@@ -2055,6 +2075,11 @@ rankingModal.addEventListener('click', (event) => {
   if (event.target === rankingModal) closeRankingModal();
 });
 if (updateReloadBtn) updateReloadBtn.addEventListener('click', reloadForAlphaPatch);
+if (operatorNoticeBtn) operatorNoticeBtn.addEventListener('click', openOperatorNotice);
+if (operatorNoticeCloseBtn) operatorNoticeCloseBtn.addEventListener('click', closeOperatorNotice);
+if (operatorNoticeModal) operatorNoticeModal.addEventListener('click', (event) => {
+  if (event.target === operatorNoticeModal) closeOperatorNotice();
+});
 if (patchNotesBtn) patchNotesBtn.addEventListener('click', () => openPatchNotes());
 if (patchNotesCloseBtn) patchNotesCloseBtn.addEventListener('click', closePatchNotes);
 if (patchNotesModal) patchNotesModal.addEventListener('click', (event) => {

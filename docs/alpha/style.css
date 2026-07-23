@@ -565,11 +565,42 @@ button:disabled {
   color: var(--accent);
   white-space: nowrap;
 }
+.operator-notice-card,
 .patch-notes-card {
   display: flex;
   flex-direction: column;
   width: min(560px, 100%);
   max-height: calc(100vh - 40px);
+}
+.operator-notice-body {
+  color: white;
+  line-height: 1.55;
+  text-align: left;
+}
+.operator-notice-body p {
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 209, 102, .28);
+  border-radius: 16px;
+  background: rgba(255, 209, 102, .10);
+}
+.operator-notice-body h3 {
+  margin: 0 0 8px;
+  color: var(--accent);
+  font-size: 15px;
+}
+.operator-notice-body ol {
+  margin: 0;
+  padding-left: 22px;
+}
+.operator-notice-body li {
+  margin: 7px 0;
+  font-weight: 850;
+}
+.operator-notice-body li span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
 }
 .patch-notes-list {
   display: grid;
@@ -864,6 +895,7 @@ button:disabled {
   line-height: 1;
   box-shadow: 0 4px 10px rgba(0,0,0,.18);
 }
+.notice-action-button,
 .patch-notes-button {
   flex: 0 0 auto;
   min-height: 24px;
@@ -875,6 +907,16 @@ button:disabled {
   font-size: 11px;
   font-weight: 950;
   line-height: 1;
+}
+.notice-action-button {
+  color: #18321f;
+  background: rgba(255, 209, 102, .88);
+  border-color: rgba(255, 209, 102, .95);
+}
+.notice-action-button:hover,
+.notice-action-button:focus-visible {
+  background: var(--accent);
+  box-shadow: 0 0 0 3px rgba(255, 209, 102, .16);
 }
 .patch-notes-button.has-unseen-patch {
   border-color: rgba(255, 209, 102, .95);

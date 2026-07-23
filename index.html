@@ -52,6 +52,7 @@
 
     <section class="statusbar" aria-live="polite" aria-label="게임 알림">
       <span class="notice-icon" aria-hidden="true">🔊</span>
+      <button id="operatorNoticeBtn" class="notice-action-button" type="button" aria-label="운영자 공지 보기">공지</button>
       <span class="notice-viewport"><span id="status">게임을 시작합니다.</span></span>
       <button id="patchNotesBtn" class="patch-notes-button" type="button" aria-label="패치노트 보기">패치 v0.6</button>
     </section>
@@ -205,6 +206,24 @@
         <p id="rankingDetailReset" class="ranking-detail-reset">초기화 일정 계산 중</p>
         <div class="result-actions">
           <button id="rankingCloseBtn" class="ghost-button" type="button">닫기</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="operatorNoticeModal" class="result-modal operator-notice-modal" aria-label="운영자 공지" hidden>
+      <div class="result-card operator-notice-card" role="dialog" aria-modal="true" aria-labelledby="operatorNoticeTitle">
+        <div class="result-kicker">NOTICE</div>
+        <h2 id="operatorNoticeTitle">운영자 공지</h2>
+        <div class="operator-notice-body">
+          <p><strong>운영자 :</strong> 성원 감사합니다.</p>
+          <h3>패치 예정 사항</h3>
+          <ol>
+            <li>다 모으면 더블탭하면 오른쪽 위로 쭉 올라가게 <span>(의미 확인 중)</span></li>
+            <li>숫자에 맞게 패턴 넣기 <span>(연구중)</span></li>
+          </ol>
+        </div>
+        <div class="result-actions">
+          <button id="operatorNoticeCloseBtn" class="ghost-button" type="button">닫기</button>
         </div>
       </div>
     </section>

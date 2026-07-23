@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Freecell Draft</title>
-  <link rel="stylesheet" href="./style.css?v=alpha-0-7" />
+  <link rel="stylesheet" href="./style.css?v=alpha-0-71" />
 </head>
 <body>
   <main class="app">
@@ -14,7 +14,7 @@
           <h1>Freecell</h1>
           <button id="updateReloadBtn" class="update-reload-button" type="button" hidden>업데이트</button>
         </div>
-        <p id="versionLabel">알파 v0.7</p>
+        <p id="versionLabel">알파 v0.71</p>
       </div>
       <div class="ranking-stack">
         <button id="promotionBtn" class="promotion-button" type="button" disabled>레벨업 준비</button>
@@ -49,8 +49,9 @@
 
     <section class="statusbar" aria-live="polite" aria-label="게임 알림">
       <span class="notice-icon" aria-hidden="true">🔊</span>
+      <button id="operatorNoticeBtn" class="notice-action-button" type="button" aria-label="운영자 공지 보기">공지</button>
       <span class="notice-viewport"><span id="status">게임을 시작합니다.</span></span>
-      <button id="patchNotesBtn" class="patch-notes-button" type="button" aria-label="패치노트 보기">패치 v0.7</button>
+      <button id="patchNotesBtn" class="patch-notes-button" type="button" aria-label="패치노트 보기">패치 v0.71</button>
     </section>
 
     <section id="signupPanel" class="signup-panel" aria-label="플레이어 정보 수정" hidden>
@@ -206,6 +207,24 @@
       </div>
     </section>
 
+    <section id="operatorNoticeModal" class="result-modal operator-notice-modal" aria-label="운영자 공지" hidden>
+      <div class="result-card operator-notice-card" role="dialog" aria-modal="true" aria-labelledby="operatorNoticeTitle">
+        <div class="result-kicker">NOTICE</div>
+        <h2 id="operatorNoticeTitle">운영자 공지</h2>
+        <div class="operator-notice-body">
+          <p><strong>운영자 :</strong> 성원 감사합니다.</p>
+          <h3>패치 예정 사항</h3>
+          <ol>
+            <li>다 모으면 더블탭하면 오른쪽 위로 쭉 올라가게 <span>(의미 확인 중)</span></li>
+            <li>숫자에 맞게 패턴 넣기 <span>(연구중)</span></li>
+          </ol>
+        </div>
+        <div class="result-actions">
+          <button id="operatorNoticeCloseBtn" class="ghost-button" type="button">닫기</button>
+        </div>
+      </div>
+    </section>
+
     <section id="patchNotesModal" class="result-modal patch-notes-modal" aria-label="패치노트" hidden>
       <div class="result-card patch-notes-card" role="dialog" aria-modal="true" aria-labelledby="patchNotesTitle">
         <div class="result-kicker">PATCH NOTES</div>
@@ -219,6 +238,6 @@
 
   </main>
 
-  <script src="./script.js?v=alpha-0-7"></script>
+  <script src="./script.js?v=alpha-0-71"></script>
 </body>
 </html>
