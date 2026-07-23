@@ -1,4 +1,4 @@
 Freecell Lab
 
-This folder is generated for GitHub Pages alpha deployment.
+Generated GitHub Pages beta deployment.
 Public entry: index.html

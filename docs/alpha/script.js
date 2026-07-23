@@ -37,20 +37,12 @@ const STORAGE_KEYS = {
 
 const PATCH_NOTES = [
   {
-    "version": "베타 v0.1",
+    "version": "알파 v0.1",
     "date": "2026-07-23",
-    "title": "베타 전환 · 랭킹·난이도·조작감 개선",
+    "title": "새 알파 테스트 공간",
     "items": [
-      "기존 알파 공간을 베타 v0.1로 전환",
-      "새 알파 테스트 공간을 /alpha/ 링크로 분리",
-      "랭킹 상세 목록이 길어져도 화면 안에서 스크롤되도록 수정",
-      "랭킹에서 아이디 옆 LV를 표시하고 TIME/MOVE 형식으로 정리",
-      "내 순위 행을 별도 테두리로 강조",
-      "Tableau 선택 시 이동 가능한 컬럼 표시",
-      "A 카드를 다른 숫자보다 더 잘 보이도록 강조",
-      "LV1은 유지하고 LV2/LV3 난이도 기준을 더 부드럽게 조정",
-      "레벨업 테스트는 현재 단계 난이도를 7분 안에 클리어하는 방식으로 변경",
-      "최근 7일 플레이 로그 저장 기반 추가"
+      "베타와 분리된 새 알파 테스트 링크 생성",
+      "테스트 중인 변경을 베타 사용자와 분리해서 확인 가능"
     ]
   }
 ];
@@ -377,7 +369,7 @@ function getChargedUndoUsed(undoLeft = state.undoLeft, code = state.difficultyCo
 
 function renderVersionLabel() {
   if (!versionLabel) return;
-  versionLabel.textContent = '베타 v0.1';
+  versionLabel.textContent = '알파 v0.1';
   renderPlayerDifficulty();
 }
 

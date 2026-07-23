@@ -37,22 +37,26 @@ const STORAGE_KEYS = {
 
 const PATCH_NOTES = [
   {
-    version: '알파 v0.6',
-    date: '2026-07-23',
-    title: '랭킹·난이도·조작감 개선',
-    items: [
-      '랭킹 상세 목록이 길어져도 화면 안에서 스크롤되도록 수정',
-      '내 순위 행을 별도 테두리로 강조',
-      'Tableau 선택 시 이동 가능한 컬럼 표시',
-      'A 카드를 다른 숫자보다 더 잘 보이도록 강조',
-      'LV1은 유지하고 LV2/LV3 난이도 기준을 더 부드럽게 조정',
-      '레벨업 테스트는 현재 단계 난이도를 7분 안에 클리어하는 방식으로 변경',
-    ],
-  },
+    "version": "베타 v0.1",
+    "date": "2026-07-23",
+    "title": "베타 전환 · 랭킹·난이도·조작감 개선",
+    "items": [
+      "기존 알파 공간을 베타 v0.1로 전환",
+      "새 알파 테스트 공간을 /alpha/ 링크로 분리",
+      "랭킹 상세 목록이 길어져도 화면 안에서 스크롤되도록 수정",
+      "랭킹에서 아이디 옆 LV를 표시하고 TIME/MOVE 형식으로 정리",
+      "내 순위 행을 별도 테두리로 강조",
+      "Tableau 선택 시 이동 가능한 컬럼 표시",
+      "A 카드를 다른 숫자보다 더 잘 보이도록 강조",
+      "LV1은 유지하고 LV2/LV3 난이도 기준을 더 부드럽게 조정",
+      "레벨업 테스트는 현재 단계 난이도를 7분 안에 클리어하는 방식으로 변경",
+      "최근 7일 플레이 로그 저장 기반 추가"
+    ]
+  }
 ];
 const CURRENT_PATCH_NOTE_VERSION = PATCH_NOTES[0]?.version || '';
-const AVAILABLE_ALPHA_VERSION = '0.6';
-const CLIENT_ALPHA_VERSION = '0.5'; // dev-only update-check test baseline; alpha build injects VERSION.json alphaVersion.
+const AVAILABLE_ALPHA_VERSION = '0.7';
+const CLIENT_ALPHA_VERSION = '0.5'; // dev-only update-check test baseline; public builds inject their channel version.
 
 const SUPABASE_CONFIG = {
   url: 'https://zhhvyvjbqdwurwlgseod.supabase.co',
@@ -395,7 +399,7 @@ function showUpdateReloadButton(version) {
   updateReloadBtn.dataset.version = version;
   updateReloadBtn.hidden = false;
   updateReloadBtn.textContent = `업데이트 v${version} 버전`;
-  updateReloadBtn.title = `알파 v${version} 업데이트를 받으려면 새로고침하세요.`;
+  updateReloadBtn.title = `새 v${version} 업데이트를 받으려면 새로고침하세요.`;
   if (wasHidden) setStatus(`새 업데이트 v${version} 버전이 있습니다. 제목 옆 업데이트 버튼을 누르면 적용됩니다.`);
 }
 
@@ -421,7 +425,7 @@ async function checkAvailableAlphaPatch() {
     const response = await fetch(`./VERSION.json?check=${Date.now()}`, { cache: 'no-store' });
     if (!response.ok) throw new Error(`VERSION.json ${response.status}`);
     const version = await response.json();
-    applyAvailableAlphaPatchState(version.alphaVersion || AVAILABLE_ALPHA_VERSION, version.patchNotes);
+    applyAvailableAlphaPatchState(version.betaVersion || version.alphaVersion || AVAILABLE_ALPHA_VERSION, version.patchNotes);
   } catch (error) {
     console.warn('패치 확인 실패, 내장 버전으로 확인합니다.', error);
     applyAvailableAlphaPatchState(AVAILABLE_ALPHA_VERSION);
@@ -1839,7 +1843,8 @@ function hasSeenCurrentPatchNotes() {
 function updatePatchNotesButton() {
   if (!patchNotesBtn) return;
   const unseen = !hasSeenCurrentPatchNotes();
-  patchNotesBtn.textContent = CURRENT_PATCH_NOTE_VERSION.replace('알파', '패치') || '패치노트';
+  const versionText = CURRENT_PATCH_NOTE_VERSION.match(/v[0-9]+(?:\.[0-9]+)?/i)?.[0] || '';
+  patchNotesBtn.textContent = versionText ? `패치 ${versionText}` : '패치노트';
   patchNotesBtn.classList.toggle('has-unseen-patch', unseen);
   patchNotesBtn.setAttribute('aria-pressed', String(unseen));
   patchNotesBtn.title = unseen ? '새 패치노트가 있습니다' : '패치노트 보기';
