@@ -47,6 +47,8 @@
 
 `scripts/build-pages.sh`는 공개 빌드를 생성한다. 베타는 `docs/index.html`, `docs/script.js`, `docs/VERSION.json`에 반영되고, 알파는 `docs/alpha/index.html`, `docs/alpha/script.js`, `docs/alpha/VERSION.json`에 반영된다. 자산 캐시는 각각 `beta-0-1`, `alpha-0-7`처럼 채널 버전으로 관리한다.
 
+알파 이상 배포는 커밋/푸시만으로 완료 처리하지 않는다. 반드시 공개 URL에서 해당 버전 라벨, 핵심 변경 문구/동작, dev 전용 기능 제거 여부를 확인한 뒤 배포 완료로 보고한다.
+
 ## 플레이 방법
 
 1. `index.html`을 브라우저로 엽니다.
