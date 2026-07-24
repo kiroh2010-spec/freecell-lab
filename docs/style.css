@@ -890,14 +890,14 @@ button.is-locked {
   padding: 1px 4px;
   border-radius: 5px;
   background: rgba(255,255,255,.70);
-  font-size: 20px;
+  font-size: 24px;
   line-height: 1;
-  letter-spacing: -0.04em;
+  letter-spacing: -0.055em;
 }
 .card .center-suit {
   align-self: flex-end;
   margin-top: auto;
-  font-size: 30px;
+  font-size: 36px;
   line-height: 1;
 }
 .face-mark {
@@ -912,11 +912,11 @@ button.is-locked {
   border-radius: 999px;
   color: #3a2a0a;
   background: rgba(255, 209, 102, .30);
-  font-size: 16px;
+  font-size: 18px;
   line-height: 1;
   opacity: .78;
 }
-.slot .card .corner { font-size: 18px; }
+.slot .card .corner { font-size: 20px; }
 .card.movable::after {
   content: "";
   position: absolute;
@@ -1199,16 +1199,16 @@ button.is-locked {
     border-radius: 8px;
   }
   .card .corner {
-    font-size: 15px;
+    font-size: 18px;
     min-height: 19px;
     padding: 1px 2px;
     border-radius: 4px;
   }
-  .card.ace-card .corner { font-size: 17px; }
-  .card .center-suit { font-size: 21px; }
+  .card.ace-card .corner { font-size: 20px; }
+  .card .center-suit { font-size: 26px; }
   .face-mark { display: none; }
-  .slot .card .corner { font-size: 13px; }
-  .slot .card.ace-card .corner { font-size: 15px; }
+  .slot .card .corner { font-size: 16px; }
+  .slot .card.ace-card .corner { font-size: 18px; }
   .statusbar {
     margin-top: 4px;
     flex-direction: row;
@@ -1229,10 +1229,10 @@ button.is-locked {
   .tableau { min-height: 280px; }
   .column { min-height: 280px; padding-bottom: 48px; }
   .card { width: 48px; max-width: none; height: 68px; margin-bottom: -39px; }
-  .card .corner { font-size: 14px; min-height: 18px; }
-  .card.ace-card .corner { font-size: 16px; }
-  .card .center-suit { font-size: 18px; }
-  .face-mark { width: 15px; height: 15px; font-size: 11px; }
+  .card .corner { font-size: 17px; min-height: 20px; }
+  .card.ace-card .corner { font-size: 19px; }
+  .card .center-suit { font-size: 23px; }
+  .face-mark { width: 18px; height: 18px; font-size: 13px; }
 }
 
 .promotion-button {
