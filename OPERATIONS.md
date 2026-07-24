@@ -60,6 +60,14 @@ For any change touching account management, DB schema/RPC, ranking, score, level
 - Keep balance changes in dev/alpha first unless explicitly approved for beta.
 - For beta balance changes, include a short rollback plan.
 
+## Operator Notice Rules
+
+- Operator notices are operator-authored content, not assistant-authored release notes.
+- Only reflect notice text that the operator explicitly wrote and saved.
+- Do not invent, rewrite, summarize, embellish, or publish notice wording under the operator's name.
+- If deployment needs release notes, use `VERSION.json` patch notes instead of changing `NOTICE.json` unless the operator provides exact notice text.
+- Before deploying notice changes, verify the diff against the operator-saved source and confirm no assistant-generated notice wording is being introduced.
+
 ## Red Flags
 
 Pause and inspect before deploying if any of these are true:
@@ -70,3 +78,4 @@ Pause and inspect before deploying if any of these are true:
 - Existing user rows need a new invariant.
 - A feature works only because current ranking rows still exist.
 - The client mutates local identity before server confirmation.
+- `NOTICE.json` or public notice files contain wording the operator did not directly write and save.

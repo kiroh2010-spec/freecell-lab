@@ -1,7 +1,7 @@
 {
   "devVersion": "0.9",
   "alphaVersion": "0.11",
-  "betaVersion": "0.27",
+  "betaVersion": "0.28",
   "launchVersion": "1.0",
   "patchNotes": [
     {
@@ -105,7 +105,7 @@
     "beta": {
       "label": "베타",
       "description": "알파에서 사람 테스트를 통과한 내용을 거의 그대로 적용하는 안정 테스트 공간. 기존 공개 사용자가 보는 기본 채널이다.",
-      "visibleLabel": "베타 v0.27",
+      "visibleLabel": "베타 v0.28",
       "allowTestTools": false,
       "public": true
     },
@@ -132,6 +132,6 @@
   },
   "channel": "alpha",
   "buildId": "alpha-0-11",
-  "commit": "33e3f16",
-  "builtAt": "2026-07-24T07:33:52.123262+00:00"
+  "commit": "e027f9d",
+  "builtAt": "2026-07-24T08:03:16.997194+00:00"
 }

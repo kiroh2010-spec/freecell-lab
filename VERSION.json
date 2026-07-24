@@ -2,9 +2,21 @@
   "devVersion": "0.9",
   "alphaVersion": "0.11",
   "alphaPublicVersion": "0.11",
-  "betaVersion": "0.27",
+  "betaVersion": "0.28",
   "launchVersion": "1.0",
   "patchNotes": [
+    {
+      "version": "베타 v0.28",
+      "date": "2026-07-24",
+      "title": "카드 디자인·셔플 연출 개선",
+      "items": [
+        "A~10 카드에 숫자만큼 문양이 보이도록 카드 디자인 개선",
+        "새 게임에서 카드가 중앙 덱으로 모인 뒤 한 장씩 순차 배치되도록 연출 보강",
+        "3LV 필살기 셔플도 선택한 줄 중앙에서 모였다가 한 장씩 재배치되도록 보강",
+        "새 게임과 필살기 셔플에 전용 효과음 추가",
+        "필살기 선택 시 표시되는 셔플 배지 위치와 가로 표시 보정"
+      ]
+    },
     {
       "version": "베타 v0.27",
       "date": "2026-07-24",
@@ -199,7 +211,7 @@
     "beta": {
       "label": "베타",
       "description": "알파에서 사람 테스트를 통과한 내용을 거의 그대로 적용하는 안정 테스트 공간. 기존 공개 사용자가 보는 기본 채널이다.",
-      "visibleLabel": "베타 v0.27",
+      "visibleLabel": "베타 v0.28",
       "allowTestTools": false,
       "public": true
     },
