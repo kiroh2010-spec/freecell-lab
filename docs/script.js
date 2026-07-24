@@ -40,15 +40,6 @@ const STORAGE_KEYS = {
 
 const PATCH_NOTES = [
   {
-    "version": "베타 v0.25",
-    "date": "2026-07-24",
-    "title": "카드 숫자·마크 확대",
-    "items": [
-      "카드 왼쪽 위 숫자/마크를 더 크게 표시",
-      "중앙 문양도 키워서 모바일에서 더 잘 보이도록 조정"
-    ]
-  },
-  {
     "version": "베타 v0.24",
     "date": "2026-07-23",
     "title": "결과 점수 표시 보정",
@@ -114,8 +105,8 @@ const PATCH_NOTES = [
   }
 ];
 const CURRENT_PATCH_NOTE_VERSION = PATCH_NOTES[0]?.version || '';
-const AVAILABLE_ALPHA_VERSION = '0.25';
-const CLIENT_ALPHA_VERSION = '0.25'; // dev-only update-check test baseline; public builds inject their channel version.
+const AVAILABLE_ALPHA_VERSION = '0.24';
+const CLIENT_ALPHA_VERSION = '0.24'; // dev-only update-check test baseline; public builds inject their channel version.
 
 const SUPABASE_CONFIG = {
   url: 'https://zhhvyvjbqdwurwlgseod.supabase.co',
@@ -458,7 +449,7 @@ function isLevel3Unlocked(code = state.difficultyCode) {
 
 function renderVersionLabel() {
   if (!versionLabel) return;
-  versionLabel.textContent = '베타 v0.25';
+  versionLabel.textContent = '베타 v0.24';
   renderPlayerDifficulty();
 }
 
