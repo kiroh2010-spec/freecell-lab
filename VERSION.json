@@ -1,7 +1,7 @@
 {
   "devVersion": "0.9",
-  "alphaVersion": "0.8",
-  "alphaPublicVersion": "0.8",
+  "alphaVersion": "0.9",
+  "alphaPublicVersion": "0.9",
   "betaVersion": "0.26",
   "launchVersion": "1.0",
   "patchNotes": [
@@ -90,6 +90,16 @@
   ],
   "alphaPatchNotes": [
     {
+      "version": "알파 v0.9",
+      "date": "2026-07-24",
+      "title": "계정 레벨 표시·UX 동기화 보정",
+      "items": [
+        "메인 HUD 레벨을 현재 판이 아니라 계정 최고 레벨 기준으로 표시",
+        "서버 프로필 동기화가 늦거나 누락돼도 랭킹 승급 기록으로 클라이언트 레벨을 보정",
+        "보정된 레벨 기준으로 레벨업 버튼 등 관련 UX를 다시 렌더링"
+      ]
+    },
+    {
       "version": "알파 v0.8",
       "date": "2026-07-23",
       "title": "필살기·셔플 연출·개편 랭킹 테스트",
@@ -152,7 +162,7 @@
     "alpha": {
       "label": "알파",
       "description": "dev 변경을 베타와 분리해 사람 테스트하는 공개 알파 공간. 테스트 기능/데이터는 UI와 코드에서 제거한다.",
-      "visibleLabel": "알파 v0.8",
+      "visibleLabel": "알파 v0.9",
       "allowTestTools": false,
       "public": true
     },

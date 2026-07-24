@@ -40,6 +40,16 @@ const STORAGE_KEYS = {
 
 const PATCH_NOTES = [
   {
+    "version": "알파 v0.9",
+    "date": "2026-07-24",
+    "title": "계정 레벨 표시·UX 동기화 보정",
+    "items": [
+      "메인 HUD 레벨을 현재 판이 아니라 계정 최고 레벨 기준으로 표시",
+      "서버 프로필 동기화가 늦거나 누락돼도 랭킹 승급 기록으로 클라이언트 레벨을 보정",
+      "보정된 레벨 기준으로 레벨업 버튼 등 관련 UX를 다시 렌더링"
+    ]
+  },
+  {
     "version": "알파 v0.8",
     "date": "2026-07-23",
     "title": "필살기·셔플 연출·개편 랭킹 테스트",
@@ -92,8 +102,8 @@ const PATCH_NOTES = [
   }
 ];
 const CURRENT_PATCH_NOTE_VERSION = PATCH_NOTES[0]?.version || '';
-const AVAILABLE_ALPHA_VERSION = '0.8';
-const CLIENT_ALPHA_VERSION = '0.8'; // dev-only update-check test baseline; public builds inject their channel version.
+const AVAILABLE_ALPHA_VERSION = '0.9';
+const CLIENT_ALPHA_VERSION = '0.9'; // dev-only update-check test baseline; public builds inject their channel version.
 
 const SUPABASE_CONFIG = {
   url: 'https://zhhvyvjbqdwurwlgseod.supabase.co',
@@ -436,7 +446,7 @@ function isLevel3Unlocked(code = state.difficultyCode) {
 
 function renderVersionLabel() {
   if (!versionLabel) return;
-  versionLabel.textContent = '알파 v0.8';
+  versionLabel.textContent = '알파 v0.9';
   renderPlayerDifficulty();
 }
 
@@ -505,9 +515,14 @@ function formatDifficultyCode(code = state.difficultyCode, mode = state.gameMode
   return name;
 }
 
+function getPlayerDifficultyDisplayText() {
+  if (state.gameMode === 'promotion') return formatDifficultyCode(state.difficultyCode, state.gameMode);
+  return formatDifficultyCode(getActiveDifficultyCode(), 'normal');
+}
+
 function renderPlayerDifficulty() {
   if (!playerDifficultyEl) return;
-  playerDifficultyEl.textContent = formatDifficultyCode();
+  playerDifficultyEl.textContent = getPlayerDifficultyDisplayText();
   renderPromotionButton();
 }
 
@@ -1323,6 +1338,31 @@ function syncCurrentGameDifficultyWithStats() {
   return true;
 }
 
+function promoteLocalStatsDifficultyIndex(index) {
+  if (!Number.isInteger(index)) return false;
+  const boundedIndex = Math.min(Math.max(index, 0), DIFFICULTY_TIERS.length - 1);
+  const stats = loadStats();
+  if (boundedIndex <= stats.difficultyIndex) return false;
+  stats.difficultyIndex = boundedIndex;
+  saveStats(stats);
+  saveCurrentProfile();
+  if (!syncCurrentGameDifficultyWithStats()) renderVersionLabel();
+  return true;
+}
+
+function getDifficultyIndexFromRankingEntry(entry) {
+  if (!entry || !entry.difficultyCode) return 0;
+  return getDifficultyTierIndex(entry.difficultyCode);
+}
+
+function reconcilePlayerLevelFromRankingEntries(entries) {
+  if (!state.player || !Array.isArray(entries)) return false;
+  const playerEntries = entries.filter(entry => entry.id === state.player.id);
+  if (!playerEntries.length) return false;
+  const derivedIndex = playerEntries.reduce((maxIndex, entry) => Math.max(maxIndex, getDifficultyIndexFromRankingEntry(entry)), 0);
+  return promoteLocalStatsDifficultyIndex(derivedIndex);
+}
+
 async function registerPlayerOnServer() {
   if (!state.player || !SERVER_RANKING_ENABLED) return;
   try {
@@ -1429,13 +1469,17 @@ async function refreshServerRankings({ notify = false } = {}) {
       p_limit: RANKING_LIMIT,
     });
     let entries = rows.map(row => mapServerRankingRow(row));
+    let levelSourceEntries = [...entries];
     if (RANKING_SCORE_VERSION === 'reform') {
       const legacyRows = await supabaseRpc('freecell_weekly_leaderboard', {
         p_week_key: getWeekKey(),
         p_limit: RANKING_LIMIT,
       });
+      const legacyEntries = legacyRows.map(row => mapServerRankingRow(row, { legacyScore: true }));
+      levelSourceEntries = [...levelSourceEntries, ...legacyEntries];
       entries = mergeReformRankingRows(rows, legacyRows);
     }
+    reconcilePlayerLevelFromRankingEntries(levelSourceEntries);
     const data = {
       weekKey: getRankingWeekKey(),
       entries,

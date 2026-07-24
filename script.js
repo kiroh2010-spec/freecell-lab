@@ -484,9 +484,14 @@ function formatDifficultyCode(code = state.difficultyCode, mode = state.gameMode
   return name;
 }
 
+function getPlayerDifficultyDisplayText() {
+  if (state.gameMode === 'promotion') return formatDifficultyCode(state.difficultyCode, state.gameMode);
+  return formatDifficultyCode(getActiveDifficultyCode(), 'normal');
+}
+
 function renderPlayerDifficulty() {
   if (!playerDifficultyEl) return;
-  playerDifficultyEl.textContent = formatDifficultyCode();
+  playerDifficultyEl.textContent = getPlayerDifficultyDisplayText();
   renderPromotionButton();
 }
 
@@ -1302,6 +1307,31 @@ function syncCurrentGameDifficultyWithStats() {
   return true;
 }
 
+function promoteLocalStatsDifficultyIndex(index) {
+  if (!Number.isInteger(index)) return false;
+  const boundedIndex = Math.min(Math.max(index, 0), DIFFICULTY_TIERS.length - 1);
+  const stats = loadStats();
+  if (boundedIndex <= stats.difficultyIndex) return false;
+  stats.difficultyIndex = boundedIndex;
+  saveStats(stats);
+  saveCurrentProfile();
+  if (!syncCurrentGameDifficultyWithStats()) renderVersionLabel();
+  return true;
+}
+
+function getDifficultyIndexFromRankingEntry(entry) {
+  if (!entry || !entry.difficultyCode) return 0;
+  return getDifficultyTierIndex(entry.difficultyCode);
+}
+
+function reconcilePlayerLevelFromRankingEntries(entries) {
+  if (!state.player || !Array.isArray(entries)) return false;
+  const playerEntries = entries.filter(entry => entry.id === state.player.id);
+  if (!playerEntries.length) return false;
+  const derivedIndex = playerEntries.reduce((maxIndex, entry) => Math.max(maxIndex, getDifficultyIndexFromRankingEntry(entry)), 0);
+  return promoteLocalStatsDifficultyIndex(derivedIndex);
+}
+
 async function registerPlayerOnServer() {
   if (!state.player || !SERVER_RANKING_ENABLED) return;
   try {
@@ -1408,13 +1438,17 @@ async function refreshServerRankings({ notify = false } = {}) {
       p_limit: RANKING_LIMIT,
     });
     let entries = rows.map(row => mapServerRankingRow(row));
+    let levelSourceEntries = [...entries];
     if (RANKING_SCORE_VERSION === 'reform') {
       const legacyRows = await supabaseRpc('freecell_weekly_leaderboard', {
         p_week_key: getWeekKey(),
         p_limit: RANKING_LIMIT,
       });
+      const legacyEntries = legacyRows.map(row => mapServerRankingRow(row, { legacyScore: true }));
+      levelSourceEntries = [...levelSourceEntries, ...legacyEntries];
       entries = mergeReformRankingRows(rows, legacyRows);
     }
+    reconcilePlayerLevelFromRankingEntries(levelSourceEntries);
     const data = {
       weekKey: getRankingWeekKey(),
       entries,
