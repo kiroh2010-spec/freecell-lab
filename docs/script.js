@@ -40,6 +40,15 @@ const STORAGE_KEYS = {
 
 const PATCH_NOTES = [
   {
+    "version": "베타 v0.26",
+    "date": "2026-07-24",
+    "title": "서버 레벨 동기화 보정",
+    "items": [
+      "서버에 저장된 레벨이 더 높을 때 첫 화면 새 판이 낮은 레벨로 남는 문제 수정",
+      "아직 시작하지 않은 판은 서버 레벨에 맞춰 자동으로 다시 준비"
+    ]
+  },
+  {
     "version": "베타 v0.25",
     "date": "2026-07-24",
     "title": "카드 숫자·마크 확대",
@@ -114,8 +123,8 @@ const PATCH_NOTES = [
   }
 ];
 const CURRENT_PATCH_NOTE_VERSION = PATCH_NOTES[0]?.version || '';
-const AVAILABLE_ALPHA_VERSION = '0.25';
-const CLIENT_ALPHA_VERSION = '0.25'; // dev-only update-check test baseline; public builds inject their channel version.
+const AVAILABLE_ALPHA_VERSION = '0.26';
+const CLIENT_ALPHA_VERSION = '0.26'; // dev-only update-check test baseline; public builds inject their channel version.
 
 const SUPABASE_CONFIG = {
   url: 'https://zhhvyvjbqdwurwlgseod.supabase.co',
@@ -458,7 +467,7 @@ function isLevel3Unlocked(code = state.difficultyCode) {
 
 function renderVersionLabel() {
   if (!versionLabel) return;
-  versionLabel.textContent = '베타 v0.25';
+  versionLabel.textContent = '베타 v0.26';
   renderPlayerDifficulty();
 }
 
@@ -1323,6 +1332,28 @@ function applyServerStats(profile) {
   }
 }
 
+function isCurrentGameSafeToSyncDifficulty() {
+  const foundationsEmpty = Object.values(state.foundations).every(pile => Array.isArray(pile) && pile.length === 0);
+  const freecellsEmpty = state.freecells.every(card => !card);
+  return state.gameMode === 'normal'
+    && !state.timerStarted
+    && !state.won
+    && state.moves === 0
+    && state.elapsedSeconds === 0
+    && foundationsEmpty
+    && freecellsEmpty;
+}
+
+function syncCurrentGameDifficultyWithStats() {
+  const activeCode = getActiveDifficultyCode();
+  if (state.difficultyCode === activeCode) return false;
+  if (!isCurrentGameSafeToSyncDifficulty()) return false;
+  const tier = getDifficultyTier(activeCode);
+  newGame({ clearSaved: true, mode: 'normal', difficultyCode: activeCode });
+  setStatus(`서버 레벨 동기화 완료: ${tier.label} 새 판으로 준비했습니다.`);
+  return true;
+}
+
 async function registerPlayerOnServer() {
   if (!state.player || !SERVER_RANKING_ENABLED) return;
   try {
@@ -1332,7 +1363,7 @@ async function registerPlayerOnServer() {
     });
     if (profile?.status === 'ok') {
       applyServerStats(profile);
-      renderVersionLabel();
+      if (!syncCurrentGameDifficultyWithStats()) renderVersionLabel();
     }
   } catch (error) {
     console.warn('Player server sync failed', error);

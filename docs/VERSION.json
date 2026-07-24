@@ -2,9 +2,18 @@
   "devVersion": "0.9",
   "alphaVersion": "0.8",
   "alphaPublicVersion": "0.8",
-  "betaVersion": "0.25",
+  "betaVersion": "0.26",
   "launchVersion": "1.0",
   "patchNotes": [
+    {
+      "version": "베타 v0.26",
+      "date": "2026-07-24",
+      "title": "서버 레벨 동기화 보정",
+      "items": [
+        "서버에 저장된 레벨이 더 높을 때 첫 화면 새 판이 낮은 레벨로 남는 문제 수정",
+        "아직 시작하지 않은 판은 서버 레벨에 맞춰 자동으로 다시 준비"
+      ]
+    },
     {
       "version": "베타 v0.25",
       "date": "2026-07-24",
@@ -150,7 +159,7 @@
     "beta": {
       "label": "베타",
       "description": "알파에서 사람 테스트를 통과한 내용을 거의 그대로 적용하는 안정 테스트 공간. 기존 공개 사용자가 보는 기본 채널이다.",
-      "visibleLabel": "베타 v0.25",
+      "visibleLabel": "베타 v0.26",
       "allowTestTools": false,
       "public": true
     },
@@ -176,7 +185,7 @@
     "pipeline": "기본 흐름은 dev에서 개발하고, 알파에서 사람 테스트한 뒤, 검증된 알파를 베타에 거의 그대로 적용하는 것이다. 베타 적용 시에는 알파에서 확인한 스펙을 큰 재작업 없이 승격하는 것을 목표로 한다."
   },
   "channel": "beta",
-  "buildId": "beta-0-25",
-  "commit": "0433095",
-  "builtAt": "2026-07-24T01:09:46.118469+00:00"
+  "buildId": "beta-0-26",
+  "commit": "be91dde",
+  "builtAt": "2026-07-24T01:31:10.246814+00:00"
 }

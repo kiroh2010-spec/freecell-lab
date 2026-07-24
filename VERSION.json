@@ -2,9 +2,18 @@
   "devVersion": "0.9",
   "alphaVersion": "0.8",
   "alphaPublicVersion": "0.8",
-  "betaVersion": "0.25",
+  "betaVersion": "0.26",
   "launchVersion": "1.0",
   "patchNotes": [
+    {
+      "version": "베타 v0.26",
+      "date": "2026-07-24",
+      "title": "서버 레벨 동기화 보정",
+      "items": [
+        "서버에 저장된 레벨이 더 높을 때 첫 화면 새 판이 낮은 레벨로 남는 문제 수정",
+        "아직 시작하지 않은 판은 서버 레벨에 맞춰 자동으로 다시 준비"
+      ]
+    },
     {
       "version": "베타 v0.25",
       "date": "2026-07-24",
@@ -150,7 +159,7 @@
     "beta": {
       "label": "베타",
       "description": "알파에서 사람 테스트를 통과한 내용을 거의 그대로 적용하는 안정 테스트 공간. 기존 공개 사용자가 보는 기본 채널이다.",
-      "visibleLabel": "베타 v0.25",
+      "visibleLabel": "베타 v0.26",
       "allowTestTools": false,
       "public": true
     },

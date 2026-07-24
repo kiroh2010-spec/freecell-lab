@@ -1280,6 +1280,28 @@ function applyServerStats(profile) {
   }
 }
 
+function isCurrentGameSafeToSyncDifficulty() {
+  const foundationsEmpty = Object.values(state.foundations).every(pile => Array.isArray(pile) && pile.length === 0);
+  const freecellsEmpty = state.freecells.every(card => !card);
+  return state.gameMode === 'normal'
+    && !state.timerStarted
+    && !state.won
+    && state.moves === 0
+    && state.elapsedSeconds === 0
+    && foundationsEmpty
+    && freecellsEmpty;
+}
+
+function syncCurrentGameDifficultyWithStats() {
+  const activeCode = getActiveDifficultyCode();
+  if (state.difficultyCode === activeCode) return false;
+  if (!isCurrentGameSafeToSyncDifficulty()) return false;
+  const tier = getDifficultyTier(activeCode);
+  newGame({ clearSaved: true, mode: 'normal', difficultyCode: activeCode });
+  setStatus(`서버 레벨 동기화 완료: ${tier.label} 새 판으로 준비했습니다.`);
+  return true;
+}
+
 async function registerPlayerOnServer() {
   if (!state.player || !SERVER_RANKING_ENABLED) return;
   try {
@@ -1289,7 +1311,7 @@ async function registerPlayerOnServer() {
     });
     if (profile?.status === 'ok') {
       applyServerStats(profile);
-      renderVersionLabel();
+      if (!syncCurrentGameDifficultyWithStats()) renderVersionLabel();
     }
   } catch (error) {
     console.warn('Player server sync failed', error);
