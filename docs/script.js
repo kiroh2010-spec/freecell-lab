@@ -40,6 +40,15 @@ const STORAGE_KEYS = {
 
 const PATCH_NOTES = [
   {
+    "version": "베타 v0.27",
+    "date": "2026-07-24",
+    "title": "ID/PIN 1회 변경 제한 강화",
+    "items": [
+      "이미 존재하는 ID로 갈아타는 우회 경로 차단",
+      "서버 변경이 실패하면 클라이언트 로컬 ID도 바뀌지 않도록 보정"
+    ]
+  },
+  {
     "version": "베타 v0.26",
     "date": "2026-07-24",
     "title": "서버 레벨 동기화 보정",
@@ -123,8 +132,8 @@ const PATCH_NOTES = [
   }
 ];
 const CURRENT_PATCH_NOTE_VERSION = PATCH_NOTES[0]?.version || '';
-const AVAILABLE_ALPHA_VERSION = '0.26';
-const CLIENT_ALPHA_VERSION = '0.26'; // dev-only update-check test baseline; public builds inject their channel version.
+const AVAILABLE_ALPHA_VERSION = '0.27';
+const CLIENT_ALPHA_VERSION = '0.27'; // dev-only update-check test baseline; public builds inject their channel version.
 
 const SUPABASE_CONFIG = {
   url: 'https://zhhvyvjbqdwurwlgseod.supabase.co',
@@ -467,7 +476,7 @@ function isLevel3Unlocked(code = state.difficultyCode) {
 
 function renderVersionLabel() {
   if (!versionLabel) return;
-  versionLabel.textContent = '베타 v0.26';
+  versionLabel.textContent = '베타 v0.27';
   renderPlayerDifficulty();
 }
 
@@ -536,9 +545,14 @@ function formatDifficultyCode(code = state.difficultyCode, mode = state.gameMode
   return name;
 }
 
+function getPlayerDifficultyDisplayText() {
+  if (state.gameMode === 'promotion') return formatDifficultyCode(state.difficultyCode, state.gameMode);
+  return formatDifficultyCode(getActiveDifficultyCode(), 'normal');
+}
+
 function renderPlayerDifficulty() {
   if (!playerDifficultyEl) return;
-  playerDifficultyEl.textContent = formatDifficultyCode();
+  playerDifficultyEl.textContent = getPlayerDifficultyDisplayText();
   renderPromotionButton();
 }
 
@@ -1354,6 +1368,31 @@ function syncCurrentGameDifficultyWithStats() {
   return true;
 }
 
+function promoteLocalStatsDifficultyIndex(index) {
+  if (!Number.isInteger(index)) return false;
+  const boundedIndex = Math.min(Math.max(index, 0), DIFFICULTY_TIERS.length - 1);
+  const stats = loadStats();
+  if (boundedIndex <= stats.difficultyIndex) return false;
+  stats.difficultyIndex = boundedIndex;
+  saveStats(stats);
+  saveCurrentProfile();
+  if (!syncCurrentGameDifficultyWithStats()) renderVersionLabel();
+  return true;
+}
+
+function getDifficultyIndexFromRankingEntry(entry) {
+  if (!entry || !entry.difficultyCode) return 0;
+  return getDifficultyTierIndex(entry.difficultyCode);
+}
+
+function reconcilePlayerLevelFromRankingEntries(entries) {
+  if (!state.player || !Array.isArray(entries)) return false;
+  const playerEntries = entries.filter(entry => entry.id === state.player.id);
+  if (!playerEntries.length) return false;
+  const derivedIndex = playerEntries.reduce((maxIndex, entry) => Math.max(maxIndex, getDifficultyIndexFromRankingEntry(entry)), 0);
+  return promoteLocalStatsDifficultyIndex(derivedIndex);
+}
+
 async function registerPlayerOnServer() {
   if (!state.player || !SERVER_RANKING_ENABLED) return;
   try {
@@ -1460,13 +1499,17 @@ async function refreshServerRankings({ notify = false } = {}) {
       p_limit: RANKING_LIMIT,
     });
     let entries = rows.map(row => mapServerRankingRow(row));
+    let levelSourceEntries = [...entries];
     if (RANKING_SCORE_VERSION === 'reform') {
       const legacyRows = await supabaseRpc('freecell_weekly_leaderboard', {
         p_week_key: getWeekKey(),
         p_limit: RANKING_LIMIT,
       });
+      const legacyEntries = legacyRows.map(row => mapServerRankingRow(row, { legacyScore: true }));
+      levelSourceEntries = [...levelSourceEntries, ...legacyEntries];
       entries = mergeReformRankingRows(rows, legacyRows);
     }
+    reconcilePlayerLevelFromRankingEntries(levelSourceEntries);
     const data = {
       weekKey: getRankingWeekKey(),
       entries,
@@ -1724,19 +1767,26 @@ async function handleSignup(event) {
 
   const previousId = state.player?.id;
   const previousPin = state.player?.password;
-  saveCurrentProfile();
   const profiles = loadProfiles();
   const profile = profiles[getProfileKey(id, password)];
+  const serverProfile = await updatePlayerOnServer(previousId, previousPin, id, password);
+  if (SERVER_RANKING_ENABLED && serverProfile?.status !== 'ok') {
+    playSound('invalid');
+    renderSignupPanel();
+    return;
+  }
+
+  saveCurrentProfile();
+  const confirmedId = normalizePlayerId(serverProfile?.out_player_id || serverProfile?.player_id || id);
   state.player = profile?.player
-    ? { ...profile.player, id, password, editUsed: true }
-    : { id, password, createdAt: new Date().toISOString(), editUsed: true };
+    ? { ...profile.player, id: confirmedId, password, editUsed: true }
+    : { id: confirmedId, password, createdAt: new Date().toISOString(), editUsed: true };
   localStorage.setItem(STORAGE_KEYS.player, JSON.stringify(state.player));
 
   if (profile?.stats) saveStats(profile.stats);
   else saveCurrentProfile();
-  const serverProfile = await updatePlayerOnServer(previousId, previousPin, id, password);
   if (serverProfile?.status === 'ok') applyServerStats(serverProfile);
-  if (previousId && previousId !== id) updateRankingPlayerId(previousId, id);
+  if (previousId && previousId !== confirmedId) updateRankingPlayerId(previousId, confirmedId);
   saveCurrentProfile();
   localStorage.removeItem(STORAGE_KEYS.game);
 

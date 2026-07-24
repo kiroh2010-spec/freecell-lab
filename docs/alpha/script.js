@@ -40,6 +40,15 @@ const STORAGE_KEYS = {
 
 const PATCH_NOTES = [
   {
+    "version": "알파 v0.10",
+    "date": "2026-07-24",
+    "title": "ID/PIN 1회 변경 제한 강화",
+    "items": [
+      "이미 존재하는 ID로 갈아타는 우회 경로 차단",
+      "서버 변경이 실패하면 클라이언트 로컬 ID도 바뀌지 않도록 보정"
+    ]
+  },
+  {
     "version": "알파 v0.9",
     "date": "2026-07-24",
     "title": "계정 레벨 표시·UX 동기화 보정",
@@ -102,8 +111,8 @@ const PATCH_NOTES = [
   }
 ];
 const CURRENT_PATCH_NOTE_VERSION = PATCH_NOTES[0]?.version || '';
-const AVAILABLE_ALPHA_VERSION = '0.9';
-const CLIENT_ALPHA_VERSION = '0.9'; // dev-only update-check test baseline; public builds inject their channel version.
+const AVAILABLE_ALPHA_VERSION = '0.10';
+const CLIENT_ALPHA_VERSION = '0.10'; // dev-only update-check test baseline; public builds inject their channel version.
 
 const SUPABASE_CONFIG = {
   url: 'https://zhhvyvjbqdwurwlgseod.supabase.co',
@@ -446,7 +455,7 @@ function isLevel3Unlocked(code = state.difficultyCode) {
 
 function renderVersionLabel() {
   if (!versionLabel) return;
-  versionLabel.textContent = '알파 v0.9';
+  versionLabel.textContent = '알파 v0.10';
   renderPlayerDifficulty();
 }
 
@@ -1737,19 +1746,26 @@ async function handleSignup(event) {
 
   const previousId = state.player?.id;
   const previousPin = state.player?.password;
-  saveCurrentProfile();
   const profiles = loadProfiles();
   const profile = profiles[getProfileKey(id, password)];
+  const serverProfile = await updatePlayerOnServer(previousId, previousPin, id, password);
+  if (SERVER_RANKING_ENABLED && serverProfile?.status !== 'ok') {
+    playSound('invalid');
+    renderSignupPanel();
+    return;
+  }
+
+  saveCurrentProfile();
+  const confirmedId = normalizePlayerId(serverProfile?.out_player_id || serverProfile?.player_id || id);
   state.player = profile?.player
-    ? { ...profile.player, id, password, editUsed: true }
-    : { id, password, createdAt: new Date().toISOString(), editUsed: true };
+    ? { ...profile.player, id: confirmedId, password, editUsed: true }
+    : { id: confirmedId, password, createdAt: new Date().toISOString(), editUsed: true };
   localStorage.setItem(STORAGE_KEYS.player, JSON.stringify(state.player));
 
   if (profile?.stats) saveStats(profile.stats);
   else saveCurrentProfile();
-  const serverProfile = await updatePlayerOnServer(previousId, previousPin, id, password);
   if (serverProfile?.status === 'ok') applyServerStats(serverProfile);
-  if (previousId && previousId !== id) updateRankingPlayerId(previousId, id);
+  if (previousId && previousId !== confirmedId) updateRankingPlayerId(previousId, confirmedId);
   saveCurrentProfile();
   localStorage.removeItem(STORAGE_KEYS.game);
 

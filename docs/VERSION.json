@@ -1,10 +1,19 @@
 {
   "devVersion": "0.9",
-  "alphaVersion": "0.8",
-  "alphaPublicVersion": "0.8",
-  "betaVersion": "0.26",
+  "alphaVersion": "0.10",
+  "alphaPublicVersion": "0.10",
+  "betaVersion": "0.27",
   "launchVersion": "1.0",
   "patchNotes": [
+    {
+      "version": "베타 v0.27",
+      "date": "2026-07-24",
+      "title": "ID/PIN 1회 변경 제한 강화",
+      "items": [
+        "이미 존재하는 ID로 갈아타는 우회 경로 차단",
+        "서버 변경이 실패하면 클라이언트 로컬 ID도 바뀌지 않도록 보정"
+      ]
+    },
     {
       "version": "베타 v0.26",
       "date": "2026-07-24",
@@ -90,6 +99,25 @@
   ],
   "alphaPatchNotes": [
     {
+      "version": "알파 v0.10",
+      "date": "2026-07-24",
+      "title": "ID/PIN 1회 변경 제한 강화",
+      "items": [
+        "이미 존재하는 ID로 갈아타는 우회 경로 차단",
+        "서버 변경이 실패하면 클라이언트 로컬 ID도 바뀌지 않도록 보정"
+      ]
+    },
+    {
+      "version": "알파 v0.9",
+      "date": "2026-07-24",
+      "title": "계정 레벨 표시·UX 동기화 보정",
+      "items": [
+        "메인 HUD 레벨을 현재 판이 아니라 계정 최고 레벨 기준으로 표시",
+        "서버 프로필 동기화가 늦거나 누락돼도 랭킹 승급 기록으로 클라이언트 레벨을 보정",
+        "보정된 레벨 기준으로 레벨업 버튼 등 관련 UX를 다시 렌더링"
+      ]
+    },
+    {
       "version": "알파 v0.8",
       "date": "2026-07-23",
       "title": "필살기·셔플 연출·개편 랭킹 테스트",
@@ -152,14 +180,14 @@
     "alpha": {
       "label": "알파",
       "description": "dev 변경을 베타와 분리해 사람 테스트하는 공개 알파 공간. 테스트 기능/데이터는 UI와 코드에서 제거한다.",
-      "visibleLabel": "알파 v0.8",
+      "visibleLabel": "알파 v0.10",
       "allowTestTools": false,
       "public": true
     },
     "beta": {
       "label": "베타",
       "description": "알파에서 사람 테스트를 통과한 내용을 거의 그대로 적용하는 안정 테스트 공간. 기존 공개 사용자가 보는 기본 채널이다.",
-      "visibleLabel": "베타 v0.26",
+      "visibleLabel": "베타 v0.27",
       "allowTestTools": false,
       "public": true
     },
@@ -185,7 +213,7 @@
     "pipeline": "기본 흐름은 dev에서 개발하고, 알파에서 사람 테스트한 뒤, 검증된 알파를 베타에 거의 그대로 적용하는 것이다. 베타 적용 시에는 알파에서 확인한 스펙을 큰 재작업 없이 승격하는 것을 목표로 한다."
   },
   "channel": "beta",
-  "buildId": "beta-0-26",
-  "commit": "be91dde",
-  "builtAt": "2026-07-24T01:31:10.246814+00:00"
+  "buildId": "beta-0-27",
+  "commit": "f86d832",
+  "builtAt": "2026-07-24T04:21:19.351671+00:00"
 }

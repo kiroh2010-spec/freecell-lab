@@ -1707,19 +1707,26 @@ async function handleSignup(event) {
 
   const previousId = state.player?.id;
   const previousPin = state.player?.password;
-  saveCurrentProfile();
   const profiles = loadProfiles();
   const profile = profiles[getProfileKey(id, password)];
+  const serverProfile = await updatePlayerOnServer(previousId, previousPin, id, password);
+  if (SERVER_RANKING_ENABLED && serverProfile?.status !== 'ok') {
+    playSound('invalid');
+    renderSignupPanel();
+    return;
+  }
+
+  saveCurrentProfile();
+  const confirmedId = normalizePlayerId(serverProfile?.out_player_id || serverProfile?.player_id || id);
   state.player = profile?.player
-    ? { ...profile.player, id, password, editUsed: true }
-    : { id, password, createdAt: new Date().toISOString(), editUsed: true };
+    ? { ...profile.player, id: confirmedId, password, editUsed: true }
+    : { id: confirmedId, password, createdAt: new Date().toISOString(), editUsed: true };
   localStorage.setItem(STORAGE_KEYS.player, JSON.stringify(state.player));
 
   if (profile?.stats) saveStats(profile.stats);
   else saveCurrentProfile();
-  const serverProfile = await updatePlayerOnServer(previousId, previousPin, id, password);
   if (serverProfile?.status === 'ok') applyServerStats(serverProfile);
-  if (previousId && previousId !== id) updateRankingPlayerId(previousId, id);
+  if (previousId && previousId !== confirmedId) updateRankingPlayerId(previousId, confirmedId);
   saveCurrentProfile();
   localStorage.removeItem(STORAGE_KEYS.game);
 
