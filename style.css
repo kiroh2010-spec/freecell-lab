@@ -930,6 +930,94 @@ button.is-locked {
   font-size: 36px;
   line-height: 1;
 }
+.pip-grid {
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  top: 30px;
+  bottom: 11px;
+  pointer-events: none;
+  opacity: .74;
+}
+.stacked-card .pip-grid { display: none; }
+.pip {
+  position: absolute;
+  left: var(--pip-x, 50%);
+  top: var(--pip-y, 50%);
+  display: grid;
+  place-items: center;
+  font-size: 15px;
+  line-height: 1;
+  transform-origin: center;
+  transform: translate(-50%, -50%) scale(var(--pip-scale, 1));
+  text-shadow: 0 1px 0 rgba(255,255,255,.5);
+}
+.pip-invert { transform: translate(-50%, -50%) rotate(180deg) scale(var(--pip-scale, 1)); }
+.pip-grid-1 .pip { font-size: 32px; }
+.pip-grid-2 .pip { font-size: 23px; }
+.pip-grid-3 .pip { font-size: 21px; }
+.pip-grid-4 .pip,
+.pip-grid-5 .pip,
+.pip-grid-6 .pip { font-size: 18px; }
+.pip-grid-7 .pip,
+.pip-grid-8 .pip,
+.pip-grid-9 .pip,
+.pip-grid-10 .pip { font-size: 15px; }
+.pip-grid-1 .pip-1 { --pip-x: 50%; --pip-y: 50%; }
+.pip-grid-2 .pip-1 { --pip-x: 50%; --pip-y: 23%; }
+.pip-grid-2 .pip-2 { --pip-x: 50%; --pip-y: 89%; }
+.pip-grid-3 .pip-1 { --pip-x: 50%; --pip-y: 18%; }
+.pip-grid-3 .pip-2 { --pip-x: 50%; --pip-y: 50%; }
+.pip-grid-3 .pip-3 { --pip-x: 50%; --pip-y: 85%; }
+.pip-grid-4 .pip-1 { --pip-x: 25%; --pip-y: 22%; }
+.pip-grid-4 .pip-2 { --pip-x: 75%; --pip-y: 22%; }
+.pip-grid-4 .pip-3 { --pip-x: 25%; --pip-y: 78%; }
+.pip-grid-4 .pip-4 { --pip-x: 75%; --pip-y: 78%; }
+.pip-grid-5 .pip-1 { --pip-x: 25%; --pip-y: 20%; }
+.pip-grid-5 .pip-2 { --pip-x: 75%; --pip-y: 20%; }
+.pip-grid-5 .pip-3 { --pip-x: 50%; --pip-y: 50%; --pip-scale: 1.12; }
+.pip-grid-5 .pip-4 { --pip-x: 25%; --pip-y: 89%; }
+.pip-grid-5 .pip-5 { --pip-x: 75%; --pip-y: 89%; }
+.pip-grid-6 .pip-1 { --pip-x: 25%; --pip-y: 17%; }
+.pip-grid-6 .pip-2 { --pip-x: 75%; --pip-y: 17%; }
+.pip-grid-6 .pip-3 { --pip-x: 25%; --pip-y: 50%; }
+.pip-grid-6 .pip-4 { --pip-x: 75%; --pip-y: 50%; }
+.pip-grid-6 .pip-5 { --pip-x: 25%; --pip-y: 89%; }
+.pip-grid-6 .pip-6 { --pip-x: 75%; --pip-y: 89%; }
+.pip-grid-7 .pip-1 { --pip-x: 25%; --pip-y: 15%; }
+.pip-grid-7 .pip-2 { --pip-x: 75%; --pip-y: 15%; }
+.pip-grid-7 .pip-3 { --pip-x: 50%; --pip-y: 33%; --pip-scale: 1.08; }
+.pip-grid-7 .pip-4 { --pip-x: 25%; --pip-y: 52%; }
+.pip-grid-7 .pip-5 { --pip-x: 75%; --pip-y: 52%; }
+.pip-grid-7 .pip-6 { --pip-x: 25%; --pip-y: 85%; }
+.pip-grid-7 .pip-7 { --pip-x: 75%; --pip-y: 85%; }
+.pip-grid-8 .pip-1 { --pip-x: 25%; --pip-y: 14%; }
+.pip-grid-8 .pip-2 { --pip-x: 75%; --pip-y: 14%; }
+.pip-grid-8 .pip-3 { --pip-x: 50%; --pip-y: 31%; --pip-scale: 1.05; }
+.pip-grid-8 .pip-4 { --pip-x: 25%; --pip-y: 50%; }
+.pip-grid-8 .pip-5 { --pip-x: 75%; --pip-y: 50%; }
+.pip-grid-8 .pip-6 { --pip-x: 50%; --pip-y: 69%; --pip-scale: 1.05; }
+.pip-grid-8 .pip-7 { --pip-x: 25%; --pip-y: 89%; }
+.pip-grid-8 .pip-8 { --pip-x: 75%; --pip-y: 89%; }
+.pip-grid-9 .pip-1 { --pip-x: 25%; --pip-y: 13%; }
+.pip-grid-9 .pip-2 { --pip-x: 75%; --pip-y: 13%; }
+.pip-grid-9 .pip-3 { --pip-x: 25%; --pip-y: 36%; }
+.pip-grid-9 .pip-4 { --pip-x: 75%; --pip-y: 36%; }
+.pip-grid-9 .pip-5 { --pip-x: 50%; --pip-y: 50%; --pip-scale: 1.1; }
+.pip-grid-9 .pip-6 { --pip-x: 25%; --pip-y: 64%; }
+.pip-grid-9 .pip-7 { --pip-x: 75%; --pip-y: 64%; }
+.pip-grid-9 .pip-8 { --pip-x: 25%; --pip-y: 87%; }
+.pip-grid-9 .pip-9 { --pip-x: 75%; --pip-y: 87%; }
+.pip-grid-10 .pip-1 { --pip-x: 25%; --pip-y: 11%; }
+.pip-grid-10 .pip-2 { --pip-x: 75%; --pip-y: 11%; }
+.pip-grid-10 .pip-3 { --pip-x: 50%; --pip-y: 27%; --pip-scale: 1.04; }
+.pip-grid-10 .pip-4 { --pip-x: 25%; --pip-y: 40%; }
+.pip-grid-10 .pip-5 { --pip-x: 75%; --pip-y: 40%; }
+.pip-grid-10 .pip-6 { --pip-x: 25%; --pip-y: 60%; }
+.pip-grid-10 .pip-7 { --pip-x: 75%; --pip-y: 60%; }
+.pip-grid-10 .pip-8 { --pip-x: 50%; --pip-y: 73%; --pip-scale: 1.04; }
+.pip-grid-10 .pip-9 { --pip-x: 25%; --pip-y: 89%; }
+.pip-grid-10 .pip-10 { --pip-x: 75%; --pip-y: 89%; }
 .face-mark {
   position: absolute;
   left: 50%;
@@ -954,6 +1042,52 @@ button.is-locked {
   border-radius: 8px;
   border: 2px solid rgba(9, 52, 31, .20);
   pointer-events: none;
+}
+.deal-deck-ghost {
+  position: fixed;
+  width: 74px;
+  height: 102px;
+  border-radius: 11px;
+  pointer-events: none;
+  z-index: 9999;
+  background:
+    repeating-linear-gradient(45deg, rgba(255,255,255,.16) 0 4px, transparent 4px 8px),
+    linear-gradient(145deg, rgba(20, 83, 45, .98), rgba(9, 52, 31, .96));
+  border: 2px solid rgba(255,255,255,.78);
+  box-shadow:
+    3px 3px 0 rgba(255,255,255,.74),
+    6px 6px 0 rgba(255,255,255,.52),
+    0 18px 34px rgba(0,0,0,.42);
+}
+@media (max-width: 780px) {
+  .deal-deck-ghost {
+    width: 50px;
+    height: 70px;
+    border-radius: 8px;
+  }
+}
+.special-deck-ghost {
+  position: fixed;
+  width: 62px;
+  height: 86px;
+  border-radius: 10px;
+  pointer-events: none;
+  z-index: 9999;
+  background:
+    repeating-linear-gradient(45deg, rgba(255,255,255,.18) 0 3px, transparent 3px 7px),
+    linear-gradient(145deg, rgba(255, 209, 102, .92), rgba(245, 159, 0, .92));
+  border: 2px solid rgba(255,255,255,.82);
+  box-shadow:
+    2px 2px 0 rgba(255,255,255,.68),
+    4px 4px 0 rgba(255,255,255,.42),
+    0 14px 28px rgba(0,0,0,.34);
+}
+@media (max-width: 780px) {
+  .special-deck-ghost {
+    width: 48px;
+    height: 66px;
+    border-radius: 8px;
+  }
 }
 
 .statusbar {
@@ -1236,6 +1370,18 @@ button.is-locked {
   }
   .card.ace-card .corner { font-size: 20px; }
   .card .center-suit { font-size: 26px; }
+  .pip-grid { left: 4px; right: 4px; top: 24px; bottom: 8px; opacity: .66; }
+  .pip { font-size: 10px; }
+  .pip-grid-1 .pip { font-size: 23px; }
+  .pip-grid-2 .pip { font-size: 16px; }
+  .pip-grid-3 .pip { font-size: 15px; }
+  .pip-grid-4 .pip,
+  .pip-grid-5 .pip,
+  .pip-grid-6 .pip { font-size: 13px; }
+  .pip-grid-7 .pip,
+  .pip-grid-8 .pip,
+  .pip-grid-9 .pip,
+  .pip-grid-10 .pip { font-size: 10px; }
   .face-mark { display: none; }
   .slot .card .corner { font-size: 16px; }
   .slot .card.ace-card .corner { font-size: 18px; }
@@ -1262,6 +1408,18 @@ button.is-locked {
   .card .corner { font-size: 17px; min-height: 20px; }
   .card.ace-card .corner { font-size: 19px; }
   .card .center-suit { font-size: 23px; }
+  .pip-grid { left: 4px; right: 4px; top: 23px; bottom: 8px; opacity: .62; }
+  .pip { font-size: 9px; }
+  .pip-grid-1 .pip { font-size: 21px; }
+  .pip-grid-2 .pip { font-size: 15px; }
+  .pip-grid-3 .pip { font-size: 14px; }
+  .pip-grid-4 .pip,
+  .pip-grid-5 .pip,
+  .pip-grid-6 .pip { font-size: 12px; }
+  .pip-grid-7 .pip,
+  .pip-grid-8 .pip,
+  .pip-grid-9 .pip,
+  .pip-grid-10 .pip { font-size: 9px; }
   .face-mark { width: 18px; height: 18px; font-size: 13px; }
 }
 
@@ -1676,15 +1834,19 @@ button.is-locked {
 .column.special-target::after {
   content: '셔플';
   position: absolute;
-  left: 8px;
+  left: calc(50% + 1px);
   bottom: 8px;
-  padding: 3px 7px;
+  transform: translateX(-50%);
+  padding: 3px 5.5px;
+  min-width: 27px;
   border-radius: 999px;
   color: #0f2633;
   background: rgba(125, 211, 252, .92);
   font-size: 10px;
   font-weight: 900;
   letter-spacing: .02em;
+  text-align: center;
+  white-space: nowrap;
 }
 
 @media (max-width: 780px) {

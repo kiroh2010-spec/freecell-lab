@@ -40,6 +40,18 @@ const STORAGE_KEYS = {
 
 const PATCH_NOTES = [
   {
+    "version": "알파 v0.11",
+    "date": "2026-07-24",
+    "title": "카드 디자인·셔플 연출 테스트",
+    "items": [
+      "A~10 카드에 숫자만큼 문양이 보이도록 카드 디자인 개선",
+      "새 게임에서 카드가 중앙 덱으로 모인 뒤 한 장씩 순차 배치되도록 연출 보강",
+      "3LV 필살기 셔플도 선택한 줄 중앙에서 모였다가 한 장씩 재배치되도록 보강",
+      "새 게임과 필살기 셔플에 전용 효과음 추가",
+      "필살기 선택 시 표시되는 셔플 배지 위치와 가로 표시 보정"
+    ]
+  },
+  {
     "version": "알파 v0.10",
     "date": "2026-07-24",
     "title": "ID/PIN 1회 변경 제한 강화",
@@ -111,8 +123,8 @@ const PATCH_NOTES = [
   }
 ];
 const CURRENT_PATCH_NOTE_VERSION = PATCH_NOTES[0]?.version || '';
-const AVAILABLE_ALPHA_VERSION = '0.10';
-const CLIENT_ALPHA_VERSION = '0.10'; // dev-only update-check test baseline; public builds inject their channel version.
+const AVAILABLE_ALPHA_VERSION = '0.11';
+const CLIENT_ALPHA_VERSION = '0.11'; // dev-only update-check test baseline; public builds inject their channel version.
 
 const SUPABASE_CONFIG = {
   url: 'https://zhhvyvjbqdwurwlgseod.supabase.co',
@@ -455,7 +467,7 @@ function isLevel3Unlocked(code = state.difficultyCode) {
 
 function renderVersionLabel() {
   if (!versionLabel) return;
-  versionLabel.textContent = '알파 v0.10';
+  versionLabel.textContent = '알파 v0.11';
   renderPlayerDifficulty();
 }
 
@@ -691,13 +703,17 @@ function cardEl(card, location) {
   const isFace = ['J', 'Q', 'K'].includes(card.rank);
   const isAce = card.value === 1;
   el.className = `card ${card.color === 'red' ? 'red' : ''} ${isFace ? 'face-card' : ''} ${isAce ? 'ace-card' : ''}`;
+  if (location?.type === 'tableau' && Number.isInteger(location.cardIndex) && state.tableau[location.index]?.length - 1 !== location.cardIndex) {
+    el.classList.add('stacked-card');
+  }
+  el.dataset.value = card.value;
   if (isInSelectedSequence(location)) el.classList.add('selected');
 
   if (isSameLocation(state.dragging, location)) el.classList.add('dragging');
   if (canSelect(location)) el.classList.add('movable');
   el.innerHTML = isFace
     ? `<span class="corner"><span>${card.rank}</span><span>${card.symbol}</span></span><span class="face-mark">${faceIcon(card.rank)}</span><span class="center-suit">${card.symbol}</span>`
-    : `<span class="corner"><span>${card.rank}</span><span>${card.symbol}</span></span><span class="center-suit">${card.symbol}</span>`;
+    : `<span class="corner"><span>${card.rank}</span><span>${card.symbol}</span></span>${cardPipsHtml(card)}`;
   el.title = `${card.rank}${card.symbol}`;
   el.draggable = canSelect(location);
   el.addEventListener('click', (event) => {
@@ -727,6 +743,30 @@ function cardEl(card, location) {
   });
   wireDropTarget(el, normalizeDropTarget(location));
   return el;
+}
+
+function cardPipsHtml(card) {
+  const count = Math.min(Math.max(card.value || 1, 1), 10);
+  const pips = Array.from({ length: count }, (_, index) => (
+    `<span class="pip pip-${index + 1}${isInvertedPip(count, index + 1) ? ' pip-invert' : ''}" aria-hidden="true">${card.symbol}</span>`
+  )).join('');
+  return `<span class="pip-grid pip-grid-${count}" aria-hidden="true">${pips}</span>`;
+}
+
+function isInvertedPip(count, position) {
+  if (count <= 1) return false;
+  const bottomPositions = {
+    2: [2],
+    3: [3],
+    4: [3, 4],
+    5: [4, 5],
+    6: [5, 6],
+    7: [6, 7],
+    8: [7, 8],
+    9: [8, 9],
+    10: [9, 10],
+  };
+  return bottomPositions[count]?.includes(position) || false;
 }
 
 function faceIcon(rank) {
@@ -1092,20 +1132,43 @@ function getColumnCardElements(columnIndex) {
   return columnEl ? [...columnEl.querySelectorAll('.card')] : [];
 }
 
+function showSpecialDeckGhost(centerX, centerY) {
+  const ghost = document.createElement('div');
+  ghost.className = 'special-deck-ghost';
+  ghost.setAttribute('aria-hidden', 'true');
+  ghost.style.left = `${centerX}px`;
+  ghost.style.top = `${centerY}px`;
+  document.body.appendChild(ghost);
+  ghost.animate([
+    { transform: 'translate(-50%, -50%) scale(.78) rotate(-5deg)', opacity: 0 },
+    { transform: 'translate(-50%, -50%) scale(1) rotate(0deg)', opacity: .78, offset: .18 },
+    { transform: 'translate(-50%, -50%) scale(.92) rotate(4deg)', opacity: .2, offset: .52 },
+    { transform: 'translate(-50%, -50%) scale(.74) rotate(7deg)', opacity: 0 },
+  ], {
+    duration: 420,
+    easing: 'cubic-bezier(.2,.8,.2,1)',
+    fill: 'forwards',
+  }).finished.finally(() => ghost.remove()).catch(() => ghost.remove());
+  return ghost;
+}
+
 async function animateSpecialGather(columnIndex) {
   const cards = getColumnCardElements(columnIndex);
   if (!cards.length || prefersReducedMotion()) return;
   const columnRect = tableauEl.children[columnIndex].getBoundingClientRect();
+  const centerX = columnRect.left + columnRect.width / 2;
   const centerY = columnRect.top + Math.min(140, Math.max(70, columnRect.height * 0.28));
   const animations = cards.map((card, index) => {
     const rect = card.getBoundingClientRect();
+    const dx = centerX - (rect.left + rect.width / 2);
     const dy = centerY - (rect.top + rect.height / 2);
     const rotate = (index % 2 === 0 ? -1 : 1) * Math.min(7, 2 + index * 0.7);
     return card.animate([
-      { transform: 'translateY(0) scale(1) rotate(0deg)', opacity: 1 },
-      { transform: `translateY(${dy}px) scale(.86) rotate(${rotate}deg)`, opacity: .9 },
+      { transform: 'translate(0, 0) scale(1) rotate(0deg)', opacity: 1 },
+      { transform: `translate(${dx}px, ${dy}px) scale(.82) rotate(${rotate}deg)`, opacity: .88 },
     ], {
       duration: 260,
+      delay: Math.min(index * 6, 70),
       easing: 'cubic-bezier(.2,.8,.2,1)',
       fill: 'forwards',
     }).finished.catch(() => null);
@@ -1117,19 +1180,35 @@ async function animateSpecialSpread(columnIndex) {
   const cards = getColumnCardElements(columnIndex);
   if (!cards.length || prefersReducedMotion()) return;
   const columnRect = tableauEl.children[columnIndex].getBoundingClientRect();
+  const centerX = columnRect.left + columnRect.width / 2;
   const centerY = columnRect.top + Math.min(140, Math.max(70, columnRect.height * 0.28));
+  showSpecialDeckGhost(centerX, centerY);
+  cards.forEach(card => {
+    card.style.opacity = '0';
+  });
   const animations = cards.map((card, index) => {
     const rect = card.getBoundingClientRect();
+    const dx = centerX - (rect.left + rect.width / 2);
     const dy = centerY - (rect.top + rect.height / 2);
     const rotate = (index % 2 === 0 ? 1 : -1) * Math.min(7, 2 + index * 0.7);
+    card.style.zIndex = `${300 + index}`;
     return card.animate([
-      { transform: `translateY(${dy}px) scale(.86) rotate(${rotate}deg)`, opacity: .9 },
-      { transform: 'translateY(0) scale(1) rotate(0deg)', opacity: 1 },
+      { transform: `translate(${dx}px, ${dy}px) scale(.72) rotate(${rotate}deg)`, opacity: 0 },
+      { transform: `translate(${dx}px, ${dy}px) scale(.8) rotate(${rotate}deg)`, opacity: .9, offset: .14 },
+      { transform: `translate(${dx * .32}px, ${dy * .32}px) scale(.94) rotate(${rotate * .35}deg)`, opacity: 1, offset: .72 },
+      { transform: 'translate(0, 0) scale(1) rotate(0deg)', opacity: 1 },
     ], {
-      duration: 340,
-      delay: Math.min(index * 16, 120),
+      duration: 360,
+      delay: index * 22,
       easing: 'cubic-bezier(.16,1,.3,1)',
-    }).finished.catch(() => null);
+      fill: 'backwards',
+    }).finished.finally(() => {
+      card.style.opacity = '';
+      card.style.zIndex = '';
+    }).catch(() => {
+      card.style.opacity = '';
+      card.style.zIndex = '';
+    });
   });
   await Promise.all(animations);
 }
@@ -1158,7 +1237,7 @@ async function useSpecialSkillOnColumn(columnIndex) {
     state.specialUsed = true;
     state.specialSelecting = false;
     setStatus(`셔플 완료! ${columnIndex + 1}번 줄을 갱신했습니다. 점수에서 ${SPECIAL_SKILL_SCORE_PENALTY}점이 감점됩니다.`);
-    playSound('move');
+    playSound('shuffle');
     render();
     await animateSpecialSpread(columnIndex);
   } finally {
@@ -1536,6 +1615,36 @@ function getBoardCardElements() {
   return [...document.querySelectorAll('.board .card')];
 }
 
+function getTableauCardElementsInDealOrder() {
+  return [...document.querySelectorAll('.tableau .card')]
+    .map(card => ({
+      card,
+      rect: card.getBoundingClientRect(),
+    }))
+    .sort((a, b) => a.rect.top - b.rect.top || a.rect.left - b.rect.left)
+    .map(item => item.card);
+}
+
+function showDealDeckGhost(centerX, centerY) {
+  const ghost = document.createElement('div');
+  ghost.className = 'deal-deck-ghost';
+  ghost.setAttribute('aria-hidden', 'true');
+  ghost.style.left = `${centerX}px`;
+  ghost.style.top = `${centerY}px`;
+  document.body.appendChild(ghost);
+  ghost.animate([
+    { transform: 'translate(-50%, -50%) scale(.82) rotate(-4deg)', opacity: 0 },
+    { transform: 'translate(-50%, -50%) scale(1) rotate(0deg)', opacity: .82, offset: .16 },
+    { transform: 'translate(-50%, -50%) scale(.95) rotate(2deg)', opacity: .22, offset: .48 },
+    { transform: 'translate(-50%, -50%) scale(.78) rotate(5deg)', opacity: 0 },
+  ], {
+    duration: 520,
+    easing: 'cubic-bezier(.2,.8,.2,1)',
+    fill: 'forwards',
+  }).finished.finally(() => ghost.remove()).catch(() => ghost.remove());
+  return ghost;
+}
+
 async function animateNewGameGather() {
   const cards = getBoardCardElements();
   if (!cards.length || prefersReducedMotion()) return;
@@ -1562,25 +1671,39 @@ async function animateNewGameGather() {
 }
 
 async function animateNewGameSpread() {
-  const cards = getBoardCardElements();
+  const cards = getTableauCardElementsInDealOrder();
   if (!cards.length || prefersReducedMotion()) return;
   const boardRect = document.querySelector('.board')?.getBoundingClientRect();
   if (!boardRect) return;
   const centerX = boardRect.left + boardRect.width / 2;
   const centerY = boardRect.top + Math.min(boardRect.height * 0.35, 240);
+  showDealDeckGhost(centerX, centerY);
+  cards.forEach(card => {
+    card.style.opacity = '0';
+  });
   const animations = cards.map((card, index) => {
     const rect = card.getBoundingClientRect();
     const dx = centerX - (rect.left + rect.width / 2);
     const dy = centerY - (rect.top + rect.height / 2);
-    const rotate = (index % 2 === 0 ? 1 : -1) * Math.min(9, 2 + (index % 7));
+    const rotate = (index % 2 === 0 ? 1 : -1) * Math.min(12, 3 + (index % 9));
+    card.style.zIndex = `${200 + index}`;
     return card.animate([
-      { transform: `translate(${dx}px, ${dy}px) scale(.72) rotate(${rotate}deg)`, opacity: .88 },
+      { transform: `translate(${dx}px, ${dy}px) scale(.66) rotate(${rotate}deg)`, opacity: 0 },
+      { transform: `translate(${dx}px, ${dy}px) scale(.74) rotate(${rotate}deg)`, opacity: .92, offset: .12 },
+      { transform: `translate(${dx * .38}px, ${dy * .38}px) scale(.92) rotate(${rotate * .35}deg)`, opacity: 1, offset: .72 },
       { transform: 'translate(0, 0) scale(1) rotate(0deg)', opacity: 1 },
     ], {
-      duration: 360,
-      delay: Math.min(index * 5, 140),
+      duration: 440,
+      delay: index * 14,
       easing: 'cubic-bezier(.16,1,.3,1)',
-    }).finished.catch(() => null);
+      fill: 'backwards',
+    }).finished.finally(() => {
+      card.style.opacity = '';
+      card.style.zIndex = '';
+    }).catch(() => {
+      card.style.opacity = '';
+      card.style.zIndex = '';
+    });
   });
   await Promise.all(animations);
 }
@@ -1597,6 +1720,7 @@ async function requestNewGame() {
   try {
     await animateNewGameGather();
     newGame({ clearSaved: true, mode: 'normal', difficultyCode: DIFFICULTY_TIERS[stats.difficultyIndex].code });
+    playSound('shuffle');
     await animateNewGameSpread();
     if (getPromotionTarget(stats)) {
       setStatus('레벨업 테스트가 준비되어 있습니다. 집중할 수 있을 때 레벨업 버튼을 눌러 도전하세요.');
@@ -2206,6 +2330,10 @@ function playSound(kind) {
     if (audioContext.state === 'suspended') audioContext.resume();
 
     const now = audioContext.currentTime;
+    if (kind === 'shuffle') {
+      playShuffleSound(now);
+      return;
+    }
     const gain = audioContext.createGain();
     const osc = audioContext.createOscillator();
     const settings = {
@@ -2229,6 +2357,28 @@ function playSound(kind) {
     state.soundEnabled = false;
     updateSoundButton();
   }
+}
+
+function playShuffleSound(startTime = audioContext?.currentTime || 0) {
+  if (!audioContext) return;
+  const steps = [0, 0.035, 0.07, 0.105, 0.145];
+  steps.forEach((offset, index) => {
+    const osc = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    const t = startTime + offset;
+    const start = 960 - index * 90;
+    const end = 520 + index * 35;
+    osc.type = index % 2 === 0 ? 'triangle' : 'square';
+    osc.frequency.setValueAtTime(start, t);
+    osc.frequency.exponentialRampToValueAtTime(Math.max(1, end), t + 0.045);
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(0.024, t + 0.006);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.055);
+    osc.connect(gain);
+    gain.connect(audioContext.destination);
+    osc.start(t);
+    osc.stop(t + 0.07);
+  });
 }
 
 
