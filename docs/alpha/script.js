@@ -101,6 +101,8 @@ const SUPABASE_CONFIG = {
 };
 
 const SERVER_RANKING_ENABLED = Boolean(SUPABASE_CONFIG.url && SUPABASE_CONFIG.key);
+const RANKING_SCORE_VERSION = 'reform';
+const SHOW_LEGACY_SCORE_IN_REFORM = false;
 
 
 const state = {
@@ -1340,8 +1342,8 @@ async function submitScoreToServer(result) {
     const [serverResult] = await supabaseRpc('freecell_submit_score', {
       p_player_id: state.player.id,
       p_pin: state.player.password,
-      p_week_key: getWeekKey(),
-      p_score: result.score,
+      p_week_key: getRankingWeekKey(),
+      p_score: getServerSubmitScore(result),
       p_time: result.time,
       p_moves: result.moves,
       p_hint_used: result.hintUsed || 0,
@@ -1361,25 +1363,60 @@ async function submitScoreToServer(result) {
   }
 }
 
+function mapServerRankingRow(row, { legacyScore = false } = {}) {
+  const time = row.elapsed_time ?? row.time;
+  const moves = row.moves;
+  const hintUsed = row.hint_used || 0;
+  const difficultyCode = row.difficulty_code || 'e1';
+  const mode = row.mode || 'normal';
+  const multiplier = getScoreMultiplier(difficultyCode, mode);
+  const scoreV2 = calculateReformScore(time || 0, moves || 0, multiplier, hintUsed, 0);
+  return {
+    id: row.player_id,
+    score: row.score,
+    scoreV2: legacyScore ? scoreV2 : (Number.isFinite(row.score) ? row.score : scoreV2),
+    time,
+    moves,
+    hintUsed,
+    difficultyCode,
+    mode,
+    completedAt: row.created_at,
+    legacyScore,
+  };
+}
+
+function mergeReformRankingRows(reformRows, legacyRows) {
+  const byPlayer = new Map();
+  legacyRows.map(row => mapServerRankingRow(row, { legacyScore: true })).forEach(entry => {
+    byPlayer.set(entry.id, entry);
+  });
+  reformRows.map(row => mapServerRankingRow(row)).forEach(entry => {
+    const previous = byPlayer.get(entry.id);
+    if (!previous || entry.scoreV2 > previous.scoreV2 || (entry.scoreV2 === previous.scoreV2 && entry.time < previous.time)) {
+      byPlayer.set(entry.id, entry);
+    }
+  });
+  return [...byPlayer.values()].sort(compareRankingEntries).slice(0, RANKING_LIMIT);
+}
+
 async function refreshServerRankings({ notify = false } = {}) {
   if (!SERVER_RANKING_ENABLED) return;
   try {
     const rows = await supabaseRpc('freecell_weekly_leaderboard', {
-      p_week_key: getWeekKey(),
+      p_week_key: getRankingWeekKey(),
       p_limit: RANKING_LIMIT,
     });
+    let entries = rows.map(row => mapServerRankingRow(row));
+    if (RANKING_SCORE_VERSION === 'reform') {
+      const legacyRows = await supabaseRpc('freecell_weekly_leaderboard', {
+        p_week_key: getWeekKey(),
+        p_limit: RANKING_LIMIT,
+      });
+      entries = mergeReformRankingRows(rows, legacyRows);
+    }
     const data = {
-      weekKey: getWeekKey(),
-      entries: rows.map(row => ({
-        id: row.player_id,
-        score: row.score,
-        time: row.elapsed_time ?? row.time,
-        moves: row.moves,
-        hintUsed: row.hint_used || 0,
-        difficultyCode: row.difficulty_code || 'e1',
-        mode: row.mode || 'normal',
-        completedAt: row.created_at,
-      })),
+      weekKey: getRankingWeekKey(),
+      entries,
     };
     saveRankingData(data);
     maybeNotifyRankingChange(data.entries, notify);
@@ -1398,23 +1435,22 @@ function maybeNotifyRankingChange(entries, notify) {
   if (now - state.lastRankNoticeAt < 120000) return;
 
   const leader = entries[0];
+  const leaderScore = getRankingScore(leader);
   const previousLeader = state.serverLeader;
-  state.serverLeader = { id: leader.id, score: leader.score };
+  state.serverLeader = { id: leader.id, score: leaderScore };
 
-  if (previousLeader && (previousLeader.id !== leader.id || previousLeader.score !== leader.score)) {
+  if (previousLeader && (previousLeader.id !== leader.id || previousLeader.score !== leaderScore)) {
     state.lastRankNoticeAt = now;
-    setStatus(`1위 변경: ${leader.id} · ${leader.score}점`);
+    setStatus(`1위 변경: ${leader.id} · ${leaderScore}점`);
     return;
   }
 
   const undoUsed = getChargedUndoUsed();
-  const projectedScore = calculateScore(
-    state.elapsedSeconds,
-    state.moves,
-    getScoreMultiplier(state.difficultyCode, state.gameMode),
-    undoUsed
-  );
-  const gap = leader.score - projectedScore;
+  const multiplier = getScoreMultiplier(state.difficultyCode, state.gameMode);
+  const projectedScore = RANKING_SCORE_VERSION === 'reform'
+    ? calculateReformScore(state.elapsedSeconds, state.moves, multiplier, undoUsed, state.specialUsed ? 1 : 0)
+    : calculateScore(state.elapsedSeconds, state.moves, multiplier, undoUsed, state.specialUsed ? 1 : 0);
+  const gap = leaderScore - projectedScore;
   if (gap > 0 && gap <= 500) {
     state.lastRankNoticeAt = now;
     setStatus(`현재 페이스 기준 1위까지 ${gap}점 차이입니다.`);
@@ -1755,6 +1791,19 @@ function getWeekKey(date = new Date()) {
   return formatLocalDateKey(d);
 }
 
+function getRankingWeekKey(date = new Date()) {
+  const weekKey = getWeekKey(date);
+  return RANKING_SCORE_VERSION === 'reform' ? `${weekKey}-v2` : weekKey;
+}
+
+function getActiveRankingScore(entry) {
+  return RANKING_SCORE_VERSION === 'reform' ? entry.scoreV2 : entry.score;
+}
+
+function getServerSubmitScore(result) {
+  return getActiveRankingScore(result);
+}
+
 function getNextResetDate(date = new Date()) {
   const d = new Date(date);
   d.setHours(0, 0, 0, 0);
@@ -1765,7 +1814,7 @@ function getNextResetDate(date = new Date()) {
 }
 
 function loadRankingData() {
-  const weekKey = getWeekKey();
+  const weekKey = getRankingWeekKey();
   const data = safeJsonParse(localStorage.getItem(STORAGE_KEYS.rankings)) || {};
   if (data.weekKey !== weekKey) {
     return { weekKey, entries: [] };
@@ -1816,11 +1865,13 @@ function recordWeeklyScore() {
   };
 
   data.entries.forEach(item => normalizeRankingEntry(item));
+  const entryScore = getActiveRankingScore(entry);
   const previousBest = data.entries
     .filter(item => item.id === state.player.id)
-    .sort(compareCurrentRankingEntries)[0] || null;
-  const personalBestShortage = previousBest && score <= previousBest.score
-    ? previousBest.score - score + 1
+    .sort(compareActiveRankingEntries)[0] || null;
+  const previousBestScore = previousBest ? getActiveRankingScore(previousBest) : null;
+  const personalBestShortage = previousBestScore !== null && entryScore <= previousBestScore
+    ? previousBestScore - entryScore + 1
     : 0;
 
   let submitted = false;
@@ -1830,13 +1881,13 @@ function recordWeeklyScore() {
     submitted = true;
   }
 
-  data.entries.sort(compareCurrentRankingEntries);
+  data.entries.sort(compareActiveRankingEntries);
   const fullRankIndex = submitted
     ? data.entries.findIndex(item => item.completedAt === completedAt && item.id === entry.id)
     : -1;
   const cutoffEntry = data.entries[RANKING_LIMIT - 1] || null;
   const topShortage = submitted && fullRankIndex >= RANKING_LIMIT && cutoffEntry
-    ? Math.max(1, cutoffEntry.score - score + 1)
+    ? Math.max(1, getActiveRankingScore(cutoffEntry) - entryScore + 1)
     : 0;
   data.entries = data.entries.slice(0, RANKING_LIMIT);
   const rankIndex = submitted
@@ -1850,7 +1901,7 @@ function recordWeeklyScore() {
     shortage: personalBestShortage || topShortage,
     submitted,
     notBest: Boolean(personalBestShortage),
-    previousBestScore: previousBest?.score ?? null,
+    previousBestScore,
     serverSkipped: Boolean(specialUsed),
   };
   saveRankingData(data);
@@ -1876,6 +1927,10 @@ function getRankingScore(entry) {
 
 function compareCurrentRankingEntries(a, b) {
   return b.score - a.score || a.time - b.time || a.moves - b.moves;
+}
+
+function compareActiveRankingEntries(a, b) {
+  return getActiveRankingScore(b) - getActiveRankingScore(a) || a.time - b.time || a.moves - b.moves;
 }
 
 function compareRankingEntries(a, b) {
@@ -2128,7 +2183,7 @@ function showResultModal(result) {
   }
   resultTime.textContent = formatTime(result.time);
   resultMoves.textContent = `${result.moves}`;
-  resultScore.textContent = `${result.score}점`;
+  resultScore.textContent = `${getRankingScore(result)}점`;
   resultRankText.textContent = getResultRankMessage(result);
   resultModal.hidden = false;
 }
@@ -2297,7 +2352,7 @@ function renderRankingDetail() {
       <div class="ranking-detail-main">
         <div class="ranking-detail-player">
           <strong>${getRankingPlayerLabelHtml(entry)}</strong>
-          <span class="ranking-detail-score">${getRankingScore(entry)}점${state.scoreViewMode === 'reform' ? ` <small>기존 ${entry.score}점</small>` : ''}</span>
+          <span class="ranking-detail-score">${getRankingScore(entry)}점${state.scoreViewMode === 'reform' && SHOW_LEGACY_SCORE_IN_REFORM ? ` <small>기존 ${entry.score}점</small>` : ''}</span>
         </div>
         <div class="ranking-detail-meta">${getRankingMetricLabel(entry)}</div>
         <div class="ranking-detail-meta">등록: ${formatRankingDate(entry.completedAt)}</div>

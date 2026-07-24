@@ -40,6 +40,15 @@ const STORAGE_KEYS = {
 
 const PATCH_NOTES = [
   {
+    "version": "베타 v0.24",
+    "date": "2026-07-23",
+    "title": "결과 점수 표시 보정",
+    "items": [
+      "클리어 결과창 SCORE가 기존 점수로 보이던 문제 수정",
+      "개편 랭킹에서는 기록 갱신 판정과 부족 점수도 개편 점수 기준으로 계산"
+    ]
+  },
+  {
     "version": "베타 v0.23",
     "date": "2026-07-23",
     "title": "개편 랭킹 표시 보정",
@@ -96,8 +105,8 @@ const PATCH_NOTES = [
   }
 ];
 const CURRENT_PATCH_NOTE_VERSION = PATCH_NOTES[0]?.version || '';
-const AVAILABLE_ALPHA_VERSION = '0.23';
-const CLIENT_ALPHA_VERSION = '0.23'; // dev-only update-check test baseline; public builds inject their channel version.
+const AVAILABLE_ALPHA_VERSION = '0.24';
+const CLIENT_ALPHA_VERSION = '0.24'; // dev-only update-check test baseline; public builds inject their channel version.
 
 const SUPABASE_CONFIG = {
   url: 'https://zhhvyvjbqdwurwlgseod.supabase.co',
@@ -440,7 +449,7 @@ function isLevel3Unlocked(code = state.difficultyCode) {
 
 function renderVersionLabel() {
   if (!versionLabel) return;
-  versionLabel.textContent = '베타 v0.23';
+  versionLabel.textContent = '베타 v0.24';
   renderPlayerDifficulty();
 }
 
@@ -1800,8 +1809,12 @@ function getRankingWeekKey(date = new Date()) {
   return RANKING_SCORE_VERSION === 'reform' ? `${weekKey}-v2` : weekKey;
 }
 
+function getActiveRankingScore(entry) {
+  return RANKING_SCORE_VERSION === 'reform' ? entry.scoreV2 : entry.score;
+}
+
 function getServerSubmitScore(result) {
-  return RANKING_SCORE_VERSION === 'reform' ? result.scoreV2 : result.score;
+  return getActiveRankingScore(result);
 }
 
 function getNextResetDate(date = new Date()) {
@@ -1865,11 +1878,13 @@ function recordWeeklyScore() {
   };
 
   data.entries.forEach(item => normalizeRankingEntry(item));
+  const entryScore = getActiveRankingScore(entry);
   const previousBest = data.entries
     .filter(item => item.id === state.player.id)
-    .sort(compareCurrentRankingEntries)[0] || null;
-  const personalBestShortage = previousBest && score <= previousBest.score
-    ? previousBest.score - score + 1
+    .sort(compareActiveRankingEntries)[0] || null;
+  const previousBestScore = previousBest ? getActiveRankingScore(previousBest) : null;
+  const personalBestShortage = previousBestScore !== null && entryScore <= previousBestScore
+    ? previousBestScore - entryScore + 1
     : 0;
 
   let submitted = false;
@@ -1879,13 +1894,13 @@ function recordWeeklyScore() {
     submitted = true;
   }
 
-  data.entries.sort(compareCurrentRankingEntries);
+  data.entries.sort(compareActiveRankingEntries);
   const fullRankIndex = submitted
     ? data.entries.findIndex(item => item.completedAt === completedAt && item.id === entry.id)
     : -1;
   const cutoffEntry = data.entries[RANKING_LIMIT - 1] || null;
   const topShortage = submitted && fullRankIndex >= RANKING_LIMIT && cutoffEntry
-    ? Math.max(1, cutoffEntry.score - score + 1)
+    ? Math.max(1, getActiveRankingScore(cutoffEntry) - entryScore + 1)
     : 0;
   data.entries = data.entries.slice(0, RANKING_LIMIT);
   const rankIndex = submitted
@@ -1899,7 +1914,7 @@ function recordWeeklyScore() {
     shortage: personalBestShortage || topShortage,
     submitted,
     notBest: Boolean(personalBestShortage),
-    previousBestScore: previousBest?.score ?? null,
+    previousBestScore,
     serverSkipped: Boolean(specialUsed),
   };
   saveRankingData(data);
@@ -1925,6 +1940,10 @@ function getRankingScore(entry) {
 
 function compareCurrentRankingEntries(a, b) {
   return b.score - a.score || a.time - b.time || a.moves - b.moves;
+}
+
+function compareActiveRankingEntries(a, b) {
+  return getActiveRankingScore(b) - getActiveRankingScore(a) || a.time - b.time || a.moves - b.moves;
 }
 
 function compareRankingEntries(a, b) {
@@ -2177,7 +2196,7 @@ function showResultModal(result) {
   }
   resultTime.textContent = formatTime(result.time);
   resultMoves.textContent = `${result.moves}`;
-  resultScore.textContent = `${result.score}점`;
+  resultScore.textContent = `${getRankingScore(result)}점`;
   resultRankText.textContent = getResultRankMessage(result);
   resultModal.hidden = false;
 }

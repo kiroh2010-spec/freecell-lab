@@ -2,9 +2,18 @@
   "devVersion": "0.9",
   "alphaVersion": "0.8",
   "alphaPublicVersion": "0.8",
-  "betaVersion": "0.23",
+  "betaVersion": "0.24",
   "launchVersion": "1.0",
   "patchNotes": [
+    {
+      "version": "베타 v0.24",
+      "date": "2026-07-23",
+      "title": "결과 점수 표시 보정",
+      "items": [
+        "클리어 결과창 SCORE가 기존 점수로 보이던 문제 수정",
+        "개편 랭킹에서는 기록 갱신 판정과 부족 점수도 개편 점수 기준으로 계산"
+      ]
+    },
     {
       "version": "베타 v0.23",
       "date": "2026-07-23",
@@ -132,7 +141,7 @@
     "beta": {
       "label": "베타",
       "description": "알파에서 사람 테스트를 통과한 내용을 거의 그대로 적용하는 안정 테스트 공간. 기존 공개 사용자가 보는 기본 채널이다.",
-      "visibleLabel": "베타 v0.23",
+      "visibleLabel": "베타 v0.24",
       "allowTestTools": false,
       "public": true
     },
