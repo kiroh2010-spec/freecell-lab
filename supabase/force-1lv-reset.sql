@@ -7,6 +7,34 @@
 
 create extension if not exists pgcrypto;
 
+create table if not exists public.play_logs (
+  id uuid primary key default gen_random_uuid(),
+  player_id text not null,
+  week_key text not null,
+  score integer not null,
+  elapsed_time integer not null,
+  moves integer not null,
+  hint_used integer not null default 0,
+  difficulty_code text not null default 'e1',
+  mode text not null default 'normal',
+  result text not null default 'cleared',
+  created_at timestamptz not null default now()
+);
+
+create index if not exists play_logs_created_at_idx
+  on public.play_logs (created_at desc);
+create index if not exists play_logs_week_player_idx
+  on public.play_logs (week_key, player_id, created_at desc);
+
+alter table public.play_logs enable row level security;
+
+drop policy if exists "play_logs_select_public" on public.play_logs;
+create policy "play_logs_select_public"
+  on public.play_logs
+  for select
+  to anon, authenticated
+  using (true);
+
 create or replace function public.freecell_difficulty_index(p_code text)
 returns integer
 language sql
