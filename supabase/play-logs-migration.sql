@@ -50,7 +50,26 @@ as $$
 declare
   inserted_id uuid;
   best_score integer;
+  normalized_score integer;
 begin
+
+  normalized_score := round(greatest(
+    100::numeric,
+    2000
+    + (
+      case
+        when coalesce(p_time, 0) <= 300 then greatest(0::numeric, 1000 - coalesce(p_time, 0) * 3)
+        else greatest(0::numeric, 100 - (coalesce(p_time, 0) - 300) / 3.0)
+      end
+    ) * 1.5
+    + (
+      case
+        when coalesce(p_moves, 0) <= 120 then greatest(0::numeric, 900 - coalesce(p_moves, 0) * 7)
+        else greatest(0::numeric, 60 - (coalesce(p_moves, 0) - 120) * 0.75)
+      end
+    ) * 1.5
+    - coalesce(p_hint_used, 0) * 40
+  ))::integer;
   if not exists (
     select 1
     from public.players
@@ -78,21 +97,18 @@ begin
   values (
     p_player_id,
     p_week_key,
-    p_score,
+    normalized_score,
     p_time,
     p_moves,
     coalesce(p_hint_used, 0),
-    p_difficulty_code,
-    coalesce(p_mode, 'normal'),
+    'e1',
+    'normal',
     'cleared'
   );
 
   update public.players
   set clears = clears + 1,
-      difficulty_index = greatest(
-        difficulty_index,
-        case when p_mode = 'promotion' then public.freecell_difficulty_index(p_difficulty_code) else difficulty_index end
-      ),
+      difficulty_index = 0,
       updated_at = now()
   where public.players.player_id = p_player_id;
 
@@ -102,7 +118,7 @@ begin
   where public.weekly_scores.player_id = p_player_id
     and public.weekly_scores.week_key = p_week_key;
 
-  if best_score is not null and p_score <= best_score then
+  if best_score is not null and normalized_score <= best_score then
     return query
     select 'not_best'::text, ranked.rank::integer
     from (
@@ -132,12 +148,12 @@ begin
   values (
     p_player_id,
     p_week_key,
-    p_score,
+    normalized_score,
     p_time,
     p_moves,
     coalesce(p_hint_used, 0),
-    p_difficulty_code,
-    coalesce(p_mode, 'normal')
+    'e1',
+    'normal'
   )
   returning id into inserted_id;
 

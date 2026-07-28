@@ -1,8 +1,7 @@
--- Freecell Lab level sync/backfill migration.
+-- Freecell Lab 1LV normalization migration.
 -- Purpose:
--- 1) Backfill players.difficulty_index from historical promotion ranking records.
--- 2) Reinstall freecell_submit_score so future promotion clears always update player level
---    before weekly best-score filtering.
+-- 1) Reset every stored account level to 1LV (difficulty_index = 0).
+-- 2) Reinstall freecell_submit_score so future records stay e1/normal and never award level bonuses.
 -- Run once in Supabase SQL Editor.
 
 create extension if not exists pgcrypto;
@@ -12,38 +11,46 @@ returns integer
 language sql
 immutable
 as $$
-  select case p_code
-    when 'e1' then 0
-    when 'e2' then 1
-    when 'n1' then 2
-    when 'n2' then 3
-    when 'n3' then 4
-    else 0
-  end;
+  select 0;
 $$;
 
--- Backfill account level from every recorded promotion clear, not just the current week.
--- This is what makes users remain correct after the Monday ranking key changes.
-with promoted_levels as (
-  select
-    player_id,
-    max(public.freecell_difficulty_index(difficulty_code)) as difficulty_index
-  from public.weekly_scores
-  where mode = 'promotion'
-  group by player_id
-), updated as (
-  update public.players p
-  set difficulty_index = greatest(p.difficulty_index, promoted_levels.difficulty_index),
-      updated_at = now()
-  from promoted_levels
-  where p.player_id = promoted_levels.player_id
-    and promoted_levels.difficulty_index > p.difficulty_index
-  returning p.player_id, p.difficulty_index
-)
-select * from updated order by player_id;
+-- Reset every account to 1LV.
+update public.players
+set difficulty_index = 0,
+    updated_at = now()
+where difficulty_index <> 0;
 
--- Future-proof: promotion clears must update players.difficulty_index even when the score
--- is not a weekly personal best and therefore does not replace weekly_scores.
+-- Normalize stored ranking/log labels to 1LV.
+update public.weekly_scores
+set difficulty_code = 'e1',
+    mode = 'normal'
+where difficulty_code <> 'e1' or mode <> 'normal';
+
+update public.play_logs
+set difficulty_code = 'e1',
+    mode = 'normal'
+where difficulty_code <> 'e1' or mode <> 'normal';
+
+-- Recalculate existing stored scores with the 1LV reform formula, removing old level multipliers/bonuses.
+update public.weekly_scores
+set score = round(greatest(
+  100::numeric,
+  2000
+  + (case when coalesce(elapsed_time, 0) <= 300 then greatest(0::numeric, 1000 - coalesce(elapsed_time, 0) * 3) else greatest(0::numeric, 100 - (coalesce(elapsed_time, 0) - 300) / 3.0) end) * 1.5
+  + (case when coalesce(moves, 0) <= 120 then greatest(0::numeric, 900 - coalesce(moves, 0) * 7) else greatest(0::numeric, 60 - (coalesce(moves, 0) - 120) * 0.75) end) * 1.5
+  - coalesce(hint_used, 0) * 40
+))::integer;
+
+update public.play_logs
+set score = round(greatest(
+  100::numeric,
+  2000
+  + (case when coalesce(elapsed_time, 0) <= 300 then greatest(0::numeric, 1000 - coalesce(elapsed_time, 0) * 3) else greatest(0::numeric, 100 - (coalesce(elapsed_time, 0) - 300) / 3.0) end) * 1.5
+  + (case when coalesce(moves, 0) <= 120 then greatest(0::numeric, 900 - coalesce(moves, 0) * 7) else greatest(0::numeric, 60 - (coalesce(moves, 0) - 120) * 0.75) end) * 1.5
+  - coalesce(hint_used, 0) * 40
+))::integer;
+
+-- Future-proof: submitted scores are stored as 1LV/normal and never raise players.difficulty_index.
 drop function if exists public.freecell_submit_score(text, text, text, integer, integer, integer, integer, text, text);
 create function public.freecell_submit_score(
   p_player_id text,
@@ -63,9 +70,27 @@ set search_path = public
 as $$
 declare
   inserted_id uuid;
-  new_index integer;
   best_score integer;
+  normalized_score integer;
 begin
+
+  normalized_score := round(greatest(
+    100::numeric,
+    2000
+    + (
+      case
+        when coalesce(p_time, 0) <= 300 then greatest(0::numeric, 1000 - coalesce(p_time, 0) * 3)
+        else greatest(0::numeric, 100 - (coalesce(p_time, 0) - 300) / 3.0)
+      end
+    ) * 1.5
+    + (
+      case
+        when coalesce(p_moves, 0) <= 120 then greatest(0::numeric, 900 - coalesce(p_moves, 0) * 7)
+        else greatest(0::numeric, 60 - (coalesce(p_moves, 0) - 120) * 0.75)
+      end
+    ) * 1.5
+    - coalesce(p_hint_used, 0) * 40
+  ))::integer;
   if not exists (
     select 1
     from public.players
@@ -93,22 +118,18 @@ begin
   values (
     p_player_id,
     p_week_key,
-    p_score,
+    normalized_score,
     p_time,
     p_moves,
     coalesce(p_hint_used, 0),
-    p_difficulty_code,
-    coalesce(p_mode, 'normal'),
+    'e1',
+    'normal',
     'cleared'
   );
 
-  new_index := public.freecell_difficulty_index(p_difficulty_code);
   update public.players
   set clears = clears + 1,
-      difficulty_index = greatest(
-        difficulty_index,
-        case when coalesce(p_mode, 'normal') = 'promotion' then new_index else difficulty_index end
-      ),
+      difficulty_index = 0,
       updated_at = now()
   where public.players.player_id = p_player_id;
 
@@ -118,7 +139,7 @@ begin
   where public.weekly_scores.player_id = p_player_id
     and public.weekly_scores.week_key = p_week_key;
 
-  if best_score is not null and p_score <= best_score then
+  if best_score is not null and normalized_score <= best_score then
     return query
     select 'not_best'::text, ranked.rank::integer
     from (
@@ -148,12 +169,12 @@ begin
   values (
     p_player_id,
     p_week_key,
-    p_score,
+    normalized_score,
     p_time,
     p_moves,
     coalesce(p_hint_used, 0),
-    p_difficulty_code,
-    coalesce(p_mode, 'normal')
+    'e1',
+    'normal'
   )
   returning id into inserted_id;
 
@@ -169,14 +190,7 @@ begin
 end;
 $$;
 
--- Optional verification query after the migration:
--- select p.player_id, p.difficulty_index, promoted_levels.difficulty_index as ranking_level
--- from public.players p
--- join (
---   select player_id, max(public.freecell_difficulty_index(difficulty_code)) as difficulty_index
---   from public.weekly_scores
---   where mode = 'promotion'
---   group by player_id
--- ) promoted_levels using (player_id)
--- where p.difficulty_index < promoted_levels.difficulty_index
--- order by p.player_id;
+-- Optional verification queries after the migration:
+-- select count(*) as non_1lv_players from public.players where difficulty_index <> 0;
+-- select count(*) as non_1lv_weekly_scores from public.weekly_scores where difficulty_code <> 'e1' or mode <> 'normal';
+-- select count(*) as non_1lv_play_logs from public.play_logs where difficulty_code <> 'e1' or mode <> 'normal';

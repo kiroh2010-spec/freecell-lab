@@ -1,3 +1,54 @@
+-- Freecell Lab force 1LV reset.
+-- Run once in Supabase SQL Editor after deploying the 1LV-only client.
+-- Effects:
+-- 1) Every player account level becomes 1LV (difficulty_index = 0).
+-- 2) Existing weekly scores/play logs are relabeled as e1/normal.
+-- 3) The RPC normalizes all future submissions to e1/normal and never grants level bonus/progression.
+
+create extension if not exists pgcrypto;
+
+create or replace function public.freecell_difficulty_index(p_code text)
+returns integer
+language sql
+immutable
+as $$
+  select 0;
+$$;
+
+update public.players
+set difficulty_index = 0,
+    updated_at = now()
+where difficulty_index <> 0;
+
+update public.weekly_scores
+set difficulty_code = 'e1',
+    mode = 'normal'
+where difficulty_code <> 'e1' or mode <> 'normal';
+
+update public.play_logs
+set difficulty_code = 'e1',
+    mode = 'normal'
+where difficulty_code <> 'e1' or mode <> 'normal';
+
+-- Recalculate existing stored scores with the 1LV reform formula, removing old level multipliers/bonuses.
+update public.weekly_scores
+set score = round(greatest(
+  100::numeric,
+  2000
+  + (case when coalesce(elapsed_time, 0) <= 300 then greatest(0::numeric, 1000 - coalesce(elapsed_time, 0) * 3) else greatest(0::numeric, 100 - (coalesce(elapsed_time, 0) - 300) / 3.0) end) * 1.5
+  + (case when coalesce(moves, 0) <= 120 then greatest(0::numeric, 900 - coalesce(moves, 0) * 7) else greatest(0::numeric, 60 - (coalesce(moves, 0) - 120) * 0.75) end) * 1.5
+  - coalesce(hint_used, 0) * 40
+))::integer;
+
+update public.play_logs
+set score = round(greatest(
+  100::numeric,
+  2000
+  + (case when coalesce(elapsed_time, 0) <= 300 then greatest(0::numeric, 1000 - coalesce(elapsed_time, 0) * 3) else greatest(0::numeric, 100 - (coalesce(elapsed_time, 0) - 300) / 3.0) end) * 1.5
+  + (case when coalesce(moves, 0) <= 120 then greatest(0::numeric, 900 - coalesce(moves, 0) * 7) else greatest(0::numeric, 60 - (coalesce(moves, 0) - 120) * 0.75) end) * 1.5
+  - coalesce(hint_used, 0) * 40
+))::integer;
+
 drop function if exists public.freecell_submit_score(text, text, text, integer, integer, integer, integer, text, text);
 
 create function public.freecell_submit_score(

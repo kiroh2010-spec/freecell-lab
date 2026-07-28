@@ -73,14 +73,7 @@ returns integer
 language sql
 immutable
 as $$
-  select case p_code
-    when 'e1' then 0
-    when 'e2' then 1
-    when 'n1' then 2
-    when 'n2' then 3
-    when 'n3' then 4
-    else 0
-  end;
+  select 0;
 $$;
 
 drop function if exists public.freecell_register_player(text, text);
@@ -254,9 +247,27 @@ set search_path = public
 as $$
 declare
   inserted_id uuid;
-  new_index integer;
   best_score integer;
+  normalized_score integer;
 begin
+
+  normalized_score := round(greatest(
+    100::numeric,
+    2000
+    + (
+      case
+        when coalesce(p_time, 0) <= 300 then greatest(0::numeric, 1000 - coalesce(p_time, 0) * 3)
+        else greatest(0::numeric, 100 - (coalesce(p_time, 0) - 300) / 3.0)
+      end
+    ) * 1.5
+    + (
+      case
+        when coalesce(p_moves, 0) <= 120 then greatest(0::numeric, 900 - coalesce(p_moves, 0) * 7)
+        else greatest(0::numeric, 60 - (coalesce(p_moves, 0) - 120) * 0.75)
+      end
+    ) * 1.5
+    - coalesce(p_hint_used, 0) * 40
+  ))::integer;
   if not exists(select 1 from players where player_id = p_player_id and pin = p_pin) then
     return query select 'invalid_player'::text, null::integer;
     return;
@@ -266,12 +277,11 @@ begin
   where created_at < now() - interval '7 days';
 
   insert into play_logs(player_id, week_key, score, elapsed_time, moves, hint_used, difficulty_code, mode, result)
-  values (p_player_id, p_week_key, p_score, p_time, p_moves, coalesce(p_hint_used, 0), p_difficulty_code, coalesce(p_mode, 'normal'), 'cleared');
+  values (p_player_id, p_week_key, normalized_score, p_time, p_moves, coalesce(p_hint_used, 0), 'e1', 'normal', 'cleared');
 
-  new_index := public.freecell_difficulty_index(p_difficulty_code);
   update players
     set clears = clears + 1,
-        difficulty_index = greatest(difficulty_index, case when p_mode = 'promotion' then new_index else difficulty_index end),
+        difficulty_index = 0,
         updated_at = now()
     where player_id = p_player_id;
 
@@ -281,7 +291,7 @@ begin
   where player_id = p_player_id
     and week_key = p_week_key;
 
-  if best_score is not null and p_score <= best_score then
+  if best_score is not null and normalized_score <= best_score then
     return query
     select 'not_best'::text, ranked.rank::integer
     from (
@@ -299,7 +309,7 @@ begin
     and weekly_scores.week_key = p_week_key;
 
   insert into weekly_scores(player_id, week_key, score, elapsed_time, moves, hint_used, difficulty_code, mode)
-  values (p_player_id, p_week_key, p_score, p_time, p_moves, coalesce(p_hint_used, 0), p_difficulty_code, coalesce(p_mode, 'normal'))
+  values (p_player_id, p_week_key, normalized_score, p_time, p_moves, coalesce(p_hint_used, 0), 'e1', 'normal')
   returning id into inserted_id;
 
   return query
