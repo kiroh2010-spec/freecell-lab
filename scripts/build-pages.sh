@@ -29,7 +29,7 @@ except Exception:
 def remove_public_dev_html(html: str) -> str:
     html = html.replace('        <a class="home-link" href="./home.html">홈</a>\n', '')
     html = html.replace('        <button id="promotionTestBtn" type="button">레벨업 테스트</button>\n', '')
-    html = html.replace('        <button id="devScoreViewBtn" type="button">개편 랭킹</button>\n', '')
+    html = html.replace('        <button id="devScoreViewBtn" type="button">개편 랭킹(사용 안 함)</button>\n', '')
     html = html.replace('        <button id="devAutoPlayBtn" type="button">자동 플레이</button>\n', '')
     html = re.sub(r"\n        <div id=\"devNoticeEditorPanel\"[\s\S]*?\n        </div>", "", html, count=1)
     html = html.replace('          <button id="devNoticeEditorEditBtn" type="button">편집</button>\n', '')
@@ -95,10 +95,6 @@ def build_channel(out_dir: Path, channel: str, visible_label: str, public_versio
 
     js = remove_public_dev_js((root / 'script.js').read_text())
     js = js.replace('const DEV_FORCE_SPECIAL_UNLOCK = true;', 'const DEV_FORCE_SPECIAL_UNLOCK = false;')
-    js = js.replace("const SHOW_LEGACY_SCORE_IN_REFORM = true;", "const SHOW_LEGACY_SCORE_IN_REFORM = false;")
-    if channel in ('alpha', 'beta'):
-        js = js.replace("  scoreViewMode: 'current',", "  scoreViewMode: 'reform',")
-        js = js.replace("const RANKING_SCORE_VERSION = 'current';", "const RANKING_SCORE_VERSION = 'reform';")
     notes_json = json.dumps(notes, ensure_ascii=False, indent=2)
     js = re.sub(r"const PATCH_NOTES = \[[\s\S]*?\];\nconst CURRENT_PATCH_NOTE_VERSION", f"const PATCH_NOTES = {notes_json};\nconst CURRENT_PATCH_NOTE_VERSION", js, count=1)
     js = re.sub(r"const AVAILABLE_ALPHA_VERSION = '[^']*';", f"const AVAILABLE_ALPHA_VERSION = '{update_version}';", js)

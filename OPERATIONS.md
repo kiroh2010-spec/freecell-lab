@@ -11,7 +11,7 @@ Before changing anything that affects users, explicitly identify the source of t
 - Current client session: `localStorage freecell.currentGame.v1`
 - Local account cache: `localStorage freecell.player.v1`, `freecell.stats.v1`, `freecell.profiles.v1`
 - Weekly ranking display: `weekly_scores` by `week_key`
-- Score formula generation: client `calculateScore()` / `calculateReformScore()` and submit payload
+- Score formula generation: client `calculateScore()` and server `freecell_calculate_score()` / `freecell_submit_score()` payload
 
 If two sources can disagree, define reconciliation rules before deployment.
 
@@ -52,6 +52,7 @@ For any change touching account management, DB schema/RPC, ranking, score, level
 - Score formula changes require either:
   - a new score version/week key, or
   - a full migration/backfill plan.
+- Archived formulas such as old 10000-point scoring or reform `scoreV2` must be labeled `지금은 쓰지 않음` and must not be reachable from runtime UI or ranking code.
 - If changing score display, verify result modal, local ranking, server ranking, submit score, and shortage messages together.
 
 ## Balance Changes

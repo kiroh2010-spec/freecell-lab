@@ -12,6 +12,13 @@ const PROMOTION_TIME_LIMIT_SECONDS = 7 * 60;
 const PROMOTION_TIME_WARNING_SECONDS = 30;
 const SPECIAL_SKILL_SCORE_PENALTY = 200;
 const DEV_FORCE_SPECIAL_UNLOCK = true;
+const SCORE_TIME_BASE_SECONDS = 2 * 60;
+const SCORE_TIME_BASE_POINTS = 4000;
+const SCORE_TIME_PENALTY_PER_SECOND = 5;
+const SCORE_MIN_CLEAR_POINTS = 300;
+const SCORE_MOVE_BONUS_BASE = 140;
+const SCORE_MOVE_BONUS_MAX = 100;
+const SCORE_MIN_TOTAL = 100;
 const TIME_BONUS_TIERS = [
   { seconds: 3 * 60, bonus: 200 },
   { seconds: 4 * 60, bonus: 100 },
@@ -68,7 +75,6 @@ const SUPABASE_CONFIG = {
 
 const SERVER_RANKING_ENABLED = Boolean(SUPABASE_CONFIG.url && SUPABASE_CONFIG.key);
 const RANKING_SCORE_VERSION = 'current';
-const SHOW_LEGACY_SCORE_IN_REFORM = true;
 
 
 const state = {
@@ -1449,75 +1455,52 @@ async function submitScoreToServer(result) {
       p_mode: result.mode,
     });
     if (serverResult?.status === 'ok' && Number.isInteger(serverResult.rank)) {
-      result.rank = serverResult.rank;
-      result.ranked = serverResult.rank <= result.rankingLimit;
+      await refreshServerRankings();
+      reconcileResultRankFromCurrentData(result);
     } else if (serverResult?.status === 'not_best') {
-      result.submitted = false;
-      result.notBest = true;
+      result.serverNotBest = true;
+      if (!result.submitted) {
+        result.notBest = true;
+      }
+      await refreshServerRankings();
+    } else {
+      await refreshServerRankings();
     }
-    await refreshServerRankings();
   } catch (error) {
     console.warn('Score server sync failed', error);
   }
 }
 
-function mapServerRankingRow(row, { legacyScore = false } = {}) {
+function mapServerRankingRow(row) {
   const time = row.elapsed_time ?? row.time;
   const moves = row.moves;
   const hintUsed = row.hint_used || 0;
   const difficultyCode = row.difficulty_code || 'e1';
   const mode = row.mode || 'normal';
-  const multiplier = getScoreMultiplier(difficultyCode, mode);
-  const scoreV2 = calculateReformScore(time || 0, moves || 0, multiplier, hintUsed, 0);
   return {
     id: row.player_id,
-    score: row.score,
-    scoreV2: legacyScore ? scoreV2 : (Number.isFinite(row.score) ? row.score : scoreV2),
+    score: Number.isFinite(row.score) ? row.score : calculateScore(time || 0, moves || 0, getScoreMultiplier(difficultyCode, mode), hintUsed, 0),
     time,
     moves,
     hintUsed,
     difficultyCode,
     mode,
     completedAt: row.created_at,
-    legacyScore,
   };
-}
-
-function mergeReformRankingRows(reformRows, legacyRows) {
-  const byPlayer = new Map();
-  legacyRows.map(row => mapServerRankingRow(row, { legacyScore: true })).forEach(entry => {
-    byPlayer.set(entry.id, entry);
-  });
-  reformRows.map(row => mapServerRankingRow(row)).forEach(entry => {
-    const previous = byPlayer.get(entry.id);
-    if (!previous || entry.scoreV2 > previous.scoreV2 || (entry.scoreV2 === previous.scoreV2 && entry.time < previous.time)) {
-      byPlayer.set(entry.id, entry);
-    }
-  });
-  return [...byPlayer.values()].sort(compareRankingEntries).slice(0, RANKING_LIMIT);
 }
 
 async function refreshServerRankings({ notify = false } = {}) {
   if (!SERVER_RANKING_ENABLED) return;
   try {
+    const weekKey = getRankingWeekKey();
     const rows = await supabaseRpc('freecell_weekly_leaderboard', {
-      p_week_key: getRankingWeekKey(),
+      p_week_key: weekKey,
       p_limit: RANKING_LIMIT,
     });
-    let entries = rows.map(row => mapServerRankingRow(row));
-    let levelSourceEntries = [...entries];
-    if (RANKING_SCORE_VERSION === 'reform') {
-      const legacyRows = await supabaseRpc('freecell_weekly_leaderboard', {
-        p_week_key: getWeekKey(),
-        p_limit: RANKING_LIMIT,
-      });
-      const legacyEntries = legacyRows.map(row => mapServerRankingRow(row, { legacyScore: true }));
-      levelSourceEntries = [...levelSourceEntries, ...legacyEntries];
-      entries = mergeReformRankingRows(rows, legacyRows);
-    }
-    reconcilePlayerLevelFromRankingEntries(levelSourceEntries);
+    const entries = rows.map(row => mapServerRankingRow(row));
+    reconcilePlayerLevelFromRankingEntries(entries);
     const data = {
-      weekKey: getRankingWeekKey(),
+      weekKey,
       entries,
     };
     saveRankingData(data);
@@ -1525,6 +1508,7 @@ async function refreshServerRankings({ notify = false } = {}) {
     renderRankings();
     renderRankingDetail();
     refreshOpenResultMessage();
+    return data;
   } catch (error) {
     console.warn('Leaderboard refresh failed', error);
   }
@@ -1549,9 +1533,7 @@ function maybeNotifyRankingChange(entries, notify) {
 
   const undoUsed = getChargedUndoUsed();
   const multiplier = getScoreMultiplier(state.difficultyCode, state.gameMode);
-  const projectedScore = RANKING_SCORE_VERSION === 'reform'
-    ? calculateReformScore(state.elapsedSeconds, state.moves, multiplier, undoUsed, state.specialUsed ? 1 : 0)
-    : calculateScore(state.elapsedSeconds, state.moves, multiplier, undoUsed, state.specialUsed ? 1 : 0);
+  const projectedScore = calculateScore(state.elapsedSeconds, state.moves, multiplier, undoUsed, state.specialUsed ? 1 : 0);
   const gap = leaderScore - projectedScore;
   if (gap > 0 && gap <= 500) {
     state.lastRankNoticeAt = now;
@@ -1947,16 +1929,15 @@ function getWeekKey(date = new Date()) {
 }
 
 function getRankingWeekKey(date = new Date()) {
-  const weekKey = getWeekKey(date);
-  return RANKING_SCORE_VERSION === 'reform' ? `${weekKey}-v2` : weekKey;
+  return getWeekKey(date);
 }
 
 function getActiveRankingScore(entry) {
-  return RANKING_SCORE_VERSION === 'reform' ? entry.scoreV2 : entry.score;
+  return entry.score;
 }
 
 function getServerSubmitScore(result) {
-  return getActiveRankingScore(result);
+  return result.score;
 }
 
 function getNextResetDate(date = new Date()) {
@@ -1981,6 +1962,39 @@ function saveRankingData(data) {
   localStorage.setItem(STORAGE_KEYS.rankings, JSON.stringify(data));
 }
 
+function isSameRankingRecord(entry, result) {
+  return entry?.id === result?.id
+    && entry.time === result.time
+    && entry.moves === result.moves
+    && entry.difficultyCode === result.difficultyCode
+    && entry.mode === result.mode
+    && getRankingScore(entry) === getRankingScore(result);
+}
+
+function reconcileResultRankFromCurrentData(result) {
+  if (!result) return result;
+  const entries = getRankedEntries(RANKING_LIMIT);
+  const resultRank = entries.find(entry => isSameRankingRecord(entry, result));
+  if (resultRank) {
+    result.rank = resultRank.rank;
+    result.ranked = true;
+    result.submitted = true;
+    result.notBest = false;
+    result.shortage = 0;
+    return result;
+  }
+  const playerBest = entries.find(entry => entry.id === result.id) || null;
+  if (playerBest) {
+    const shortage = Math.max(1, getRankingScore(playerBest) - getRankingScore(result) + 1);
+    result.rank = null;
+    result.ranked = false;
+    result.submitted = false;
+    result.notBest = true;
+    result.previousBestScore = getRankingScore(playerBest);
+    result.shortage = shortage;
+  }
+  return result;
+}
 
 function updateRankingPlayerId(oldId, newId) {
   const data = loadRankingData();
@@ -2002,14 +2016,12 @@ function recordWeeklyScore() {
   const undoUsed = getChargedUndoUsed();
   const specialUsed = state.specialUsed ? 1 : 0;
   const score = calculateScore(state.elapsedSeconds, state.moves, multiplier, undoUsed, specialUsed);
-  const scoreV2 = calculateReformScore(state.elapsedSeconds, state.moves, multiplier, undoUsed, specialUsed);
   const completedAt = new Date().toISOString();
   const entry = {
     id: state.player.id,
     time: state.elapsedSeconds,
     moves: state.moves,
     score,
-    scoreV2,
     hintUsed: undoUsed,
     undoUsed,
     specialUsed,
@@ -2021,10 +2033,15 @@ function recordWeeklyScore() {
 
   data.entries.forEach(item => normalizeRankingEntry(item));
   const entryScore = getActiveRankingScore(entry);
+  data.entries.sort(compareActiveRankingEntries);
   const previousBest = data.entries
     .filter(item => item.id === state.player.id)
     .sort(compareActiveRankingEntries)[0] || null;
   const previousBestScore = previousBest ? getActiveRankingScore(previousBest) : null;
+  const previousRankIndex = previousBest
+    ? data.entries.findIndex(item => item === previousBest)
+    : -1;
+  const previousRank = previousRankIndex === -1 ? null : previousRankIndex + 1;
   const personalBestShortage = previousBestScore !== null && entryScore <= previousBestScore
     ? previousBestScore - entryScore + 1
     : 0;
@@ -2057,6 +2074,7 @@ function recordWeeklyScore() {
     submitted,
     notBest: Boolean(personalBestShortage),
     previousBestScore,
+    previousRank,
     serverSkipped: Boolean(specialUsed),
   };
   saveRankingData(data);
@@ -2072,12 +2090,13 @@ function normalizeRankingEntry(entry) {
   entry.multiplier = Number.isFinite(entry.multiplier) ? entry.multiplier : getScoreMultiplier(entry.difficultyCode, entry.mode);
   entry.hintUsed = Number.isInteger(entry.hintUsed) ? entry.hintUsed : (Number.isInteger(entry.undoUsed) ? entry.undoUsed : 0);
   entry.specialUsed = Number.isInteger(entry.specialUsed) ? entry.specialUsed : 0;
-  entry.score = Number.isFinite(entry.score) ? entry.score : calculateScore(entry.time || 0, entry.moves || 0, entry.multiplier, entry.hintUsed, entry.specialUsed);
-  entry.scoreV2 = Number.isFinite(entry.scoreV2) ? entry.scoreV2 : calculateReformScore(entry.time || 0, entry.moves || 0, entry.multiplier, entry.hintUsed, entry.specialUsed);
+  if (!Number.isFinite(entry.score)) {
+    entry.score = calculateScore(entry.time || 0, entry.moves || 0, entry.multiplier, entry.hintUsed, entry.specialUsed);
+  }
 }
 
 function getRankingScore(entry) {
-  return state.scoreViewMode === 'reform' ? entry.scoreV2 : entry.score;
+  return entry.score;
 }
 
 function compareCurrentRankingEntries(a, b) {
@@ -2115,33 +2134,24 @@ function getTimeBonus(time) {
   return tier?.bonus ?? 0;
 }
 
+function getTimeWeightedClearScore(time) {
+  const elapsed = Math.max(0, Number(time) || 0);
+  const timeScore = SCORE_TIME_BASE_POINTS - Math.max(0, elapsed - SCORE_TIME_BASE_SECONDS) * SCORE_TIME_PENALTY_PER_SECOND;
+  return Math.max(SCORE_MIN_CLEAR_POINTS, timeScore);
+}
+
+function getMoveBonus(moves) {
+  const moveCount = Math.max(0, Number(moves) || 0);
+  return Math.min(SCORE_MOVE_BONUS_MAX, Math.max(0, SCORE_MOVE_BONUS_BASE - moveCount));
+}
+
 function calculateScore(time, moves, multiplier = 1, undoUsed = 0, specialUsed = 0) {
+  const undoPenalty = Math.max(0, Number(undoUsed) || 0) * 100;
   const specialPenalty = specialUsed ? SPECIAL_SKILL_SCORE_PENALTY : 0;
-  const base = Math.max(100, 10000 - moves * 5 - undoUsed * 100 - specialPenalty + getTimeBonus(time));
-  return Math.round(base * multiplier);
-}
-
-function getReformTimeBonus(time) {
-  const rawBonus = time <= 300
-    ? Math.max(0, 1000 - time * 3)
-    : Math.max(0, 100 - (time - 300) / 3);
-  return rawBonus * 1.5;
-}
-
-function getReformMoveBonus(moves) {
-  const rawBonus = moves <= 120
-    ? Math.max(0, 900 - moves * 7)
-    : Math.max(0, 60 - (moves - 120) * 0.75);
-  return rawBonus * 1.5;
-}
-
-function calculateReformScore(time, moves, multiplier = 1, undoUsed = 0, specialUsed = 0) {
-  const clearScore = 2000;
-  const timeBonus = getReformTimeBonus(time);
-  const moveBonus = getReformMoveBonus(moves);
-  const undoPenalty = undoUsed * 40;
-  const specialPenalty = specialUsed ? SPECIAL_SKILL_SCORE_PENALTY : 0;
-  const base = Math.max(100, clearScore + timeBonus + moveBonus - undoPenalty - specialPenalty);
+  const base = Math.max(
+    SCORE_MIN_TOTAL,
+    getTimeWeightedClearScore(time) + getMoveBonus(moves) - undoPenalty - specialPenalty,
+  );
   return Math.round(base * multiplier);
 }
 
@@ -2272,6 +2282,10 @@ function updateSoundButton() {
 
 function playSound(kind) {
   if (!state.soundEnabled) return;
+  playSyntheticSound(kind);
+}
+
+function playSyntheticSound(kind) {
   const AudioCtx = window.AudioContext || window.webkitAudioContext;
   if (!AudioCtx) return;
   try {
@@ -2338,23 +2352,56 @@ function getPromotionResultMessage(result) {
   return `레벨업 성공: ${transition.label} 완료${benefit}`;
 }
 
+function getAdjacentRankMotivation(entry, entries = getRankedEntries(RANKING_LIMIT)) {
+  if (!entry) return '';
+  const rank = entry.rank || entries.findIndex(item => isSameRankingRecord(item, entry)) + 1;
+  if (!rank) return '';
+  const score = getRankingScore(entry);
+  if (rank === 1) {
+    const next = entries[1] || null;
+    return next ? `2위 ${next.id}보다 ${Math.max(0, score - getRankingScore(next))}점 앞서 있습니다.` : '현재 단독 1위입니다.';
+  }
+  const target = entries[rank - 2] || null;
+  return target ? `${target.rank || rank - 1}위 ${target.id}까지 ${Math.max(0, getRankingScore(target) - score)}점 차이입니다.` : '';
+}
+
+function getResultRankingSummary(result) {
+  const entries = getRankedEntries(RANKING_LIMIT);
+  const resultRank = entries.find(entry => isSameRankingRecord(entry, result));
+  const resultScore = getRankingScore(result);
+  if (resultRank) {
+    if (result.previousRank === resultRank.rank) {
+      return `현재 주간 랭킹 ${resultRank.rank}위를 유지합니다. ${getAdjacentRankMotivation(resultRank, entries)}`;
+    }
+    return `주간 랭킹 ${resultRank.rank}위에 ${resultScore}점으로 반영됐습니다. ${getAdjacentRankMotivation(resultRank, entries)}`;
+  }
+  return `이번 기록 ${resultScore}점`;
+}
+
+function getCurrentPlayerRankMessage(result) {
+  const entries = getRankedEntries(RANKING_LIMIT);
+  const currentRank = entries.find(entry => entry.id === result.id) || null;
+  if (!currentRank) return '';
+  return `현재 주간 랭킹 ${currentRank.rank}위를 유지합니다. ${getAdjacentRankMotivation(currentRank, entries)}`;
+}
+
 function getResultRankMessage(result) {
   const hintText = `${result.hintUsed ? ` · 되돌리기 ${result.hintUsed}회` : ''}${result.specialUsed ? ' · 필살기 1회' : ''}`;
-  const modeText = '';
-  const leaderText = getLeaderText();
   if (result.testPromotion) {
-    return `레벨업 테스트 완료입니다. 실제 랭킹에는 등록되지 않습니다. ${formatDifficultyCode(result.difficultyCode, result.mode)}`;
+    return '레벨업 테스트 완료입니다. 실제 랭킹에는 등록되지 않습니다.';
   }
   if (result.serverSkipped) {
-    return `필살기를 사용한 dev 테스트 기록입니다. 로컬 랭킹에는 반영됐고, 서버 랭킹에는 아직 등록하지 않습니다. ${leaderText}. ${formatDifficultyCode(result.difficultyCode, result.mode)}${modeText}${hintText}`;
+    return `필살기를 사용한 dev 테스트 기록입니다. ${getResultRankingSummary(result)} 서버 랭킹에는 아직 등록하지 않습니다${hintText}`;
   }
   if (result.notBest) {
-    return `최고 점수까지 ${result.shortage}점 부족합니다. 이번 기록은 랭킹에 등록되지 않습니다. ${leaderText}. ${formatDifficultyCode(result.difficultyCode, result.mode)}${modeText}${hintText}`;
+    const currentRankText = getCurrentPlayerRankMessage(result);
+    if (currentRankText) return `${currentRankText}${hintText}`;
+    return `랭킹 TOP ${result.rankingLimit}까지 ${result.shortage}점 부족합니다. 이번 기록은 랭킹에 등록되지 않습니다${hintText}`;
   }
   if (result.ranked) {
-    return `주간 랭킹 ${result.rank}위에 반영됐습니다. ${leaderText}. ${formatDifficultyCode(result.difficultyCode, result.mode)}${modeText}${hintText}`;
+    return `${getResultRankingSummary(result)}${hintText}`;
   }
-  return `랭킹 TOP ${result.rankingLimit}까지 ${result.shortage}점 부족합니다. ${leaderText}. ${formatDifficultyCode(result.difficultyCode, result.mode)}${modeText}${hintText}`;
+  return `랭킹 TOP ${result.rankingLimit}까지 ${result.shortage}점 부족합니다. 이번 기록은 랭킹에 등록되지 않습니다${hintText}`;
 }
 
 function showResultModal(result) {
@@ -2537,7 +2584,7 @@ function renderRankingDetail() {
       <div class="ranking-detail-main">
         <div class="ranking-detail-player">
           <strong>${getRankingPlayerLabelHtml(entry)}</strong>
-          <span class="ranking-detail-score">${getRankingScore(entry)}점${state.scoreViewMode === 'reform' && SHOW_LEGACY_SCORE_IN_REFORM ? ` <small>기존 ${entry.score}점</small>` : ''}</span>
+          <span class="ranking-detail-score">${getRankingScore(entry)}점</span>
         </div>
         <div class="ranking-detail-meta">${getRankingMetricLabel(entry)}</div>
         <div class="ranking-detail-meta">등록: ${formatRankingDate(entry.completedAt)}</div>
@@ -2726,22 +2773,13 @@ function pickDevAutoPlayMove() {
 
 function updateDevScoreViewButton() {
   if (!devScoreViewBtn) return;
-  devScoreViewBtn.textContent = state.scoreViewMode === 'reform' ? '현재 랭킹' : '개편 랭킹';
-  devScoreViewBtn.title = state.scoreViewMode === 'reform'
-    ? '현재 점수식 랭킹으로 보기'
-    : '개편 점수식 가상 랭킹으로 보기';
-  devScoreViewBtn.classList.toggle('is-active', state.scoreViewMode === 'reform');
+  devScoreViewBtn.hidden = true;
 }
 
 function toggleDevScoreView() {
-  state.scoreViewMode = state.scoreViewMode === 'reform' ? 'current' : 'reform';
+  state.scoreViewMode = 'current';
   updateDevScoreViewButton();
-  renderRankings();
-  renderRankingDetail();
-  refreshOpenResultMessage();
-  setStatus(state.scoreViewMode === 'reform'
-    ? '개발용 개편 랭킹을 표시합니다. 서버 점수는 아직 기존 점수식입니다.'
-    : '현재 점수식 랭킹을 표시합니다.');
+  setStatus('현재 점수식 랭킹만 표시합니다.');
 }
 
 function updateDevAutoPlayButton() {
@@ -2899,7 +2937,7 @@ window.setInterval(() => {
   }
 }, 2000);
 window.setInterval(() => {
-  if (state.timerStarted && !state.won) refreshServerRankings({ notify: true });
+  refreshServerRankings({ notify: state.timerStarted && !state.won });
 }, 30000);
 checkAvailableAlphaPatch();
 window.setInterval(checkAvailableAlphaPatch, 30 * 1000);

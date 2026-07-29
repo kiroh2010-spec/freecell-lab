@@ -1,7 +1,7 @@
 {
   "devVersion": "0.9",
-  "alphaVersion": "0.11",
-  "alphaPublicVersion": "0.11",
+  "alphaVersion": "0.12",
+  "alphaPublicVersion": "0.12",
   "betaVersion": "0.28",
   "launchVersion": "1.0",
   "patchNotes": [
@@ -111,6 +111,18 @@
   ],
   "alphaPatchNotes": [
     {
+      "version": "0.12",
+      "title": "점수·랭킹 구조 단일화",
+      "date": "2026-07-29",
+      "items": [
+        "기존 점수 라인을 시간 유리 공식으로 보완했습니다.",
+        "사용하지 않는 개편 랭킹 경로를 정리했습니다.",
+        "서버/DB/화면 점수 기준을 current 단일 구조로 통일했습니다.",
+        "결과창 랭킹 문구에서 레벨 표기를 제거하고 바로 위 순위와의 점수차를 표시합니다.",
+        "m4a 카드/셔플 효과음 실험은 제거하고 기존 효과음으로 되돌렸습니다."
+      ]
+    },
+    {
       "version": "알파 v0.11",
       "date": "2026-07-24",
       "title": "카드 디자인·셔플 연출 테스트",
@@ -204,7 +216,7 @@
     "alpha": {
       "label": "알파",
       "description": "dev 변경을 베타와 분리해 사람 테스트하는 공개 알파 공간. 테스트 기능/데이터는 UI와 코드에서 제거한다.",
-      "visibleLabel": "알파 v0.11",
+      "visibleLabel": "알파 v0.12",
       "allowTestTools": false,
       "public": true
     },
