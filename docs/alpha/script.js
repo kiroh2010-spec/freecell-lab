@@ -36,6 +36,16 @@ const STORAGE_KEYS = {
 
 const PATCH_NOTES = [
   {
+    "version": "알파 v0.16",
+    "date": "2026-07-29",
+    "title": "타이머 시작 조건·새 게임 버튼 보정",
+    "items": [
+      "카드 선택만으로 시간이 흐르지 않고 실제 이동 성공 때만 타이머가 시작되도록 수정",
+      "기존 저장값 중 이동 0회인데 타이머가 켜진 오염 상태를 로드 시 자동 정리",
+      "셔플 애니메이션이 실패해도 새 게임 버튼이 반드시 새 판을 딜하도록 보정"
+    ]
+  },
+  {
     "version": "알파 v0.15",
     "date": "2026-07-29",
     "title": "게임 진행·저장·랭킹 복구",
@@ -156,8 +166,8 @@ const PATCH_NOTES = [
   }
 ];
 const CURRENT_PATCH_NOTE_VERSION = PATCH_NOTES[0]?.version || '';
-const AVAILABLE_ALPHA_VERSION = '0.15';
-const CLIENT_ALPHA_VERSION = '0.15'; // dev-only update-check test baseline; public builds inject their channel version.
+const AVAILABLE_ALPHA_VERSION = '0.16';
+const CLIENT_ALPHA_VERSION = '0.16'; // dev-only update-check test baseline; public builds inject their channel version.
 
 const SUPABASE_CONFIG = {
   url: 'https://zhhvyvjbqdwurwlgseod.supabase.co',
@@ -469,7 +479,7 @@ function getChargedUndoUsed(undoLeft = state.undoLeft, code = state.difficultyCo
 
 function renderVersionLabel() {
   if (!versionLabel) return;
-  versionLabel.textContent = '알파 v0.15';
+  versionLabel.textContent = '알파 v0.16';
   renderPlayerDifficulty();
 }
 
@@ -743,7 +753,6 @@ function handleCardDoubleClick(location) {
     return;
   }
 
-  startTimer();
   const card = getCard(location);
   const foundationTarget = { type: 'foundation', suit: card.suit };
   if (canMoveTo(card, foundationTarget)) {
@@ -767,6 +776,7 @@ function handleCardDoubleClick(location) {
 function moveSingleCard(from, to, message, soundKind = 'move') {
   const card = getCard(from);
   if (!card || !canMoveTo(card, to)) return false;
+  startTimer();
   pushUndoSnapshot();
   removeCard(from);
   addCard(to, card);
@@ -792,8 +802,6 @@ function handleCardClick(location) {
     playSound('invalid');
     return;
   }
-
-  startTimer();
 
   state.selected = isSameLocation(state.selected, location) ? null : location;
   const cards = getMovingCards(location);
@@ -823,6 +831,7 @@ function handleTarget(target) {
     return false;
   }
 
+  startTimer();
   pushUndoSnapshot();
   removeCards(state.selected, movingCards.length);
   addCards(target, movingCards);
@@ -1091,6 +1100,12 @@ function restoreSavedGame() {
   state.undoAllowance = getUndoAllowance(state.difficultyCode);
   state.undoLeft = Number.isInteger(saved.undoLeft) ? Math.min(saved.undoLeft, state.undoAllowance) : (Number.isInteger(saved.hintLeft) ? Math.min(saved.hintLeft, state.undoAllowance) : state.undoAllowance);
   state.undoStack = Array.isArray(saved.undoStack) ? saved.undoStack : [];
+
+  if (state.timerStarted && state.moves === 0) {
+    state.timerStarted = false;
+    state.elapsedSeconds = 0;
+    state.selected = null;
+  }
 
   if (state.timerStarted && saved.savedAt) {
     const deltaSeconds = Math.max(0, Math.floor((Date.now() - saved.savedAt) / 1000));
@@ -1464,7 +1479,7 @@ async function animateNewGameSpread() {
 }
 
 async function requestNewGame() {
-  if (state.dealAnimating) return;
+  if (state.dealAnimating) state.dealAnimating = false;
   const stats = loadStats();
   stats.gamesStarted += 1;
   saveStats(stats);
@@ -1472,13 +1487,21 @@ async function requestNewGame() {
   state.selected = null;
   setStatus('카드를 모아서 새 판을 섞는 중입니다...');
   try {
-    await animateNewGameGather();
+    try {
+      await animateNewGameGather();
+    } catch (error) {
+      console.warn('Freecell new game gather animation skipped', error);
+    }
     newGame({ clearSaved: true, mode: 'normal', difficultyCode: DIFFICULTY_TIERS[stats.difficultyIndex].code });
     playSound('shuffle');
-    await animateNewGameSpread();
+    try {
+      await animateNewGameSpread();
+    } catch (error) {
+      console.warn('Freecell new game spread animation skipped', error);
+    }
   } finally {
     state.dealAnimating = false;
-    }
+  }
 }
 
 function loadStats() {

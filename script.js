@@ -654,7 +654,6 @@ function handleCardDoubleClick(location) {
     return;
   }
 
-  startTimer();
   const card = getCard(location);
   const foundationTarget = { type: 'foundation', suit: card.suit };
   if (canMoveTo(card, foundationTarget)) {
@@ -678,6 +677,7 @@ function handleCardDoubleClick(location) {
 function moveSingleCard(from, to, message, soundKind = 'move') {
   const card = getCard(from);
   if (!card || !canMoveTo(card, to)) return false;
+  startTimer();
   pushUndoSnapshot();
   removeCard(from);
   addCard(to, card);
@@ -703,8 +703,6 @@ function handleCardClick(location) {
     playSound('invalid');
     return;
   }
-
-  startTimer();
 
   state.selected = isSameLocation(state.selected, location) ? null : location;
   const cards = getMovingCards(location);
@@ -734,6 +732,7 @@ function handleTarget(target) {
     return false;
   }
 
+  startTimer();
   pushUndoSnapshot();
   removeCards(state.selected, movingCards.length);
   addCards(target, movingCards);
@@ -1002,6 +1001,12 @@ function restoreSavedGame() {
   state.undoAllowance = getUndoAllowance(state.difficultyCode);
   state.undoLeft = Number.isInteger(saved.undoLeft) ? Math.min(saved.undoLeft, state.undoAllowance) : (Number.isInteger(saved.hintLeft) ? Math.min(saved.hintLeft, state.undoAllowance) : state.undoAllowance);
   state.undoStack = Array.isArray(saved.undoStack) ? saved.undoStack : [];
+
+  if (state.timerStarted && state.moves === 0) {
+    state.timerStarted = false;
+    state.elapsedSeconds = 0;
+    state.selected = null;
+  }
 
   if (state.timerStarted && saved.savedAt) {
     const deltaSeconds = Math.max(0, Math.floor((Date.now() - saved.savedAt) / 1000));
@@ -1375,7 +1380,7 @@ async function animateNewGameSpread() {
 }
 
 async function requestNewGame() {
-  if (state.dealAnimating) return;
+  if (state.dealAnimating) state.dealAnimating = false;
   if (state.devAutoPlayActive) stopDevAutoPlay('자동 플레이를 중지하고 새 게임을 시작합니다.');
   const stats = loadStats();
   stats.gamesStarted += 1;
@@ -1384,13 +1389,21 @@ async function requestNewGame() {
   state.selected = null;
   setStatus('카드를 모아서 새 판을 섞는 중입니다...');
   try {
-    await animateNewGameGather();
+    try {
+      await animateNewGameGather();
+    } catch (error) {
+      console.warn('Freecell new game gather animation skipped', error);
+    }
     newGame({ clearSaved: true, mode: 'normal', difficultyCode: DIFFICULTY_TIERS[stats.difficultyIndex].code });
     playSound('shuffle');
-    await animateNewGameSpread();
+    try {
+      await animateNewGameSpread();
+    } catch (error) {
+      console.warn('Freecell new game spread animation skipped', error);
+    }
   } finally {
     state.dealAnimating = false;
-    }
+  }
 }
 
 function loadStats() {
