@@ -36,6 +36,16 @@ const STORAGE_KEYS = {
 
 const PATCH_NOTES = [
   {
+    "version": "알파 v0.13",
+    "date": "2026-07-29",
+    "title": "공개 빌드 버튼 반응 복구",
+    "items": [
+      "공개 알파에서 개발용 테스트 버튼 제거 규칙 보강",
+      "브라우저 캐시 무효화를 위해 알파 배포 파일 버전 갱신",
+      "상단 버전 표시와 패치 표시가 서로 일치하도록 보정"
+    ]
+  },
+  {
     "version": "알파 v0.12",
     "date": "2026-07-28",
     "title": "1LV 고정 밸런스 테스트",
@@ -126,8 +136,8 @@ const PATCH_NOTES = [
   }
 ];
 const CURRENT_PATCH_NOTE_VERSION = PATCH_NOTES[0]?.version || '';
-const AVAILABLE_ALPHA_VERSION = '0.12';
-const CLIENT_ALPHA_VERSION = '0.12'; // dev-only update-check test baseline; public builds inject their channel version.
+const AVAILABLE_ALPHA_VERSION = '0.13';
+const CLIENT_ALPHA_VERSION = '0.13'; // dev-only update-check test baseline; public builds inject their channel version.
 
 const SUPABASE_CONFIG = {
   url: 'https://zhhvyvjbqdwurwlgseod.supabase.co',
@@ -439,7 +449,7 @@ function getChargedUndoUsed(undoLeft = state.undoLeft, code = state.difficultyCo
 
 function renderVersionLabel() {
   if (!versionLabel) return;
-  versionLabel.textContent = '알파 v0.12';
+  versionLabel.textContent = '알파 v0.13';
   renderPlayerDifficulty();
 }
 

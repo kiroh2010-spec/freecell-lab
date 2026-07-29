@@ -36,6 +36,16 @@ const STORAGE_KEYS = {
 
 const PATCH_NOTES = [
   {
+    "version": "베타 v0.30",
+    "date": "2026-07-29",
+    "title": "공개 빌드 버튼 반응 복구",
+    "items": [
+      "공개 베타에서 개발용 테스트 버튼이 섞이던 빌드 제거 규칙 보강",
+      "브라우저가 이전 공개 JS를 붙잡지 않도록 배포 파일 버전 갱신",
+      "상단 버전 표시와 패치 표시가 서로 일치하도록 보정"
+    ]
+  },
+  {
     "version": "베타 v0.29",
     "date": "2026-07-28",
     "title": "1LV 고정 밸런스 적용",
@@ -149,8 +159,8 @@ const PATCH_NOTES = [
   }
 ];
 const CURRENT_PATCH_NOTE_VERSION = PATCH_NOTES[0]?.version || '';
-const AVAILABLE_ALPHA_VERSION = '0.29';
-const CLIENT_ALPHA_VERSION = '0.29'; // dev-only update-check test baseline; public builds inject their channel version.
+const AVAILABLE_ALPHA_VERSION = '0.30';
+const CLIENT_ALPHA_VERSION = '0.30'; // dev-only update-check test baseline; public builds inject their channel version.
 
 const SUPABASE_CONFIG = {
   url: 'https://zhhvyvjbqdwurwlgseod.supabase.co',
@@ -462,7 +472,7 @@ function getChargedUndoUsed(undoLeft = state.undoLeft, code = state.difficultyCo
 
 function renderVersionLabel() {
   if (!versionLabel) return;
-  versionLabel.textContent = '베타 v0.29';
+  versionLabel.textContent = '베타 v0.30';
   renderPlayerDifficulty();
 }
 

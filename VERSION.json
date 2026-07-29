@@ -1,10 +1,20 @@
 {
   "devVersion": "0.9",
-  "alphaVersion": "0.12",
-  "alphaPublicVersion": "0.12",
-  "betaVersion": "0.29",
+  "alphaVersion": "0.13",
+  "alphaPublicVersion": "0.13",
+  "betaVersion": "0.30",
   "launchVersion": "1.0",
   "patchNotes": [
+    {
+      "version": "베타 v0.30",
+      "date": "2026-07-29",
+      "title": "공개 빌드 버튼 반응 복구",
+      "items": [
+        "공개 베타에서 개발용 테스트 버튼이 섞이던 빌드 제거 규칙 보강",
+        "브라우저가 이전 공개 JS를 붙잡지 않도록 배포 파일 버전 갱신",
+        "상단 버전 표시와 패치 표시가 서로 일치하도록 보정"
+      ]
+    },
     {
       "version": "베타 v0.29",
       "date": "2026-07-28",
@@ -120,6 +130,16 @@
   ],
   "alphaPatchNotes": [
     {
+      "version": "알파 v0.13",
+      "date": "2026-07-29",
+      "title": "공개 빌드 버튼 반응 복구",
+      "items": [
+        "공개 알파에서 개발용 테스트 버튼 제거 규칙 보강",
+        "브라우저 캐시 무효화를 위해 알파 배포 파일 버전 갱신",
+        "상단 버전 표시와 패치 표시가 서로 일치하도록 보정"
+      ]
+    },
+    {
       "version": "알파 v0.12",
       "date": "2026-07-28",
       "title": "1LV 고정 밸런스 테스트",
@@ -220,14 +240,14 @@
     "alpha": {
       "label": "알파",
       "description": "dev 변경을 베타와 분리해 사람 테스트하는 공개 알파 공간. 테스트 기능/데이터는 UI와 코드에서 제거한다.",
-      "visibleLabel": "알파 v0.12",
+      "visibleLabel": "알파 v0.13",
       "allowTestTools": false,
       "public": true
     },
     "beta": {
       "label": "베타",
       "description": "알파에서 사람 테스트를 통과한 내용을 거의 그대로 적용하는 안정 테스트 공간. 기존 공개 사용자가 보는 기본 채널이다.",
-      "visibleLabel": "베타 v0.29",
+      "visibleLabel": "베타 v0.30",
       "allowTestTools": false,
       "public": true
     },
