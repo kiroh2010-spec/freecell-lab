@@ -36,6 +36,16 @@ const STORAGE_KEYS = {
 
 const PATCH_NOTES = [
   {
+    "version": "베타 v0.32",
+    "date": "2026-07-29",
+    "title": "게임 진행·저장·랭킹 복구",
+    "items": [
+      "누락된 시간 표시 함수를 복구해 첫 이동 후 타이머가 진행되도록 수정",
+      "누락된 활성 랭킹 점수 함수를 복구해 클리어 기록 등록이 중단되던 문제 수정",
+      "플레이 중 렌더 오류로 저장이 끊겨 F5 후 진행 중인 판이 초기화되던 문제 수정"
+    ]
+  },
+  {
     "version": "베타 v0.31",
     "date": "2026-07-29",
     "title": "알파·베타 버튼 무반응 수정",
@@ -169,8 +179,8 @@ const PATCH_NOTES = [
   }
 ];
 const CURRENT_PATCH_NOTE_VERSION = PATCH_NOTES[0]?.version || '';
-const AVAILABLE_ALPHA_VERSION = '0.31';
-const CLIENT_ALPHA_VERSION = '0.31'; // dev-only update-check test baseline; public builds inject their channel version.
+const AVAILABLE_ALPHA_VERSION = '0.32';
+const CLIENT_ALPHA_VERSION = '0.32'; // dev-only update-check test baseline; public builds inject their channel version.
 
 const SUPABASE_CONFIG = {
   url: 'https://zhhvyvjbqdwurwlgseod.supabase.co',
@@ -482,7 +492,7 @@ function getChargedUndoUsed(undoLeft = state.undoLeft, code = state.difficultyCo
 
 function renderVersionLabel() {
   if (!versionLabel) return;
-  versionLabel.textContent = '베타 v0.31';
+  versionLabel.textContent = '베타 v0.32';
   renderPlayerDifficulty();
 }
 
@@ -1724,6 +1734,34 @@ function expirePromotionChallenge() {
   playSound('invalid');
 }
 
+function formatTime(totalSeconds) {
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+}
+
+function formatLocalDateKey(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function getWeekKey(date = new Date()) {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  const day = d.getDay();
+  const diffToMonday = (day + 6) % 7;
+  d.setDate(d.getDate() - diffToMonday);
+  return formatLocalDateKey(d);
+}
+
+function getRankingWeekKey(date = new Date()) {
+  const weekKey = getWeekKey(date);
+  return RANKING_SCORE_VERSION === 'reform' ? `${weekKey}-v2` : weekKey;
+}
+
+function getActiveRankingScore(entry) {
+  return RANKING_SCORE_VERSION === 'reform' ? entry.scoreV2 : entry.score;
+}
+
 function getServerSubmitScore(result) {
   return getActiveRankingScore(result);
 }
@@ -1735,15 +1773,6 @@ function getNextResetDate(date = new Date()) {
   const diffToMonday = (day + 6) % 7;
   d.setDate(d.getDate() - diffToMonday + 7);
   return d;
-}
-
-function getRankingWeekKey(date = new Date()) {
-  const d = new Date(date);
-  d.setHours(0, 0, 0, 0);
-  const day = d.getDay();
-  const diffToMonday = (day + 6) % 7;
-  d.setDate(d.getDate() - diffToMonday);
-  return d.toISOString().slice(0, 10);
 }
 
 function loadRankingData() {
@@ -1789,9 +1818,9 @@ function recordWeeklyScore() {
     scoreV2,
     hintUsed: undoUsed,
     undoUsed,
-      multiplier,
-    difficultyCode: DIFFICULTY_TIERS[0].code,
-    mode: 'normal',
+    multiplier,
+    difficultyCode: state.difficultyCode,
+    mode: state.gameMode,
     completedAt,
   };
 

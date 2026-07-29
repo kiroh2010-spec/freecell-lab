@@ -1623,6 +1623,34 @@ function expirePromotionChallenge() {
   playSound('invalid');
 }
 
+function formatTime(totalSeconds) {
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+}
+
+function formatLocalDateKey(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function getWeekKey(date = new Date()) {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  const day = d.getDay();
+  const diffToMonday = (day + 6) % 7;
+  d.setDate(d.getDate() - diffToMonday);
+  return formatLocalDateKey(d);
+}
+
+function getRankingWeekKey(date = new Date()) {
+  const weekKey = getWeekKey(date);
+  return RANKING_SCORE_VERSION === 'reform' ? `${weekKey}-v2` : weekKey;
+}
+
+function getActiveRankingScore(entry) {
+  return RANKING_SCORE_VERSION === 'reform' ? entry.scoreV2 : entry.score;
+}
+
 function getServerSubmitScore(result) {
   return getActiveRankingScore(result);
 }
@@ -1634,15 +1662,6 @@ function getNextResetDate(date = new Date()) {
   const diffToMonday = (day + 6) % 7;
   d.setDate(d.getDate() - diffToMonday + 7);
   return d;
-}
-
-function getRankingWeekKey(date = new Date()) {
-  const d = new Date(date);
-  d.setHours(0, 0, 0, 0);
-  const day = d.getDay();
-  const diffToMonday = (day + 6) % 7;
-  d.setDate(d.getDate() - diffToMonday);
-  return d.toISOString().slice(0, 10);
 }
 
 function loadRankingData() {
@@ -1688,9 +1707,9 @@ function recordWeeklyScore() {
     scoreV2,
     hintUsed: undoUsed,
     undoUsed,
-      multiplier,
-    difficultyCode: DIFFICULTY_TIERS[0].code,
-    mode: 'normal',
+    multiplier,
+    difficultyCode: state.difficultyCode,
+    mode: state.gameMode,
     completedAt,
   };
 

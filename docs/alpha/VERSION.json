@@ -1,9 +1,19 @@
 {
   "devVersion": "0.9",
-  "alphaVersion": "0.14",
-  "betaVersion": "0.31",
+  "alphaVersion": "0.15",
+  "betaVersion": "0.32",
   "launchVersion": "1.0",
   "patchNotes": [
+    {
+      "version": "알파 v0.15",
+      "date": "2026-07-29",
+      "title": "게임 진행·저장·랭킹 복구",
+      "items": [
+        "누락된 시간 표시 함수를 복구해 첫 이동 후 타이머가 진행되도록 수정",
+        "누락된 활성 랭킹 점수 함수를 복구해 클리어 기록 등록이 중단되던 문제 수정",
+        "플레이 중 렌더 오류로 저장이 끊겨 F5 후 진행 중인 판이 초기화되던 문제 수정"
+      ]
+    },
     {
       "version": "알파 v0.14",
       "date": "2026-07-29",
@@ -125,14 +135,14 @@
     "alpha": {
       "label": "알파",
       "description": "dev 변경을 베타와 분리해 사람 테스트하는 공개 알파 공간. 테스트 기능/데이터는 UI와 코드에서 제거한다.",
-      "visibleLabel": "알파 v0.14",
+      "visibleLabel": "알파 v0.15",
       "allowTestTools": false,
       "public": true
     },
     "beta": {
       "label": "베타",
       "description": "알파에서 사람 테스트를 통과한 내용을 거의 그대로 적용하는 안정 테스트 공간. 기존 공개 사용자가 보는 기본 채널이다.",
-      "visibleLabel": "베타 v0.31",
+      "visibleLabel": "베타 v0.32",
       "allowTestTools": false,
       "public": true
     },
@@ -158,7 +168,7 @@
     "pipeline": "기본 흐름은 dev에서 개발하고, 알파에서 사람 테스트한 뒤, 검증된 알파를 베타에 거의 그대로 적용하는 것이다. 베타 적용 시에는 알파에서 확인한 스펙을 큰 재작업 없이 승격하는 것을 목표로 한다."
   },
   "channel": "alpha",
-  "buildId": "alpha-0-14",
-  "commit": "0fa18ba",
-  "builtAt": "2026-07-29T01:12:09.138772+00:00"
+  "buildId": "alpha-0-15",
+  "commit": "440836c",
+  "builtAt": "2026-07-29T01:30:44.281112+00:00"
 }
