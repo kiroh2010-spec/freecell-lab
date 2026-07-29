@@ -29,6 +29,8 @@ except Exception:
 def remove_public_dev_html(html: str) -> str:
     html = html.replace('        <a class="home-link" href="./home.html">홈</a>\n', '')
     html = html.replace('        <button id="promotionTestBtn" type="button">레벨업 테스트</button>\n', '')
+    html = html.replace('        <button id="promotionTestBtn" type="button">1LV 고정 테스트</button>\n', '')
+    html = re.sub(r'\n\s*<button id="promotionTestBtn" type="button">[\s\S]*?</button>', '', html, count=1)
     html = html.replace('        <button id="devScoreViewBtn" type="button">개편 랭킹</button>\n', '')
     html = html.replace('        <button id="devAutoPlayBtn" type="button">자동 플레이</button>\n', '')
     html = re.sub(r"\n        <div id=\"devNoticeEditorPanel\"[\s\S]*?\n        </div>", "", html, count=1)

@@ -462,7 +462,7 @@ function getChargedUndoUsed(undoLeft = state.undoLeft, code = state.difficultyCo
 
 function renderVersionLabel() {
   if (!versionLabel) return;
-  versionLabel.textContent = '베타 v0.28';
+  versionLabel.textContent = '베타 v0.29';
   renderPlayerDifficulty();
 }
 
