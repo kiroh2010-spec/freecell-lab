@@ -17,7 +17,7 @@
         <p id="versionLabel">DEV v0.9</p>
       </div>
       <div class="ranking-stack">
-        <button id="promotionBtn" class="promotion-button" type="button" disabled>레벨업 준비</button>
+        <button id="promotionBtn" class="promotion-button" type="button" hidden disabled>레벨업 준비</button>
         <section id="rankingPanel" class="ranking-panel top-ranking" aria-label="주간 랭킹" role="button" tabindex="0">
           <div class="ranking-title">주간 랭킹 · TOP50 보기</div>
           <ol id="rankingList" class="ranking-list ranking-ticker"></ol>
@@ -31,7 +31,7 @@
         </div>
         <div class="player-row">
           <div id="playerId" class="player-id">생성 중</div>
-          <div id="playerDifficulty" class="player-difficulty">E1</div>
+          <div id="playerDifficulty" class="player-difficulty" hidden></div>
         </div>
       </div>
       <div class="actions">
@@ -39,8 +39,8 @@
         <button id="tutorialBtn" aria-expanded="false" aria-controls="tutorialPanel">게임 방법</button>
         <button id="newGameBtn">새 게임</button>
         <button id="autoBtn">되돌리기 5</button>
-        <button id="specialBtn" class="special-button" type="button"><span>필살기</span><small>(3LV 사용가능)</small></button>
-        <button id="promotionTestBtn" type="button">레벨업 테스트</button>
+        <button id="specialBtn" class="special-button" type="button" hidden disabled><span>필살기</span><small>(비활성)</small></button>
+        <button id="promotionTestBtn" type="button" hidden>레벨업 테스트</button>
         <button id="devScoreViewBtn" type="button">개편 랭킹(사용 안 함)</button>
         <button id="devAutoPlayBtn" type="button">자동 플레이</button>
         <button id="soundBtn" class="sound-button" aria-pressed="true" aria-label="소리 켜짐" title="소리 켜짐">
@@ -118,10 +118,8 @@
         <li><strong>테이블:</strong> 화면 아래의 세로 8줄입니다. 실제로 카드를 풀어가는 주요 영역이며, 아래 카드 위에는 색이 다른 카드만 숫자가 하나 작은 순서로 올릴 수 있습니다. 예: 검은 8 위에 빨간 7.</li>
         <li><strong>이동:</strong> 카드를 클릭한 뒤 옮길 위치를 클릭하세요. 데스크톱에서는 드래그도 됩니다.</li>
         <li><strong>빠른 이동:</strong> 테이블 맨 아래 카드나 임시 보관 카드를 더블클릭하면, 가능한 경우 완성 칸으로 바로 이동합니다.</li>
-        <li><strong>레벨:</strong> 처음은 1LV에서 시작합니다. 클리어 횟수가 쌓이면 레벨업 테스트가 열리고, 2LV → 3LV 순서로 올라갑니다.</li>
-        <li><strong>레벨업 테스트:</strong> 현재 레벨의 난이도를 7분 안에 클리어하면 다음 레벨로 올라갑니다.</li>
-        <li><strong>되돌리기:</strong> 모든 레벨에서 한 게임당 5회 사용할 수 있습니다. 점수 계산에서는 사용한 되돌리기 횟수만큼 감점됩니다.</li>
-        <li><strong>필살기:</strong> 버튼은 되돌리기 오른쪽에 있으며 3LV부터 활성화됩니다. 한 게임에 1번, 필살기를 누른 뒤 섞고 싶은 테이블 한 줄을 선택하면 그 줄의 카드 순서가 갱신됩니다. 사용 시 점수에서 200점이 감점됩니다.</li>
+        <li><strong>되돌리기:</strong> 한 게임당 5회 사용할 수 있습니다. 점수 계산에서는 사용한 되돌리기 횟수만큼 감점됩니다.</li>
+        <li><strong>난이도:</strong> 현재 테스트 기간에는 레벨업 없이 기본 난이도로만 진행합니다.</li>
       </ol>
     </section>
 

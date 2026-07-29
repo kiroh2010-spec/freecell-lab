@@ -11,7 +11,8 @@ const RANKING_TICKER_LIMIT = 5;
 const PROMOTION_TIME_LIMIT_SECONDS = 7 * 60;
 const PROMOTION_TIME_WARNING_SECONDS = 30;
 const SPECIAL_SKILL_SCORE_PENALTY = 200;
-const DEV_FORCE_SPECIAL_UNLOCK = true;
+const DEV_FORCE_SPECIAL_UNLOCK = false;
+const LEVEL_SYSTEM_ENABLED = false;
 const SCORE_TIME_BASE_SECONDS = 2 * 60;
 const SCORE_TIME_BASE_POINTS = 4000;
 const SCORE_TIME_PENALTY_PER_SECOND = 5;
@@ -75,6 +76,7 @@ const SUPABASE_CONFIG = {
 
 const SERVER_RANKING_ENABLED = Boolean(SUPABASE_CONFIG.url && SUPABASE_CONFIG.key);
 const RANKING_SCORE_VERSION = 'current';
+const SHOW_LEGACY_SCORE_IN_REFORM = true;
 
 
 const state = {
@@ -350,17 +352,20 @@ function getDifficultyTierIndex(code) {
 }
 
 function getActiveDifficultyCode() {
+  if (!LEVEL_SYSTEM_ENABLED) return DIFFICULTY_TIERS[0].code;
   const stats = loadStats();
   return DIFFICULTY_TIERS[stats.difficultyIndex]?.code || DIFFICULTY_TIERS[0].code;
 }
 
 function getPromotionTarget(stats = loadStats()) {
+  if (!LEVEL_SYSTEM_ENABLED) return null;
   const nextTier = DIFFICULTY_TIERS[stats.difficultyIndex + 1];
   if (!nextTier) return null;
   return stats.clears >= nextTier.requiredClears ? nextTier : null;
 }
 
 function getCurrentTier(stats = loadStats()) {
+  if (!LEVEL_SYSTEM_ENABLED) return DIFFICULTY_TIERS[0];
   return DIFFICULTY_TIERS[stats.difficultyIndex] || DIFFICULTY_TIERS[0];
 }
 
@@ -385,11 +390,13 @@ function getPromotionTransitionByTargetCode(targetCode) {
 }
 
 function getScoreMultiplier(code, mode = 'normal') {
+  if (!LEVEL_SYSTEM_ENABLED) return 1;
   const tier = getDifficultyTier(code);
   return tier.multiplier + (mode === 'promotion' ? 0.10 : 0);
 }
 
 function getDealDifficultyCode(code = state.difficultyCode, mode = state.gameMode) {
+  if (!LEVEL_SYSTEM_ENABLED) return DIFFICULTY_TIERS[0].code;
   const normalized = normalizeDifficultyCode(code);
   if (mode !== 'promotion') return normalized;
   const targetIndex = getDifficultyTierIndex(normalized);
@@ -416,6 +423,7 @@ function getChargedUndoUsed(undoLeft = state.undoLeft, code = state.difficultyCo
 }
 
 function isLevel3Unlocked(code = state.difficultyCode) {
+  if (!LEVEL_SYSTEM_ENABLED) return false;
   return DEV_FORCE_SPECIAL_UNLOCK || normalizeDifficultyCode(code) === 'n1';
 }
 
@@ -497,12 +505,18 @@ function getPlayerDifficultyDisplayText() {
 
 function renderPlayerDifficulty() {
   if (!playerDifficultyEl) return;
-  playerDifficultyEl.textContent = getPlayerDifficultyDisplayText();
+  playerDifficultyEl.hidden = !LEVEL_SYSTEM_ENABLED;
+  playerDifficultyEl.textContent = LEVEL_SYSTEM_ENABLED ? getPlayerDifficultyDisplayText() : '';
   renderPromotionButton();
 }
 
 function renderPromotionButton() {
   if (!promotionBtn) return;
+  if (!LEVEL_SYSTEM_ENABLED) {
+    promotionBtn.hidden = true;
+    promotionBtn.disabled = true;
+    return;
+  }
   const stats = loadStats();
   const nextTier = getPromotionTarget(stats);
   const transition = nextTier ? getPromotionTransition(nextTier, stats) : null;
@@ -521,6 +535,7 @@ function renderPromotionNotice() {
     if (promotionNoticeBtn) promotionNoticeBtn.hidden = true;
   }
 
+  if (!LEVEL_SYSTEM_ENABLED) return;
   if (state.gameMode === 'promotion') {
     const transition = getPromotionTransitionByTargetCode(state.difficultyCode);
     if (state.won) {
@@ -665,9 +680,10 @@ function cardEl(card, location) {
 
   if (isSameLocation(state.dragging, location)) el.classList.add('dragging');
   if (canSelect(location)) el.classList.add('movable');
+  const suitClass = `suit-${card.suit}`;
   el.innerHTML = isFace
-    ? `<span class="corner"><span>${card.rank}</span><span>${card.symbol}</span></span><span class="face-mark">${faceIcon(card.rank)}</span><span class="center-suit">${card.symbol}</span>`
-    : `<span class="corner"><span>${card.rank}</span><span>${card.symbol}</span></span>${cardPipsHtml(card)}`;
+    ? `<span class="corner"><span>${card.rank}</span><span class="corner-suit ${suitClass}">${card.symbol}</span></span><span class="face-mark">${faceIcon(card.rank)}</span><span class="center-suit ${suitClass}">${card.symbol}</span>`
+    : `<span class="corner"><span>${card.rank}</span><span class="corner-suit ${suitClass}">${card.symbol}</span></span>${cardPipsHtml(card)}`;
   el.title = `${card.rank}${card.symbol}`;
   el.draggable = canSelect(location);
   el.addEventListener('click', (event) => {
@@ -702,7 +718,7 @@ function cardEl(card, location) {
 function cardPipsHtml(card) {
   const count = Math.min(Math.max(card.value || 1, 1), 10);
   const pips = Array.from({ length: count }, (_, index) => (
-    `<span class="pip pip-${index + 1}${isInvertedPip(count, index + 1) ? ' pip-invert' : ''}" aria-hidden="true">${card.symbol}</span>`
+    `<span class="pip pip-${index + 1} suit-${card.suit}${isInvertedPip(count, index + 1) ? ' pip-invert' : ''}" aria-hidden="true">${card.symbol}</span>`
   )).join('');
   return `<span class="pip-grid pip-grid-${count}" aria-hidden="true">${pips}</span>`;
 }
@@ -1020,9 +1036,9 @@ function restoreGameSnapshot(snapshot) {
   state.moves = snapshot.moves;
   state.elapsedSeconds = snapshot.elapsedSeconds;
   state.timerStarted = Boolean(snapshot.timerStarted);
-  state.gameMode = snapshot.gameMode === 'promotion' ? 'promotion' : 'normal';
-  state.difficultyCode = normalizeDifficultyCode(snapshot.difficultyCode || state.difficultyCode);
-  state.promotionExpired = Boolean(snapshot.promotionExpired);
+  state.gameMode = LEVEL_SYSTEM_ENABLED && snapshot.gameMode === 'promotion' ? 'promotion' : 'normal';
+  state.difficultyCode = LEVEL_SYSTEM_ENABLED ? normalizeDifficultyCode(snapshot.difficultyCode || state.difficultyCode) : DIFFICULTY_TIERS[0].code;
+  state.promotionExpired = LEVEL_SYSTEM_ENABLED && Boolean(snapshot.promotionExpired);
   state.specialSelecting = false;
   state.selected = null;
   state.dragging = null;
@@ -1030,6 +1046,12 @@ function restoreGameSnapshot(snapshot) {
 
 function updateSpecialButton() {
   if (!specialBtn) return;
+  if (!LEVEL_SYSTEM_ENABLED) {
+    specialBtn.hidden = true;
+    specialBtn.disabled = true;
+    specialBtn.setAttribute('aria-disabled', 'true');
+    return;
+  }
   const unlocked = isLevel3Unlocked();
   specialBtn.innerHTML = state.specialUsed
     ? '<span>필살기</span><small>사용 완료</small>'
@@ -1343,6 +1365,8 @@ async function supabaseRpc(functionName, body) {
 }
 
 function applyServerStats(profile) {
+  if (!LEVEL_SYSTEM_ENABLED) return false;
+
   if (!profile) return;
   const difficultyIndex = Number.isInteger(profile.difficulty_index)
     ? Math.min(Math.max(profile.difficulty_index, 0), DIFFICULTY_TIERS.length - 1)
@@ -1650,10 +1674,10 @@ async function requestNewGame() {
   setStatus('카드를 모아서 새 판을 섞는 중입니다...');
   try {
     await animateNewGameGather();
-    newGame({ clearSaved: true, mode: 'normal', difficultyCode: DIFFICULTY_TIERS[stats.difficultyIndex].code });
+    newGame({ clearSaved: true, mode: 'normal', difficultyCode: getActiveDifficultyCode() });
     playSound('shuffle');
     await animateNewGameSpread();
-    if (getPromotionTarget(stats)) {
+    if (LEVEL_SYSTEM_ENABLED && getPromotionTarget(stats)) {
       setStatus('레벨업 테스트가 준비되어 있습니다. 집중할 수 있을 때 레벨업 버튼을 눌러 도전하세요.');
     }
   } finally {
@@ -1871,6 +1895,8 @@ function updateTimerDisplay() {
 }
 
 function checkPromotionTimeLimit() {
+  if (!LEVEL_SYSTEM_ENABLED) return false;
+
   if (state.gameMode !== 'promotion' || state.won || state.promotionExpired) return false;
   if (state.elapsedSeconds < PROMOTION_TIME_LIMIT_SECONDS) return false;
   expirePromotionChallenge();
@@ -2175,6 +2201,7 @@ function formatRankingDate(value) {
 }
 
 function getRankingDifficultyLabel(entry) {
+  if (!LEVEL_SYSTEM_ENABLED) return '';
   return getDifficultyTier(entry?.difficultyCode).displayName || formatDifficultyCode(entry?.difficultyCode, entry?.mode);
 }
 
@@ -2189,12 +2216,16 @@ function escapeHtml(value) {
 
 function getRankingPlayerLabel(entry) {
   if (!entry) return '-';
-  return `${entry.id} ${getRankingDifficultyLabel(entry)}`;
+  const difficultyLabel = getRankingDifficultyLabel(entry);
+  return difficultyLabel ? `${entry.id} ${difficultyLabel}` : entry.id;
 }
 
 function getRankingPlayerLabelHtml(entry) {
   if (!entry) return '-';
-  return `<span class="ranking-player-name">${escapeHtml(entry.id)}</span><span class="ranking-level-badge">${escapeHtml(getRankingDifficultyLabel(entry))}</span>`;
+  const difficultyLabel = getRankingDifficultyLabel(entry);
+  return difficultyLabel
+    ? `<span class="ranking-player-name">${escapeHtml(entry.id)}</span><span class="ranking-level-badge">${escapeHtml(difficultyLabel)}</span>`
+    : `<span class="ranking-player-name">${escapeHtml(entry.id)}</span>`;
 }
 
 function getRankingMetricLabel(entry) {
@@ -2346,6 +2377,8 @@ function playShuffleSound(startTime = audioContext?.currentTime || 0) {
 
 
 function getPromotionResultMessage(result) {
+  if (!LEVEL_SYSTEM_ENABLED) return '';
+
   if (!result || result.mode !== 'promotion') return '';
   const transition = getPromotionTransitionByTargetCode(result.difficultyCode);
   const benefit = normalizeDifficultyCode(result.difficultyCode) === 'n1' ? ' · 필살기 해금' : '';
@@ -2430,6 +2463,7 @@ function refreshOpenResultMessage() {
 }
 
 function openLevel3SkillIntro({ force = false } = {}) {
+  if (!LEVEL_SYSTEM_ENABLED) return;
   if (!level3SkillModal) return;
   if (!force && localStorage.getItem(STORAGE_KEYS.level3SkillSeen)) return;
   level3SkillModal.hidden = false;
@@ -2470,11 +2504,22 @@ function escapeHtml(value) {
     .replaceAll("'", '&#039;');
 }
 
+function isDisabledLevelNoticeText(value) {
+  if (LEVEL_SYSTEM_ENABLED) return false;
+  return /레벨|LV|필살기|3LV|2LV/i.test(String(value || ''));
+}
+
 function renderOperatorNotice(notice) {
   if (!operatorNoticeBody || !notice) return;
   const operator = escapeHtml(notice.operator || '운영자');
-  const message = escapeHtml(notice.message || '성원 감사합니다.');
-  const sections = Array.isArray(notice.sections) ? notice.sections : [];
+  const message = escapeHtml(isDisabledLevelNoticeText(notice.message) ? '성원 감사합니다.' : (notice.message || '성원 감사합니다.'));
+  const sections = (Array.isArray(notice.sections) ? notice.sections : [])
+    .map(section => ({
+      ...section,
+      items: (Array.isArray(section.items) ? section.items : []).filter(item => !isDisabledLevelNoticeText(item.text) && !isDisabledLevelNoticeText(item.note)),
+    }))
+    .filter(section => !isDisabledLevelNoticeText(section.title) && section.items.length);
+
   operatorNoticeBody.innerHTML = `
     <p><strong>${operator} :</strong> ${message}</p>
     ${sections.map(section => `
@@ -2530,7 +2575,13 @@ function getPatchNoteVersionNumber(note) {
 function renderPatchNotes(notesSource = null) {
   if (!patchNotesList) return;
   const source = Array.isArray(notesSource) && notesSource.length ? notesSource : PATCH_NOTES;
-  const notes = [...source].sort((a, b) => getPatchNoteVersionNumber(b) - getPatchNoteVersionNumber(a));
+  const notes = [...source]
+    .map(note => ({
+      ...note,
+      title: isDisabledLevelNoticeText(note.title) ? 'UX 보정' : note.title,
+      items: (Array.isArray(note.items) ? note.items : []).filter(item => !isDisabledLevelNoticeText(item)),
+    }))
+    .sort((a, b) => getPatchNoteVersionNumber(b) - getPatchNoteVersionNumber(a));
   patchNotesList.innerHTML = notes.map(note => `
     <article class="patch-note-entry">
       <div class="patch-note-version">${note.version}</div>
@@ -2628,6 +2679,8 @@ function getPromotionModalTexts(tier, stats = loadStats()) {
 }
 
 function openPromotionModal() {
+  if (!LEVEL_SYSTEM_ENABLED) return;
+
   const target = getPromotionTarget(loadStats());
   if (!target) {
     setStatus('아직 레벨업 조건을 채우는 중입니다. 클리어를 쌓으면 레벨업 테스트가 열립니다.');
@@ -2651,6 +2704,8 @@ function closePromotionModal() {
 }
 
 function challengePromotion() {
+  if (!LEVEL_SYSTEM_ENABLED) return;
+
   const target = getPromotionTarget(loadStats());
   if (!target) {
     closePromotionModal();
@@ -2663,6 +2718,8 @@ function challengePromotion() {
 }
 
 function runPromotionTest() {
+  if (!LEVEL_SYSTEM_ENABLED) return;
+
   if (!promotionTestBtn) return;
   const stats = loadStats();
   const currentIndex = Math.min(stats.difficultyIndex, DIFFICULTY_TIERS.length - 2);
@@ -2912,7 +2969,7 @@ function updateNoticeTicker() {
 }
 
 function setStatus(message) {
-  statusEl.textContent = message;
+  statusEl.textContent = isDisabledLevelNoticeText(message) ? '현재 테스트 기간에는 기본 난이도로 진행합니다.' : message;
   updateNoticeTicker();
 }
 
