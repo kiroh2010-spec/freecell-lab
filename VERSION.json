@@ -1,10 +1,19 @@
 {
   "devVersion": "0.9",
-  "alphaVersion": "0.17",
-  "alphaPublicVersion": "0.17",
-  "betaVersion": "0.34",
+  "alphaVersion": "0.18",
+  "alphaPublicVersion": "0.18",
+  "betaVersion": "0.35",
   "launchVersion": "1.0",
   "patchNotes": [
+    {
+      "version": "베타 v0.35",
+      "date": "2026-07-29",
+      "title": "타이머 시작 조건 최종 보정",
+      "items": [
+        "이동 불가 위치를 누르는 경우에도 타이머가 시작되지 않도록 중복 시작 호출 제거",
+        "실제 카드 이동이 성공한 뒤에만 시간이 흐르도록 보정"
+      ]
+    },
     {
       "version": "베타 v0.34",
       "date": "2026-07-29",
@@ -169,6 +178,15 @@
   ],
   "alphaPatchNotes": [
     {
+      "version": "알파 v0.18",
+      "date": "2026-07-29",
+      "title": "타이머 시작 조건 최종 보정",
+      "items": [
+        "이동 불가 위치를 누르는 경우에도 타이머가 시작되지 않도록 중복 시작 호출 제거",
+        "실제 카드 이동이 성공한 뒤에만 시간이 흐르도록 보정"
+      ]
+    },
+    {
       "version": "알파 v0.17",
       "date": "2026-07-29",
       "title": "이전 타이머 저장값 정리 보강",
@@ -318,14 +336,14 @@
     "alpha": {
       "label": "알파",
       "description": "dev 변경을 베타와 분리해 사람 테스트하는 공개 알파 공간. 테스트 기능/데이터는 UI와 코드에서 제거한다.",
-      "visibleLabel": "알파 v0.17",
+      "visibleLabel": "알파 v0.18",
       "allowTestTools": false,
       "public": true
     },
     "beta": {
       "label": "베타",
       "description": "알파에서 사람 테스트를 통과한 내용을 거의 그대로 적용하는 안정 테스트 공간. 기존 공개 사용자가 보는 기본 채널이다.",
-      "visibleLabel": "베타 v0.34",
+      "visibleLabel": "베타 v0.35",
       "allowTestTools": false,
       "public": true
     },

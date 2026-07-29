@@ -36,6 +36,15 @@ const STORAGE_KEYS = {
 
 const PATCH_NOTES = [
   {
+    "version": "알파 v0.18",
+    "date": "2026-07-29",
+    "title": "타이머 시작 조건 최종 보정",
+    "items": [
+      "이동 불가 위치를 누르는 경우에도 타이머가 시작되지 않도록 중복 시작 호출 제거",
+      "실제 카드 이동이 성공한 뒤에만 시간이 흐르도록 보정"
+    ]
+  },
+  {
     "version": "알파 v0.17",
     "date": "2026-07-29",
     "title": "이전 타이머 저장값 정리 보강",
@@ -175,8 +184,8 @@ const PATCH_NOTES = [
   }
 ];
 const CURRENT_PATCH_NOTE_VERSION = PATCH_NOTES[0]?.version || '';
-const AVAILABLE_ALPHA_VERSION = '0.17';
-const CLIENT_ALPHA_VERSION = '0.17'; // dev-only update-check test baseline; public builds inject their channel version.
+const AVAILABLE_ALPHA_VERSION = '0.18';
+const CLIENT_ALPHA_VERSION = '0.18'; // dev-only update-check test baseline; public builds inject their channel version.
 
 const SUPABASE_CONFIG = {
   url: 'https://zhhvyvjbqdwurwlgseod.supabase.co',
@@ -488,7 +497,7 @@ function getChargedUndoUsed(undoLeft = state.undoLeft, code = state.difficultyCo
 
 function renderVersionLabel() {
   if (!versionLabel) return;
-  versionLabel.textContent = '알파 v0.17';
+  versionLabel.textContent = '알파 v0.18';
   renderPlayerDifficulty();
 }
 
@@ -830,7 +839,6 @@ function handleTarget(target) {
 
   const movingCards = getMovingCards(state.selected);
   if (!movingCards.length) return false;
-  startTimer();
 
   if (!canMoveCardsTo(movingCards, target)) {
     const first = movingCards[0];

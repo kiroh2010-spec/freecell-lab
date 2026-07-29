@@ -722,7 +722,6 @@ function handleTarget(target) {
 
   const movingCards = getMovingCards(state.selected);
   if (!movingCards.length) return false;
-  startTimer();
 
   if (!canMoveCardsTo(movingCards, target)) {
     const first = movingCards[0];
