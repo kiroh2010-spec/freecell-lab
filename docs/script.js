@@ -36,6 +36,15 @@ const STORAGE_KEYS = {
 
 const PATCH_NOTES = [
   {
+    "version": "베타 v0.34",
+    "date": "2026-07-29",
+    "title": "이전 타이머 저장값 정리 보강",
+    "items": [
+      "이동 0회인데 타이머가 켜진 이전 저장판을 발견하면 저장값을 즉시 정리",
+      "기존 사용자 브라우저에 남아 있던 오염된 진행 상태가 다시 복원되지 않도록 보강"
+    ]
+  },
+  {
     "version": "베타 v0.33",
     "date": "2026-07-29",
     "title": "타이머 시작 조건·새 게임 버튼 보정",
@@ -189,8 +198,8 @@ const PATCH_NOTES = [
   }
 ];
 const CURRENT_PATCH_NOTE_VERSION = PATCH_NOTES[0]?.version || '';
-const AVAILABLE_ALPHA_VERSION = '0.33';
-const CLIENT_ALPHA_VERSION = '0.33'; // dev-only update-check test baseline; public builds inject their channel version.
+const AVAILABLE_ALPHA_VERSION = '0.34';
+const CLIENT_ALPHA_VERSION = '0.34'; // dev-only update-check test baseline; public builds inject their channel version.
 
 const SUPABASE_CONFIG = {
   url: 'https://zhhvyvjbqdwurwlgseod.supabase.co',
@@ -502,7 +511,7 @@ function getChargedUndoUsed(undoLeft = state.undoLeft, code = state.difficultyCo
 
 function renderVersionLabel() {
   if (!versionLabel) return;
-  versionLabel.textContent = '베타 v0.33';
+  versionLabel.textContent = '베타 v0.34';
   renderPlayerDifficulty();
 }
 
@@ -1128,6 +1137,7 @@ function restoreSavedGame() {
     state.timerStarted = false;
     state.elapsedSeconds = 0;
     state.selected = null;
+    localStorage.removeItem(STORAGE_KEYS.game);
   }
 
   if (state.timerStarted && saved.savedAt) {

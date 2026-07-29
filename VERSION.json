@@ -1,10 +1,19 @@
 {
   "devVersion": "0.9",
-  "alphaVersion": "0.16",
-  "alphaPublicVersion": "0.16",
-  "betaVersion": "0.33",
+  "alphaVersion": "0.17",
+  "alphaPublicVersion": "0.17",
+  "betaVersion": "0.34",
   "launchVersion": "1.0",
   "patchNotes": [
+    {
+      "version": "베타 v0.34",
+      "date": "2026-07-29",
+      "title": "이전 타이머 저장값 정리 보강",
+      "items": [
+        "이동 0회인데 타이머가 켜진 이전 저장판을 발견하면 저장값을 즉시 정리",
+        "기존 사용자 브라우저에 남아 있던 오염된 진행 상태가 다시 복원되지 않도록 보강"
+      ]
+    },
     {
       "version": "베타 v0.33",
       "date": "2026-07-29",
@@ -160,6 +169,15 @@
   ],
   "alphaPatchNotes": [
     {
+      "version": "알파 v0.17",
+      "date": "2026-07-29",
+      "title": "이전 타이머 저장값 정리 보강",
+      "items": [
+        "이동 0회인데 타이머가 켜진 이전 저장판을 발견하면 저장값을 즉시 정리",
+        "기존 사용자 브라우저에 남아 있던 오염된 진행 상태가 다시 복원되지 않도록 보강"
+      ]
+    },
+    {
       "version": "알파 v0.16",
       "date": "2026-07-29",
       "title": "타이머 시작 조건·새 게임 버튼 보정",
@@ -300,14 +318,14 @@
     "alpha": {
       "label": "알파",
       "description": "dev 변경을 베타와 분리해 사람 테스트하는 공개 알파 공간. 테스트 기능/데이터는 UI와 코드에서 제거한다.",
-      "visibleLabel": "알파 v0.16",
+      "visibleLabel": "알파 v0.17",
       "allowTestTools": false,
       "public": true
     },
     "beta": {
       "label": "베타",
       "description": "알파에서 사람 테스트를 통과한 내용을 거의 그대로 적용하는 안정 테스트 공간. 기존 공개 사용자가 보는 기본 채널이다.",
-      "visibleLabel": "베타 v0.33",
+      "visibleLabel": "베타 v0.34",
       "allowTestTools": false,
       "public": true
     },

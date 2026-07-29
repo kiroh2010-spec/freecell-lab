@@ -1006,6 +1006,7 @@ function restoreSavedGame() {
     state.timerStarted = false;
     state.elapsedSeconds = 0;
     state.selected = null;
+    localStorage.removeItem(STORAGE_KEYS.game);
   }
 
   if (state.timerStarted && saved.savedAt) {
