@@ -1,7 +1,7 @@
 {
   "devVersion": "0.9",
-  "alphaVersion": "0.13",
-  "alphaPublicVersion": "0.13",
+  "alphaVersion": "0.14",
+  "alphaPublicVersion": "0.14",
   "betaVersion": "0.28",
   "launchVersion": "1.0",
   "patchNotes": [
@@ -110,6 +110,15 @@
     }
   ],
   "alphaPatchNotes": [
+    {
+      "version": "0.14",
+      "title": "기본 난이도 표시 정리",
+      "date": "2026-07-29",
+      "items": [
+        "현재 테스트 기간에 사용하지 않는 난이도 관련 버튼과 배지를 공개 알파 화면에서 제거했습니다.",
+        "다이아몬드 문양 크기 보정을 적용했습니다."
+      ]
+    },
     {
       "version": "0.13",
       "title": "기본 난이도 고정·카드 문양 보정",
@@ -226,7 +235,7 @@
     "alpha": {
       "label": "알파",
       "description": "dev 변경을 베타와 분리해 사람 테스트하는 공개 알파 공간. 테스트 기능/데이터는 UI와 코드에서 제거한다.",
-      "visibleLabel": "알파 v0.13",
+      "visibleLabel": "알파 v0.14",
       "allowTestTools": false,
       "public": true
     },

@@ -29,6 +29,10 @@ except Exception:
 def remove_public_dev_html(html: str) -> str:
     html = html.replace('        <a class="home-link" href="./home.html">홈</a>\n', '')
     html = html.replace('        <button id="promotionTestBtn" type="button">레벨업 테스트</button>\n', '')
+    html = html.replace('        <button id="promotionTestBtn" type="button" hidden>레벨업 테스트</button>\n', '')
+    html = html.replace('        <button id="promotionBtn" class="promotion-button" type="button" hidden disabled>레벨업 준비</button>\n', '')
+    html = html.replace('          <div id="playerDifficulty" class="player-difficulty" hidden></div>\n', '')
+    html = html.replace('        <button id="specialBtn" class="special-button" type="button" hidden disabled><span>필살기</span><small>(비활성)</small></button>\n', '')
     html = html.replace('        <button id="devScoreViewBtn" type="button">개편 랭킹(사용 안 함)</button>\n', '')
     html = html.replace('        <button id="devAutoPlayBtn" type="button">자동 플레이</button>\n', '')
     html = re.sub(r"\n        <div id=\"devNoticeEditorPanel\"[\s\S]*?\n        </div>", "", html, count=1)

@@ -48,6 +48,15 @@ const STORAGE_KEYS = {
 
 const PATCH_NOTES = [
   {
+    "version": "0.14",
+    "title": "기본 난이도 표시 정리",
+    "date": "2026-07-29",
+    "items": [
+      "현재 테스트 기간에 사용하지 않는 난이도 관련 버튼과 배지를 공개 알파 화면에서 제거했습니다.",
+      "다이아몬드 문양 크기 보정을 적용했습니다."
+    ]
+  },
+  {
     "version": "0.13",
     "title": "기본 난이도 고정·카드 문양 보정",
     "date": "2026-07-29",
@@ -153,8 +162,8 @@ const PATCH_NOTES = [
   }
 ];
 const CURRENT_PATCH_NOTE_VERSION = PATCH_NOTES[0]?.version || '';
-const AVAILABLE_ALPHA_VERSION = '0.13';
-const CLIENT_ALPHA_VERSION = '0.13'; // dev-only update-check test baseline; public builds inject their channel version.
+const AVAILABLE_ALPHA_VERSION = '0.14';
+const CLIENT_ALPHA_VERSION = '0.14'; // dev-only update-check test baseline; public builds inject their channel version.
 
 const SUPABASE_CONFIG = {
   url: 'https://zhhvyvjbqdwurwlgseod.supabase.co',
@@ -503,7 +512,7 @@ function isLevel3Unlocked(code = state.difficultyCode) {
 
 function renderVersionLabel() {
   if (!versionLabel) return;
-  versionLabel.textContent = '알파 v0.13';
+  versionLabel.textContent = '알파 v0.14';
   renderPlayerDifficulty();
 }
 
