@@ -36,6 +36,16 @@ const STORAGE_KEYS = {
 
 const PATCH_NOTES = [
   {
+    "version": "알파 v0.14",
+    "date": "2026-07-29",
+    "title": "알파 버튼 무반응 수정",
+    "items": [
+      "공개 빌드에서 누락된 주간 랭킹 키 함수를 복구",
+      "초기 랭킹 렌더링 오류로 버튼 이벤트 등록이 중단되던 문제 수정",
+      "브라우저 캐시를 피하도록 배포 파일 버전 갱신"
+    ]
+  },
+  {
     "version": "알파 v0.13",
     "date": "2026-07-29",
     "title": "공개 빌드 버튼 반응 복구",
@@ -136,8 +146,8 @@ const PATCH_NOTES = [
   }
 ];
 const CURRENT_PATCH_NOTE_VERSION = PATCH_NOTES[0]?.version || '';
-const AVAILABLE_ALPHA_VERSION = '0.13';
-const CLIENT_ALPHA_VERSION = '0.13'; // dev-only update-check test baseline; public builds inject their channel version.
+const AVAILABLE_ALPHA_VERSION = '0.14';
+const CLIENT_ALPHA_VERSION = '0.14'; // dev-only update-check test baseline; public builds inject their channel version.
 
 const SUPABASE_CONFIG = {
   url: 'https://zhhvyvjbqdwurwlgseod.supabase.co',
@@ -449,7 +459,7 @@ function getChargedUndoUsed(undoLeft = state.undoLeft, code = state.difficultyCo
 
 function renderVersionLabel() {
   if (!versionLabel) return;
-  versionLabel.textContent = '알파 v0.13';
+  versionLabel.textContent = '알파 v0.14';
   renderPlayerDifficulty();
 }
 
@@ -1702,6 +1712,15 @@ function getNextResetDate(date = new Date()) {
   const diffToMonday = (day + 6) % 7;
   d.setDate(d.getDate() - diffToMonday + 7);
   return d;
+}
+
+function getRankingWeekKey(date = new Date()) {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  const day = d.getDay();
+  const diffToMonday = (day + 6) % 7;
+  d.setDate(d.getDate() - diffToMonday);
+  return d.toISOString().slice(0, 10);
 }
 
 function loadRankingData() {

@@ -1636,6 +1636,15 @@ function getNextResetDate(date = new Date()) {
   return d;
 }
 
+function getRankingWeekKey(date = new Date()) {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  const day = d.getDay();
+  const diffToMonday = (day + 6) % 7;
+  d.setDate(d.getDate() - diffToMonday);
+  return d.toISOString().slice(0, 10);
+}
+
 function loadRankingData() {
   const weekKey = getRankingWeekKey();
   const data = safeJsonParse(localStorage.getItem(STORAGE_KEYS.rankings)) || {};
