@@ -2,6 +2,80 @@
 
 This project has live users and persistent data. Treat account, DB, ranking, scoring, and balance changes as operations work, not just frontend work.
 
+
+## Principle Gates
+
+Before applying changes, stop and pass the matching gate. Do not rely on memory or momentum.
+
+### Gate 0 — Scope / Principle Check
+
+Run this before touching files when the request affects Freecell behavior, versions, deployment, ranking, score, DB, account, balance, or public artifacts.
+
+1. State the requested destination: `dev only`, `dev → alpha`, `alpha → beta`, or `unknown`.
+2. Read the current channel versions from `VERSION.json`:
+   - `devVersion`
+   - `alphaPublicVersion` / `alphaVersion`
+   - `betaVersion`
+   - `launchVersion`
+3. Decide the version bump separately for each channel.
+   - Dev follows the dev development line. Do **not** lower dev just because alpha is lower.
+   - Alpha follows the public alpha line. Example: `0.35 → 0.36`; do **not** jump to `1.0` unless the operator explicitly says launch/1.0.
+   - Beta must match the stable alpha candidate being promoted.
+4. Identify whether the change includes dev-only tools or fake/simulated data.
+5. If any destination or version is ambiguous, ask before changing files.
+
+In replies, include a short line such as: `Principle gate: dev→alpha, dev v1.0 stays, alpha 0.35→0.36, beta unchanged.`
+
+### Gate 1 — Before Dev Changes
+
+Use this before modifying source dev files.
+
+- Confirm this is the actual served dev worktree, not a stale/parallel checkout.
+  - Check running dev server cwd when relevant.
+  - Current local dev server may be `/projects/active/freecell`, while deployment may use `/projects/active/freecell-live-fix`.
+- Confirm whether dev-only controls are allowed.
+- Decide whether `devVersion` changes and why.
+- If adding test/cheat/simulator UI, name all markers that must be stripped from public builds.
+- After dev change, verify at least syntax and served marker/state when possible.
+
+### Gate 2 — Before Alpha Deployment
+
+Use this before building or pushing public alpha.
+
+- Confirm the source branch/worktree is based on latest `origin/main` and includes the intended dev change.
+- Confirm alpha version bump from current alpha, not from dev.
+- Confirm beta remains unchanged unless explicitly requested.
+- Run `scripts/build-pages.sh`.
+- Verify public alpha artifacts contain the real feature.
+- Verify public alpha artifacts do **not** contain dev-only markers: button IDs, fake helper names, simulator labels, cheat/autoplay/forced tools, seeded test data.
+- Restore or preserve beta root artifacts if this is alpha-only.
+- After push, verify the public alpha URL, not only raw GitHub files.
+
+### Gate 3 — Before Beta Promotion
+
+Use this only when the operator explicitly approves beta promotion.
+
+- Confirm the alpha candidate version is stable and is the exact version to promote.
+- Set beta version equal to that alpha version.
+- Do not add new behavior during beta promotion.
+- Build and compare alpha/beta runtime artifacts after normalizing only allowed differences:
+  - label
+  - public path
+  - cache-buster prefix
+  - channel/buildId metadata
+  - release-note wording that describes the same accepted specs
+- If unexpected HTML/CSS/JS behavior differs, stop and return to alpha.
+- After push, verify the public beta URL.
+
+### Gate 4 — Before Launch / v1.0
+
+Use this only when the operator explicitly says launch, release, 정식, or v1.0.
+
+- Do not infer launch from “large change”.
+- Confirm `launchVersion` and launch channel/path.
+- Confirm no dev/alpha/beta test wording, tools, or fake data remain.
+- Ask if the operator did not explicitly authorize launch.
+
 ## Source of Truth
 
 Before changing anything that affects users, explicitly identify the source of truth.
