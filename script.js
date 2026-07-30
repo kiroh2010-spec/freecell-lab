@@ -442,7 +442,7 @@ function isLevel3Unlocked(code = state.difficultyCode) {
 
 function renderVersionLabel() {
   if (!versionLabel) return;
-  versionLabel.textContent = 'DEV v1.0 · 0730-2101';
+  versionLabel.textContent = 'DEV v0.36 · 0730-2110';
   renderPlayerDifficulty();
 }
 

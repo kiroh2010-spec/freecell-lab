@@ -1,11 +1,11 @@
 {
-  "devVersion": "1.0",
-  "alphaVersion": "1.0",
+  "devVersion": "0.36",
+  "alphaVersion": "0.36",
   "betaVersion": "0.29",
   "launchVersion": "1.0",
   "patchNotes": [
     {
-      "version": "알파 v1.0",
+      "version": "알파 v0.36",
       "date": "2026-07-30",
       "title": "결과창 랭킹판 preview 테스트",
       "items": [
@@ -193,14 +193,14 @@
     "dev": {
       "label": "dev",
       "description": "로컬 개발/테스트 공간. 테스트 기능, 테스트 데이터, 치트성 도구를 유지한다.",
-      "visibleLabel": "DEV v1.0 · 0730-2101",
+      "visibleLabel": "DEV v0.36 · 0730-2110",
       "allowTestTools": true,
       "public": false
     },
     "alpha": {
       "label": "알파",
       "description": "dev 변경을 베타와 분리해 사람 테스트하는 공개 알파 공간. 테스트 기능/데이터는 UI와 코드에서 제거한다.",
-      "visibleLabel": "알파 v1.0",
+      "visibleLabel": "알파 v0.36",
       "allowTestTools": false,
       "public": true
     },
@@ -233,7 +233,7 @@
     "pipeline": "기본 흐름은 dev에서 개발하고, 알파에서 사람 테스트하며 스펙을 넣고 빼서 안정 후보를 만든 뒤, 안정 판정된 알파와 같은 버전 번호를 베타로 승격하는 것이다. 베타 적용 시에는 라벨/패치노트/캐시버스터/채널 메타를 제외한 HTML/CSS/JS 동작 차이가 없어야 하며, 예상 밖 차이가 있으면 배포를 중단하고 알파 후보부터 다시 검증한다."
   },
   "channel": "alpha",
-  "buildId": "alpha-1-0",
-  "commit": "736e1d6",
-  "builtAt": "2026-07-30T12:05:41.950911+00:00"
+  "buildId": "alpha-0-36",
+  "commit": "2690a8c",
+  "builtAt": "2026-07-30T12:10:31.327757+00:00"
 }

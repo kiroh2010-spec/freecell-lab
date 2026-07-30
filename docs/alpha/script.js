@@ -51,7 +51,7 @@ const STORAGE_KEYS = {
 
 const PATCH_NOTES = [
   {
-    "version": "알파 v1.0",
+    "version": "알파 v0.36",
     "date": "2026-07-30",
     "title": "결과창 랭킹판 preview 테스트",
     "items": [
@@ -236,8 +236,8 @@ const PATCH_NOTES = [
   }
 ];
 const CURRENT_PATCH_NOTE_VERSION = PATCH_NOTES[0]?.version || '';
-const AVAILABLE_ALPHA_VERSION = '1.0';
-const CLIENT_ALPHA_VERSION = '1.0'; // dev-only update-check test baseline; public builds inject their channel version.
+const AVAILABLE_ALPHA_VERSION = '0.36';
+const CLIENT_ALPHA_VERSION = '0.36'; // dev-only update-check test baseline; public builds inject their channel version.
 
 const SUPABASE_CONFIG = {
   url: 'https://zhhvyvjbqdwurwlgseod.supabase.co',
@@ -592,7 +592,7 @@ function isLevel3Unlocked(code = state.difficultyCode) {
 
 function renderVersionLabel() {
   if (!versionLabel) return;
-  versionLabel.textContent = '알파 v1.0';
+  versionLabel.textContent = '알파 v0.36';
   renderPlayerDifficulty();
 }
 
