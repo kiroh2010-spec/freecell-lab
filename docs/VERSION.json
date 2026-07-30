@@ -1,7 +1,7 @@
 {
   "devVersion": "0.9",
-  "alphaVersion": "0.33",
-  "alphaPublicVersion": "0.33",
+  "alphaVersion": "0.34",
+  "alphaPublicVersion": "0.34",
   "betaVersion": "0.29",
   "launchVersion": "1.0",
   "patchNotes": [
@@ -122,6 +122,14 @@
     }
   ],
   "alphaPatchNotes": [
+    {
+      "version": "알파 v0.34",
+      "date": "2026-07-30",
+      "title": "클리어 최저 시간점수 1500점 테스트",
+      "items": [
+        "13분 이상 장시간 클리어가 300점대로 떨어지지 않도록 알파에서 최저 시간점수를 1500점으로 올려 테스트합니다."
+      ]
+    },
     {
       "version": "알파 v0.33",
       "date": "2026-07-30",
@@ -291,7 +299,7 @@
     "alpha": {
       "label": "알파",
       "description": "dev 변경을 베타와 분리해 사람 테스트하는 공개 알파 공간. 테스트 기능/데이터는 UI와 코드에서 제거한다.",
-      "visibleLabel": "알파 v0.33",
+      "visibleLabel": "알파 v0.34",
       "allowTestTools": false,
       "public": true
     },
@@ -325,6 +333,6 @@
   },
   "channel": "beta",
   "buildId": "beta-0-29",
-  "commit": "a0f835b",
-  "builtAt": "2026-07-30T07:41:15.787719+00:00"
+  "commit": "6f02c76",
+  "builtAt": "2026-07-30T08:05:07.558902+00:00"
 }

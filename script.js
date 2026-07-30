@@ -16,7 +16,7 @@ const LEVEL_SYSTEM_ENABLED = false;
 const SCORE_TIME_BASE_SECONDS = 2 * 60;
 const SCORE_TIME_BASE_POINTS = 4000;
 const SCORE_TIME_PENALTY_PER_SECOND = 5;
-const SCORE_MIN_CLEAR_POINTS = 300;
+const SCORE_MIN_CLEAR_POINTS = 1500;
 const SCORE_MOVE_BONUS_BASE = 140;
 const SCORE_MOVE_BONUS_MAX = 100;
 const SCORE_MIN_TOTAL = 100;
@@ -80,6 +80,7 @@ const SUPABASE_CONFIG = {
 const SERVER_RANKING_ENABLED = Boolean(SUPABASE_CONFIG.url && SUPABASE_CONFIG.key);
 const RANKING_SCORE_VERSION = 'current';
 const SHOW_LEGACY_SCORE_IN_REFORM = true;
+const PUBLIC_BUILD_CHANNEL = 'dev';
 
 
 const state = {
@@ -1540,6 +1541,11 @@ async function updatePlayerOnServer(previousId, previousPin, id, password) {
   }
 }
 
+function getServerSubmitMode(result) {
+  if (PUBLIC_BUILD_CHANNEL !== 'beta' && result?.mode !== 'promotion') return 'alpha';
+  return result?.mode || 'normal';
+}
+
 async function submitScoreToServer(result) {
   if (!state.player || !SERVER_RANKING_ENABLED || !result) return;
   try {
@@ -1552,7 +1558,7 @@ async function submitScoreToServer(result) {
       p_moves: result.moves,
       p_hint_used: result.hintUsed || 0,
       p_difficulty_code: result.difficultyCode,
-      p_mode: result.mode,
+      p_mode: getServerSubmitMode(result),
     });
     if (serverResult?.status === 'ok' && Number.isInteger(serverResult.rank)) {
       await refreshServerRankings();
@@ -1577,9 +1583,12 @@ function mapServerRankingRow(row) {
   const hintUsed = row.hint_used || 0;
   const difficultyCode = row.difficulty_code || 'e1';
   const mode = row.mode || 'normal';
+  const score = PUBLIC_BUILD_CHANNEL !== 'beta'
+    ? calculateScore(time || 0, moves || 0, getScoreMultiplier(difficultyCode, mode), hintUsed, 0)
+    : (Number.isFinite(row.score) ? row.score : calculateScore(time || 0, moves || 0, getScoreMultiplier(difficultyCode, mode), hintUsed, 0));
   return {
     id: row.player_id,
-    score: Number.isFinite(row.score) ? row.score : calculateScore(time || 0, moves || 0, getScoreMultiplier(difficultyCode, mode), hintUsed, 0),
+    score,
     time,
     moves,
     hintUsed,

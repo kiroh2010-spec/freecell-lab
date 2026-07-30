@@ -100,6 +100,7 @@ def build_channel(out_dir: Path, channel: str, visible_label: str, public_versio
     js = remove_public_dev_js((root / 'script.js').read_text())
     js = js.replace('const DEV_FORCE_SPECIAL_UNLOCK = true;', 'const DEV_FORCE_SPECIAL_UNLOCK = false;')
     js = js.replace("const SHOW_LEGACY_SCORE_IN_REFORM = true;", "const SHOW_LEGACY_SCORE_IN_REFORM = false;")
+    js = re.sub(r"const PUBLIC_BUILD_CHANNEL = '[^']*';", f"const PUBLIC_BUILD_CHANNEL = '{channel}';", js)
     notes_json = json.dumps(notes, ensure_ascii=False, indent=2)
     js = re.sub(r"const PATCH_NOTES = \[[\s\S]*?\];\nconst CURRENT_PATCH_NOTE_VERSION", f"const PATCH_NOTES = {notes_json};\nconst CURRENT_PATCH_NOTE_VERSION", js, count=1)
     js = re.sub(r"const AVAILABLE_ALPHA_VERSION = '[^']*';", f"const AVAILABLE_ALPHA_VERSION = '{update_version}';", js)

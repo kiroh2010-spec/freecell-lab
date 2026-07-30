@@ -4,7 +4,7 @@
 
 - 런타임 랭킹 버전: `current`
 - 주간 키: 기존 `YYYY-MM-DD`
-- 서버 저장/비교: `freecell_calculate_score()` / `freecell_submit_score()`의 시간 유리 공식
+- 서버 저장/비교: `freecell_calculate_score()` / `freecell_submit_score()`의 시간 유리 공식. 알파 테스트는 `mode = alpha`로 최저 시간점수 1500점을 실험하고, 베타/normal은 기존 최저 300점 라인을 유지한다.
 - 클라이언트 표시/로컬 랭킹: `calculateScore()`의 시간 유리 공식
 
 아래처럼 현재 사용 공식과 보관 공식을 구분한다.
@@ -18,7 +18,7 @@
 현재 적용 공식:
 
 ```txt
-시간점수 = max(300, 4000 - max(0, 클리어초 - 120) × 5)
+시간점수 = max(1500, 4000 - max(0, 클리어초 - 120) × 5)  # dev/alpha 테스트
 무브점수 = clamp(140 - 무브수, 0, 100)
 
 기본점수 = 시간점수 + 무브점수

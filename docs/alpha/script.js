@@ -16,7 +16,7 @@ const LEVEL_SYSTEM_ENABLED = false;
 const SCORE_TIME_BASE_SECONDS = 2 * 60;
 const SCORE_TIME_BASE_POINTS = 4000;
 const SCORE_TIME_PENALTY_PER_SECOND = 5;
-const SCORE_MIN_CLEAR_POINTS = 300;
+const SCORE_MIN_CLEAR_POINTS = 1500;
 const SCORE_MOVE_BONUS_BASE = 140;
 const SCORE_MOVE_BONUS_MAX = 100;
 const SCORE_MIN_TOTAL = 100;
@@ -50,6 +50,14 @@ const STORAGE_KEYS = {
 };
 
 const PATCH_NOTES = [
+  {
+    "version": "알파 v0.34",
+    "date": "2026-07-30",
+    "title": "클리어 최저 시간점수 1500점 테스트",
+    "items": [
+      "13분 이상 장시간 클리어가 300점대로 떨어지지 않도록 알파에서 최저 시간점수를 1500점으로 올려 테스트합니다."
+    ]
+  },
   {
     "version": "알파 v0.33",
     "date": "2026-07-30",
@@ -209,8 +217,8 @@ const PATCH_NOTES = [
   }
 ];
 const CURRENT_PATCH_NOTE_VERSION = PATCH_NOTES[0]?.version || '';
-const AVAILABLE_ALPHA_VERSION = '0.33';
-const CLIENT_ALPHA_VERSION = '0.33'; // dev-only update-check test baseline; public builds inject their channel version.
+const AVAILABLE_ALPHA_VERSION = '0.34';
+const CLIENT_ALPHA_VERSION = '0.34'; // dev-only update-check test baseline; public builds inject their channel version.
 
 const SUPABASE_CONFIG = {
   url: 'https://zhhvyvjbqdwurwlgseod.supabase.co',
@@ -220,6 +228,7 @@ const SUPABASE_CONFIG = {
 const SERVER_RANKING_ENABLED = Boolean(SUPABASE_CONFIG.url && SUPABASE_CONFIG.key);
 const RANKING_SCORE_VERSION = 'current';
 const SHOW_LEGACY_SCORE_IN_REFORM = false;
+const PUBLIC_BUILD_CHANNEL = 'alpha';
 
 
 const state = {
@@ -563,7 +572,7 @@ function isLevel3Unlocked(code = state.difficultyCode) {
 
 function renderVersionLabel() {
   if (!versionLabel) return;
-  versionLabel.textContent = '알파 v0.33';
+  versionLabel.textContent = '알파 v0.34';
   renderPlayerDifficulty();
 }
 
@@ -1667,6 +1676,11 @@ async function updatePlayerOnServer(previousId, previousPin, id, password) {
   }
 }
 
+function getServerSubmitMode(result) {
+  if (PUBLIC_BUILD_CHANNEL !== 'beta' && result?.mode !== 'promotion') return 'alpha';
+  return result?.mode || 'normal';
+}
+
 async function submitScoreToServer(result) {
   if (!state.player || !SERVER_RANKING_ENABLED || !result) return;
   try {
@@ -1679,7 +1693,7 @@ async function submitScoreToServer(result) {
       p_moves: result.moves,
       p_hint_used: result.hintUsed || 0,
       p_difficulty_code: result.difficultyCode,
-      p_mode: result.mode,
+      p_mode: getServerSubmitMode(result),
     });
     if (serverResult?.status === 'ok' && Number.isInteger(serverResult.rank)) {
       await refreshServerRankings();
@@ -1704,9 +1718,12 @@ function mapServerRankingRow(row) {
   const hintUsed = row.hint_used || 0;
   const difficultyCode = row.difficulty_code || 'e1';
   const mode = row.mode || 'normal';
+  const score = PUBLIC_BUILD_CHANNEL !== 'beta'
+    ? calculateScore(time || 0, moves || 0, getScoreMultiplier(difficultyCode, mode), hintUsed, 0)
+    : (Number.isFinite(row.score) ? row.score : calculateScore(time || 0, moves || 0, getScoreMultiplier(difficultyCode, mode), hintUsed, 0));
   return {
     id: row.player_id,
-    score: Number.isFinite(row.score) ? row.score : calculateScore(time || 0, moves || 0, getScoreMultiplier(difficultyCode, mode), hintUsed, 0),
+    score,
     time,
     moves,
     hintUsed,
