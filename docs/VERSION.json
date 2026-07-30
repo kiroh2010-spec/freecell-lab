@@ -1,7 +1,7 @@
 {
   "devVersion": "0.9",
-  "alphaVersion": "0.34",
-  "alphaPublicVersion": "0.34",
+  "alphaVersion": "0.35",
+  "alphaPublicVersion": "0.35",
   "betaVersion": "0.29",
   "launchVersion": "1.0",
   "patchNotes": [
@@ -122,6 +122,14 @@
     }
   ],
   "alphaPatchNotes": [
+    {
+      "version": "알파 v0.35",
+      "date": "2026-07-30",
+      "title": "시간 감점 완화 테스트",
+      "items": [
+        "최저 시간점수 1500점은 유지하고, 2분 이후 시간 감점을 초당 5점에서 2점으로 낮춰 10~20분 구간 점수 차이를 더 완만하게 조정했습니다."
+      ]
+    },
     {
       "version": "알파 v0.34",
       "date": "2026-07-30",
@@ -299,7 +307,7 @@
     "alpha": {
       "label": "알파",
       "description": "dev 변경을 베타와 분리해 사람 테스트하는 공개 알파 공간. 테스트 기능/데이터는 UI와 코드에서 제거한다.",
-      "visibleLabel": "알파 v0.34",
+      "visibleLabel": "알파 v0.35",
       "allowTestTools": false,
       "public": true
     },
@@ -333,6 +341,6 @@
   },
   "channel": "beta",
   "buildId": "beta-0-29",
-  "commit": "6f02c76",
-  "builtAt": "2026-07-30T08:05:07.558902+00:00"
+  "commit": "c53ba18",
+  "builtAt": "2026-07-30T08:39:03.149879+00:00"
 }

@@ -238,7 +238,7 @@ $$;
 -- Freecell Lab time-weighted current ranking score.
 -- Aligns server-side freecell_submit_score with the dev/client current score formula.
 -- Formula:
---   time_score = max(1500 for alpha mode, otherwise 300, 4000 - max(0, elapsed_seconds - 120) * 5)
+--   time_score = max(1500 for alpha mode, otherwise 300, 4000 - max(0, elapsed_seconds - 120) * 2)
 --   move_bonus = clamp(140 - moves, 0, 100)
 --   score = max(100, time_score + move_bonus - hint_used * 100 - special_penalty) * multiplier
 -- Server submissions do not include special-skill clears today because the client skips server submit when special is used.
@@ -276,7 +276,7 @@ as $$
       public.freecell_score_multiplier(p_difficulty_code, p_mode) as multiplier
   ), score_parts as (
     select
-      greatest(case when mode = 'alpha' then 1500 else 300 end, 4000 - greatest(0, elapsed_seconds - 120) * 5) as time_score,
+      greatest(case when mode = 'alpha' then 1500 else 300 end, 4000 - greatest(0, elapsed_seconds - 120) * 2) as time_score,
       least(100, greatest(0, 140 - moves)) as move_bonus,
       hint_used * 100 as undo_penalty,
       multiplier

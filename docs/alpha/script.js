@@ -15,7 +15,7 @@ const DEV_FORCE_SPECIAL_UNLOCK = false;
 const LEVEL_SYSTEM_ENABLED = false;
 const SCORE_TIME_BASE_SECONDS = 2 * 60;
 const SCORE_TIME_BASE_POINTS = 4000;
-const SCORE_TIME_PENALTY_PER_SECOND = 5;
+const SCORE_TIME_PENALTY_PER_SECOND = 2;
 const SCORE_MIN_CLEAR_POINTS = 1500;
 const SCORE_MOVE_BONUS_BASE = 140;
 const SCORE_MOVE_BONUS_MAX = 100;
@@ -50,6 +50,14 @@ const STORAGE_KEYS = {
 };
 
 const PATCH_NOTES = [
+  {
+    "version": "알파 v0.35",
+    "date": "2026-07-30",
+    "title": "시간 감점 완화 테스트",
+    "items": [
+      "최저 시간점수 1500점은 유지하고, 2분 이후 시간 감점을 초당 5점에서 2점으로 낮춰 10~20분 구간 점수 차이를 더 완만하게 조정했습니다."
+    ]
+  },
   {
     "version": "알파 v0.34",
     "date": "2026-07-30",
@@ -217,8 +225,8 @@ const PATCH_NOTES = [
   }
 ];
 const CURRENT_PATCH_NOTE_VERSION = PATCH_NOTES[0]?.version || '';
-const AVAILABLE_ALPHA_VERSION = '0.34';
-const CLIENT_ALPHA_VERSION = '0.34'; // dev-only update-check test baseline; public builds inject their channel version.
+const AVAILABLE_ALPHA_VERSION = '0.35';
+const CLIENT_ALPHA_VERSION = '0.35'; // dev-only update-check test baseline; public builds inject their channel version.
 
 const SUPABASE_CONFIG = {
   url: 'https://zhhvyvjbqdwurwlgseod.supabase.co',
@@ -572,7 +580,7 @@ function isLevel3Unlocked(code = state.difficultyCode) {
 
 function renderVersionLabel() {
   if (!versionLabel) return;
-  versionLabel.textContent = '알파 v0.34';
+  versionLabel.textContent = '알파 v0.35';
   renderPlayerDifficulty();
 }
 
