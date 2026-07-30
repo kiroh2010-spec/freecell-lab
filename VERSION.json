@@ -2,9 +2,19 @@
   "devVersion": "1.0",
   "alphaVersion": "0.36",
   "alphaPublicVersion": "0.36",
-  "betaVersion": "0.29",
+  "betaVersion": "0.36",
   "launchVersion": "1.0",
   "patchNotes": [
+    {
+      "version": "베타 v0.36",
+      "date": "2026-07-30",
+      "title": "결과창 랭킹판 preview 반영",
+      "items": [
+        "클리어 결과창에 내 주변 랭킹 3줄 preview를 표시",
+        "랭킹 등록/상승 시 내 기록이 아래에서 올라오는 애니메이션 추가",
+        "랭킹 미진입/유지 시 내 기록을 은은하게 강조"
+      ]
+    },
     {
       "version": "베타 v0.29",
       "date": "2026-07-30",
@@ -325,7 +335,7 @@
     "beta": {
       "label": "베타",
       "description": "알파에서 사람 테스트를 통과한 내용을 거의 그대로 적용하는 안정 테스트 공간. 기존 공개 사용자가 보는 기본 채널이다.",
-      "visibleLabel": "베타 v0.29",
+      "visibleLabel": "베타 v0.36",
       "allowTestTools": false,
       "public": true
     },

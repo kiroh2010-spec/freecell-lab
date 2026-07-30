@@ -1547,7 +1547,7 @@ async function updatePlayerOnServer(previousId, previousPin, id, password) {
 }
 
 function getServerSubmitMode(result) {
-  if (PUBLIC_BUILD_CHANNEL !== 'beta' && result?.mode !== 'promotion') return 'alpha';
+  if (result?.mode !== 'promotion') return 'alpha';
   return result?.mode || 'normal';
 }
 
@@ -1591,9 +1591,7 @@ function mapServerRankingRow(row) {
   const hintUsed = row.hint_used || 0;
   const difficultyCode = row.difficulty_code || 'e1';
   const mode = row.mode || 'normal';
-  const score = PUBLIC_BUILD_CHANNEL !== 'beta'
-    ? calculateScore(time || 0, moves || 0, getScoreMultiplier(difficultyCode, mode), hintUsed, 0)
-    : (Number.isFinite(row.score) ? row.score : calculateScore(time || 0, moves || 0, getScoreMultiplier(difficultyCode, mode), hintUsed, 0));
+  const score = calculateScore(time || 0, moves || 0, getScoreMultiplier(difficultyCode, mode), hintUsed, 0);
   return {
     id: row.player_id,
     score,

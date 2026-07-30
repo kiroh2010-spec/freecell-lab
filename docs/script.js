@@ -15,11 +15,14 @@ const DEV_FORCE_SPECIAL_UNLOCK = false;
 const LEVEL_SYSTEM_ENABLED = false;
 const SCORE_TIME_BASE_SECONDS = 2 * 60;
 const SCORE_TIME_BASE_POINTS = 4000;
-const SCORE_TIME_PENALTY_PER_SECOND = 5;
-const SCORE_MIN_CLEAR_POINTS = 300;
+const SCORE_TIME_PENALTY_PER_SECOND = 2;
+const SCORE_MIN_CLEAR_POINTS = 1500;
 const SCORE_MOVE_BONUS_BASE = 140;
 const SCORE_MOVE_BONUS_MAX = 100;
 const SCORE_MIN_TOTAL = 100;
+const TOUCH_DOUBLE_TAP_MAX_MS = 420;
+const TOUCH_DOUBLE_TAP_MAX_DISTANCE = 34;
+const TOUCH_DOUBLE_TAP_CLICK_SUPPRESS_MS = 500;
 const TIME_BONUS_TIERS = [
   { seconds: 3 * 60, bonus: 200 },
   { seconds: 4 * 60, bonus: 100 },
@@ -47,6 +50,16 @@ const STORAGE_KEYS = {
 };
 
 const PATCH_NOTES = [
+  {
+    "version": "베타 v0.36",
+    "date": "2026-07-30",
+    "title": "결과창 랭킹판 preview 반영",
+    "items": [
+      "클리어 결과창에 내 주변 랭킹 3줄 preview를 표시",
+      "랭킹 등록/상승 시 내 기록이 아래에서 올라오는 애니메이션 추가",
+      "랭킹 미진입/유지 시 내 기록을 은은하게 강조"
+    ]
+  },
   {
     "version": "베타 v0.29",
     "date": "2026-07-30",
@@ -164,8 +177,8 @@ const PATCH_NOTES = [
   }
 ];
 const CURRENT_PATCH_NOTE_VERSION = PATCH_NOTES[0]?.version || '';
-const AVAILABLE_ALPHA_VERSION = '0.29';
-const CLIENT_ALPHA_VERSION = '0.29'; // dev-only update-check test baseline; public builds inject their channel version.
+const AVAILABLE_ALPHA_VERSION = '0.36';
+const CLIENT_ALPHA_VERSION = '0.36'; // dev-only update-check test baseline; public builds inject their channel version.
 
 const SUPABASE_CONFIG = {
   url: 'https://zhhvyvjbqdwurwlgseod.supabase.co',
@@ -175,6 +188,7 @@ const SUPABASE_CONFIG = {
 const SERVER_RANKING_ENABLED = Boolean(SUPABASE_CONFIG.url && SUPABASE_CONFIG.key);
 const RANKING_SCORE_VERSION = 'current';
 const SHOW_LEGACY_SCORE_IN_REFORM = false;
+const PUBLIC_BUILD_CHANNEL = 'beta';
 
 
 const state = {
@@ -190,6 +204,7 @@ const state = {
   elapsedSeconds: 0,
   timerStarted: false,
   timerId: null,
+  timerLastSyncedAt: null,
   scoreSaved: false,
   player: null,
   passwordVisible: false,
@@ -208,6 +223,8 @@ const state = {
   lastRankNoticeAt: 0,
   rankingTickerIndex: 0,
   lastResult: null,
+  lastCardTap: null,
+  suppressNextCardClickUntil: 0,
   availablePatchNotes: null,
   scoreViewMode: 'current',
 };
@@ -249,6 +266,7 @@ const resultMoves = $('resultMoves');
 const resultScore = $('resultScore');
 const resultPromotionText = $('resultPromotionText');
 const resultRankText = $('resultRankText');
+const resultRankPreview = $('resultRankPreview');
 const resultCloseBtn = $('resultCloseBtn');
 const promotionNotice = $('promotionNotice');
 const promotionNoticeKicker = $('promotionNoticeKicker');
@@ -312,8 +330,9 @@ function newGame({ clearSaved = true, mode = 'normal', difficultyCode = null } =
   state.moves = 0;
   state.elapsedSeconds = 0;
   state.timerStarted = false;
+  state.timerLastSyncedAt = null;
   state.scoreSaved = false;
-  stopTimer();
+  stopTimer({ sync: false });
   state.gameMode = mode;
   state.difficultyCode = normalizeDifficultyCode(difficultyCode || getActiveDifficultyCode());
   state.undoAllowance = getUndoAllowance(state.difficultyCode);
@@ -514,7 +533,7 @@ function isLevel3Unlocked(code = state.difficultyCode) {
 
 function renderVersionLabel() {
   if (!versionLabel) return;
-  versionLabel.textContent = '베타 v0.29';
+  versionLabel.textContent = '베타 v0.36';
   renderPlayerDifficulty();
 }
 
@@ -771,7 +790,18 @@ function cardEl(card, location) {
     : `<span class="corner"><span>${card.rank}</span><span class="corner-suit ${suitClass}">${card.symbol}</span></span>${cardPipsHtml(card)}`;
   el.title = `${card.rank}${card.symbol}`;
   el.draggable = canSelect(location);
+  el.addEventListener('pointerup', (event) => {
+    if (handleCardPointerDoubleTap(location, event)) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+  });
   el.addEventListener('click', (event) => {
+    if (Date.now() < state.suppressNextCardClickUntil) {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
     event.stopPropagation();
     handleCardClick(location);
   });
@@ -826,6 +856,38 @@ function isInvertedPip(count, position) {
 
 function faceIcon(rank) {
   return { J: '♟', Q: '♛', K: '♚' }[rank] || '◆';
+}
+
+function getPointerPoint(event) {
+  return { x: Number(event.clientX) || 0, y: Number(event.clientY) || 0 };
+}
+
+function getPointDistance(a, b) {
+  if (!a || !b) return Infinity;
+  return Math.hypot(a.x - b.x, a.y - b.y);
+}
+
+function isTouchLikePointer(event) {
+  return event.pointerType === 'touch' || event.pointerType === 'pen';
+}
+
+function handleCardPointerDoubleTap(location, event) {
+  if (!isTouchLikePointer(event)) return false;
+  const now = Number(event.timeStamp) || performance.now();
+  const point = getPointerPoint(event);
+  const lastTap = state.lastCardTap;
+  const isDoubleTap = lastTap
+    && isSameLocation(lastTap.location, location)
+    && now - lastTap.time <= TOUCH_DOUBLE_TAP_MAX_MS
+    && getPointDistance(lastTap.point, point) <= TOUCH_DOUBLE_TAP_MAX_DISTANCE;
+
+  state.lastCardTap = { location: { ...location }, point, time: now };
+  if (!isDoubleTap) return false;
+
+  state.lastCardTap = null;
+  state.suppressNextCardClickUntil = Date.now() + TOUCH_DOUBLE_TAP_CLICK_SUPPRESS_MS;
+  handleCardDoubleClick(location);
+  return true;
 }
 
 function handleCardDoubleClick(location) {
@@ -1099,6 +1161,7 @@ function cloneGameSnapshot() {
     moves: state.moves,
     elapsedSeconds: state.elapsedSeconds,
     timerStarted: state.timerStarted,
+    timerLastSyncedAt: state.timerLastSyncedAt,
     gameMode: state.gameMode,
     difficultyCode: state.difficultyCode,
     undoLeft: state.undoLeft,
@@ -1121,6 +1184,7 @@ function restoreGameSnapshot(snapshot) {
   state.moves = snapshot.moves;
   state.elapsedSeconds = snapshot.elapsedSeconds;
   state.timerStarted = Boolean(snapshot.timerStarted);
+  state.timerLastSyncedAt = state.timerStarted ? Date.now() : null;
   state.gameMode = LEVEL_SYSTEM_ENABLED && snapshot.gameMode === 'promotion' ? 'promotion' : 'normal';
   state.difficultyCode = LEVEL_SYSTEM_ENABLED ? normalizeDifficultyCode(snapshot.difficultyCode || state.difficultyCode) : DIFFICULTY_TIERS[0].code;
   state.promotionExpired = LEVEL_SYSTEM_ENABLED && Boolean(snapshot.promotionExpired);
@@ -1337,7 +1401,8 @@ function undoMove() {
 }
 
 
-function persistGameState() {
+function persistGameState({ syncTimer = true } = {}) {
+  if (syncTimer) syncTimerElapsed({ persist: false });
   const hasTableauCards = state.tableau.some(column => column.length);
   const hasCompletedFoundations = Object.values(state.foundations).reduce((sum, pile) => sum + pile.length, 0) === 52;
   if (!hasTableauCards && !state.won && !hasCompletedFoundations) return;
@@ -1350,6 +1415,7 @@ function persistGameState() {
     moves: state.moves,
     elapsedSeconds: state.elapsedSeconds,
     timerStarted: state.timerStarted,
+    timerLastSyncedAt: state.timerLastSyncedAt,
     won: state.won,
     scoreSaved: state.scoreSaved,
     promotionExpired: state.promotionExpired,
@@ -1380,6 +1446,7 @@ function restoreSavedGame() {
   state.moves = saved.moves ?? 0;
   state.elapsedSeconds = saved.elapsedSeconds ?? 0;
   state.timerStarted = Boolean(saved.timerStarted && !saved.won);
+  state.timerLastSyncedAt = state.timerStarted ? Date.now() : null;
   state.won = Boolean(saved.won);
   state.scoreSaved = Boolean(saved.scoreSaved);
   state.promotionExpired = Boolean(saved.promotionExpired);
@@ -1392,9 +1459,13 @@ function restoreSavedGame() {
   state.specialSelecting = Boolean(saved.specialSelecting) && isLevel3Unlocked(state.difficultyCode) && !state.specialUsed;
 
 
-  if (state.timerStarted && saved.savedAt) {
-    const deltaSeconds = Math.max(0, Math.floor((Date.now() - saved.savedAt) / 1000));
-    state.elapsedSeconds += deltaSeconds;
+  if (state.timerStarted) {
+    const savedSyncAt = Number.isFinite(saved.timerLastSyncedAt) ? saved.timerLastSyncedAt : saved.savedAt;
+    if (savedSyncAt) {
+      const deltaSeconds = Math.max(0, Math.floor((Date.now() - savedSyncAt) / 1000));
+      state.elapsedSeconds += deltaSeconds;
+    }
+    state.timerLastSyncedAt = Date.now();
   }
   if (state.gameMode === 'promotion' && state.elapsedSeconds >= PROMOTION_TIME_LIMIT_SECONDS && !state.won) {
     state.promotionExpired = true;
@@ -1418,14 +1489,31 @@ function isValidSavedGame(saved) {
   return foundationCards + tableauCards + freecellCards === 52;
 }
 
+function syncTimerElapsed({ persist = false } = {}) {
+  if (!state.timerStarted || state.won || state.promotionExpired) return false;
+  const now = Date.now();
+  if (!Number.isFinite(state.timerLastSyncedAt)) {
+    state.timerLastSyncedAt = now;
+    return false;
+  }
+  const deltaSeconds = Math.max(0, Math.floor((now - state.timerLastSyncedAt) / 1000));
+  if (!deltaSeconds) return false;
+
+  state.elapsedSeconds += deltaSeconds;
+  state.timerLastSyncedAt += deltaSeconds * 1000;
+  updateTimerDisplay();
+  if (checkPromotionTimeLimit()) return true;
+  if (persist) persistGameState({ syncTimer: false });
+  return true;
+}
+
 function resumeTimer() {
-  stopTimer();
+  stopTimer({ sync: false });
   if (state.won || state.promotionExpired || !state.timerStarted) return;
+  if (!Number.isFinite(state.timerLastSyncedAt)) state.timerLastSyncedAt = Date.now();
+  syncTimerElapsed({ persist: true });
   state.timerId = window.setInterval(() => {
-    state.elapsedSeconds += 1;
-    updateTimerDisplay();
-    if (checkPromotionTimeLimit()) return;
-    persistGameState();
+    syncTimerElapsed({ persist: true });
   }, 1000);
 }
 
@@ -1549,6 +1637,11 @@ async function updatePlayerOnServer(previousId, previousPin, id, password) {
   }
 }
 
+function getServerSubmitMode(result) {
+  if (result?.mode !== 'promotion') return 'alpha';
+  return result?.mode || 'normal';
+}
+
 async function submitScoreToServer(result) {
   if (!state.player || !SERVER_RANKING_ENABLED || !result) return;
   try {
@@ -1561,19 +1654,22 @@ async function submitScoreToServer(result) {
       p_moves: result.moves,
       p_hint_used: result.hintUsed || 0,
       p_difficulty_code: result.difficultyCode,
-      p_mode: result.mode,
+      p_mode: getServerSubmitMode(result),
     });
     if (serverResult?.status === 'ok' && Number.isInteger(serverResult.rank)) {
       await refreshServerRankings();
       reconcileResultRankFromCurrentData(result);
+      attachResultRankingPreview(result, { force: true });
     } else if (serverResult?.status === 'not_best') {
       result.serverNotBest = true;
       if (!result.submitted) {
         result.notBest = true;
       }
       await refreshServerRankings();
+      attachResultRankingPreview(result, { force: true });
     } else {
       await refreshServerRankings();
+      attachResultRankingPreview(result, { force: true });
     }
   } catch (error) {
     console.warn('Score server sync failed', error);
@@ -1586,9 +1682,10 @@ function mapServerRankingRow(row) {
   const hintUsed = row.hint_used || 0;
   const difficultyCode = row.difficulty_code || 'e1';
   const mode = row.mode || 'normal';
+  const score = calculateScore(time || 0, moves || 0, getScoreMultiplier(difficultyCode, mode), hintUsed, 0);
   return {
     id: row.player_id,
-    score: Number.isFinite(row.score) ? row.score : calculateScore(time || 0, moves || 0, getScoreMultiplier(difficultyCode, mode), hintUsed, 0),
+    score,
     time,
     moves,
     hintUsed,
@@ -1946,15 +2043,14 @@ async function handleSignup(event) {
 function startTimer() {
   if (state.won || state.promotionExpired || state.timerStarted) return;
   state.timerStarted = true;
-  state.timerId = window.setInterval(() => {
-    state.elapsedSeconds += 1;
-    updateTimerDisplay();
-    if (checkPromotionTimeLimit()) return;
-    persistGameState();
-  }, 1000);
+  state.timerLastSyncedAt = Date.now();
+  updateTimerDisplay();
+  persistGameState({ syncTimer: false });
+  resumeTimer();
 }
 
-function stopTimer() {
+function stopTimer({ sync = true } = {}) {
+  if (sync) syncTimerElapsed({ persist: false });
   if (state.timerId) window.clearInterval(state.timerId);
   state.timerId = null;
 }
@@ -2188,6 +2284,7 @@ function recordWeeklyScore() {
     serverSkipped: Boolean(specialUsed),
   };
   saveRankingData(data);
+  attachResultRankingPreview(result, { force: true });
   updateClearProgress();
   persistGameState();
   if (!specialUsed) submitScoreToServer(result);
@@ -2499,10 +2596,12 @@ function getCurrentPlayerRankMessage(result) {
   const entries = getRankedEntries(RANKING_LIMIT);
   const currentRank = entries.find(entry => entry.id === result.id) || null;
   if (!currentRank) return '';
-  return `현재 주간 랭킹 ${currentRank.rank}위를 유지합니다. ${getAdjacentRankMotivation(currentRank, entries)}`;
+  const motivation = getAdjacentRankMotivation(currentRank, entries);
+  return `기존 최고 ${getRankingScore(currentRank)}점으로 주간 랭킹 ${currentRank.rank}위를 유지합니다.${motivation ? ` ${motivation}` : ''}`;
 }
 
 function getResultRankMessage(result) {
+  if (result.rankPreviewMessage) return result.rankPreviewMessage;
   const hintText = `${result.hintUsed ? ` · 되돌리기 ${result.hintUsed}회` : ''}${result.specialUsed ? ' · 필살기 1회' : ''}`;
   if (result.testPromotion) {
     return '레벨업 테스트 완료입니다. 실제 랭킹에는 등록되지 않습니다.';
@@ -2521,6 +2620,121 @@ function getResultRankMessage(result) {
   return `랭킹 TOP ${result.rankingLimit}까지 ${result.shortage}점 부족합니다. 이번 기록은 랭킹에 등록되지 않습니다${hintText}`;
 }
 
+function getResultRankingPreviewTitle(result) {
+  if (!result) return '랭킹 미리보기';
+  if (result.notBest) return '랭킹 유지';
+  if (result.ranked && result.previousRank && result.previousRank > result.rank) return '랭킹 상승';
+  if (result.ranked) return '랭킹 등록';
+  return '랭킹 미진입';
+}
+
+function getResultRankingPreviewMoveText(result) {
+  if (!result) return '';
+  if (result.notBest && result.previousRank) return `현재 ${result.previousRank}위 유지`;
+  if (result.ranked && result.previousRank && result.previousRank > result.rank) return `${result.previousRank}위 → ${result.rank}위`;
+  if (result.ranked) return `NEW ${result.rank}위`;
+  return `TOP${result.rankingLimit || RANKING_LIMIT} 밖`;
+}
+
+function getRankingPreviewWindow(entries, centerRank, size = 3) {
+  if (!entries.length) return [];
+  const index = Math.max(0, Number(centerRank || 1) - 1);
+  let start = Math.max(0, index - 1);
+  if (start + size > entries.length) start = Math.max(0, entries.length - size);
+  return entries.slice(start, start + size);
+}
+
+function attachResultRankingPreview(result, { force = false } = {}) {
+  if (!result) return result;
+  if (result.rankingPreview && !force) return result;
+  const entries = getRankedEntries(RANKING_LIMIT);
+  const playerId = result.id || state.player?.id;
+  let previewEntries = [];
+
+  if (result.ranked && result.rank) {
+    previewEntries = getRankingPreviewWindow(entries, result.rank, 3).map(entry => ({
+      ...entry,
+      isResult: isSameRankingRecord(entry, result) || (entry.id === playerId && entry.rank === result.rank),
+      rankUp: (isSameRankingRecord(entry, result) || (entry.id === playerId && entry.rank === result.rank)) && (!result.previousRank || result.previousRank > result.rank),
+    }));
+  } else if (result.notBest && result.previousRank) {
+    previewEntries = getRankingPreviewWindow(entries, result.previousRank, 3).map(entry => ({
+      ...entry,
+      isResult: entry.id === playerId,
+      emphasis: entry.id === playerId,
+    }));
+  } else {
+    previewEntries = entries.slice(Math.max(0, RANKING_LIMIT - 2), RANKING_LIMIT).map(entry => ({ ...entry }));
+    previewEntries.push({
+      ...result,
+      rank: entries.length >= RANKING_LIMIT ? RANKING_LIMIT + 1 : entries.length + 1,
+      isResult: true,
+      emphasis: true,
+    });
+    previewEntries = previewEntries.slice(-3);
+  }
+
+  if (!previewEntries.some(entry => entry.isResult)) {
+    const best = entries.find(entry => entry.id === playerId);
+    if (best) {
+      previewEntries = getRankingPreviewWindow(entries, best.rank, 3).map(entry => ({
+        ...entry,
+        isResult: entry.id === playerId,
+        emphasis: entry.id === playerId,
+      }));
+    }
+  }
+
+  if (!previewEntries.length) {
+    previewEntries = [{
+      ...result,
+      rank: result.rank || null,
+      isResult: true,
+      emphasis: !result.ranked,
+      rankUp: Boolean(result.ranked),
+    }];
+  }
+
+  result.rankingPreview = {
+    title: getResultRankingPreviewTitle(result),
+    movementText: getResultRankingPreviewMoveText(result),
+    entries: previewEntries,
+  };
+  return result;
+}
+
+
+function renderResultRankingPreview(result) {
+  if (!resultRankPreview) return;
+  const preview = result?.rankingPreview;
+  if (!preview || !Array.isArray(preview.entries) || preview.entries.length === 0) {
+    resultRankPreview.hidden = true;
+    resultRankPreview.innerHTML = '';
+    return;
+  }
+  const entries = preview.entries.slice(0, 3).map(entry => `
+    <li class="${entry.isResult ? 'current-player-rank' : ''} ${entry.rankUp ? 'rank-up' : ''} ${entry.emphasis ? 'rank-emphasis' : ''}">
+      <div class="ranking-detail-rank">${entry.rank ? `${entry.rank}위` : 'OUT'}</div>
+      <div class="ranking-detail-main">
+        <div class="ranking-detail-player">
+          <strong>${getRankingPlayerLabelHtml(entry)}</strong>
+          <span class="ranking-detail-score">${getRankingScore(entry)}점</span>
+        </div>
+        <div class="ranking-detail-meta">${getRankingMetricLabel(entry)}</div>
+        <div class="ranking-detail-meta">${entry.isResult ? '이번 결과' : '비교 기록'}</div>
+      </div>
+    </li>
+  `).join('');
+  resultRankPreview.innerHTML = `
+    <div class="result-rank-preview-header">
+      <span>${escapeHtml(preview.title || '랭킹 미리보기')}</span>
+      <span class="result-rank-preview-move">${escapeHtml(preview.movementText || '')}</span>
+    </div>
+    <ol class="ranking-detail-list result-rank-preview-list">${entries}</ol>
+  `;
+  resultRankPreview.hidden = false;
+}
+
 function showResultModal(result) {
   if (!resultModal || !result) return;
   state.lastResult = result;
@@ -2532,7 +2746,10 @@ function showResultModal(result) {
   resultTime.textContent = formatTime(result.time);
   resultMoves.textContent = `${result.moves}`;
   resultScore.textContent = `${getRankingScore(result)}점`;
-  resultRankText.textContent = getResultRankMessage(result);
+  attachResultRankingPreview(result);
+  if (!result.rankingPreview?.entries?.length) attachResultRankingPreview(result, { force: true });
+  resultRankText.textContent = result.rankPreviewMessage || getResultRankMessage(result);
+  renderResultRankingPreview(result);
   resultModal.hidden = false;
 }
 
@@ -2543,7 +2760,9 @@ function refreshOpenResultMessage() {
     resultPromotionText.hidden = !promotionMessage;
     resultPromotionText.textContent = promotionMessage;
   }
-  resultRankText.textContent = getResultRankMessage(state.lastResult);
+  attachResultRankingPreview(state.lastResult);
+  resultRankText.textContent = state.lastResult.rankPreviewMessage || getResultRankMessage(state.lastResult);
+  renderResultRankingPreview(state.lastResult);
 }
 
 function openLevel3SkillIntro({ force = false } = {}) {
@@ -2731,6 +2950,7 @@ function checkWin() {
   const total = Object.values(state.foundations).reduce((sum, pile) => sum + pile.length, 0);
   if (state.promotionExpired) return;
   if (total === 52) {
+    syncTimerElapsed({ persist: false });
     statusEl.classList.add('win');
     statusEl.textContent = `승리! ${formatTime(state.elapsedSeconds)} · ${state.moves}수 만에 클리어했습니다.`;
     if (!state.won) {
@@ -2848,6 +3068,21 @@ window.setInterval(() => {
 }, 30000);
 checkAvailableAlphaPatch();
 window.setInterval(checkAvailableAlphaPatch, 30 * 1000);
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') {
+    syncTimerElapsed({ persist: true });
+    updateTimerDisplay();
+  } else {
+    persistGameState();
+  }
+});
+window.addEventListener('pageshow', () => {
+  syncTimerElapsed({ persist: true });
+  updateTimerDisplay();
+});
+window.addEventListener('pagehide', () => {
+  persistGameState();
+});
 updateSoundButton();
 
 $('newGameBtn').addEventListener('click', requestNewGame);
