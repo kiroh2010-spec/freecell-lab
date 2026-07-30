@@ -863,6 +863,7 @@ button.is-locked {
   padding: 6px;
   font-weight: 900;
   user-select: none;
+  touch-action: manipulation;
   cursor: pointer;
   position: relative;
   margin: 0 auto -66px;

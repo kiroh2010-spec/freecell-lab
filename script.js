@@ -20,6 +20,9 @@ const SCORE_MIN_CLEAR_POINTS = 300;
 const SCORE_MOVE_BONUS_BASE = 140;
 const SCORE_MOVE_BONUS_MAX = 100;
 const SCORE_MIN_TOTAL = 100;
+const TOUCH_DOUBLE_TAP_MAX_MS = 420;
+const TOUCH_DOUBLE_TAP_MAX_DISTANCE = 34;
+const TOUCH_DOUBLE_TAP_CLICK_SUPPRESS_MS = 500;
 const TIME_BONUS_TIERS = [
   { seconds: 3 * 60, bonus: 200 },
   { seconds: 4 * 60, bonus: 100 },
@@ -110,6 +113,8 @@ const state = {
   lastRankNoticeAt: 0,
   rankingTickerIndex: 0,
   lastResult: null,
+  lastCardTap: null,
+  suppressNextCardClickUntil: 0,
   devAutoPlayActive: false,
   devAutoPlayTimerId: null,
   devAutoPlayLastMoveKey: '',
@@ -686,7 +691,18 @@ function cardEl(card, location) {
     : `<span class="corner"><span>${card.rank}</span><span class="corner-suit ${suitClass}">${card.symbol}</span></span>${cardPipsHtml(card)}`;
   el.title = `${card.rank}${card.symbol}`;
   el.draggable = canSelect(location);
+  el.addEventListener('pointerup', (event) => {
+    if (handleCardPointerDoubleTap(location, event)) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+  });
   el.addEventListener('click', (event) => {
+    if (Date.now() < state.suppressNextCardClickUntil) {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
     event.stopPropagation();
     handleCardClick(location);
   });
@@ -741,6 +757,38 @@ function isInvertedPip(count, position) {
 
 function faceIcon(rank) {
   return { J: '♟', Q: '♛', K: '♚' }[rank] || '◆';
+}
+
+function getPointerPoint(event) {
+  return { x: Number(event.clientX) || 0, y: Number(event.clientY) || 0 };
+}
+
+function getPointDistance(a, b) {
+  if (!a || !b) return Infinity;
+  return Math.hypot(a.x - b.x, a.y - b.y);
+}
+
+function isTouchLikePointer(event) {
+  return event.pointerType === 'touch' || event.pointerType === 'pen';
+}
+
+function handleCardPointerDoubleTap(location, event) {
+  if (!isTouchLikePointer(event)) return false;
+  const now = Number(event.timeStamp) || performance.now();
+  const point = getPointerPoint(event);
+  const lastTap = state.lastCardTap;
+  const isDoubleTap = lastTap
+    && isSameLocation(lastTap.location, location)
+    && now - lastTap.time <= TOUCH_DOUBLE_TAP_MAX_MS
+    && getPointDistance(lastTap.point, point) <= TOUCH_DOUBLE_TAP_MAX_DISTANCE;
+
+  state.lastCardTap = { location: { ...location }, point, time: now };
+  if (!isDoubleTap) return false;
+
+  state.lastCardTap = null;
+  state.suppressNextCardClickUntil = Date.now() + TOUCH_DOUBLE_TAP_CLICK_SUPPRESS_MS;
+  handleCardDoubleClick(location);
+  return true;
 }
 
 function handleCardDoubleClick(location) {

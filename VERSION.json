@@ -1,7 +1,7 @@
 {
   "devVersion": "0.9",
-  "alphaVersion": "0.30",
-  "alphaPublicVersion": "0.30",
+  "alphaVersion": "0.31",
+  "alphaPublicVersion": "0.31",
   "betaVersion": "0.29",
   "launchVersion": "1.0",
   "patchNotes": [
@@ -122,6 +122,14 @@
     }
   ],
   "alphaPatchNotes": [
+    {
+      "version": "알파 v0.31",
+      "date": "2026-07-30",
+      "title": "모바일 더블터치 판정 개선",
+      "items": [
+        "모바일에서 두 번째 터치가 살짝 미끄러져도 같은 카드의 더블터치로 인정되도록 허용 시간과 거리 판정을 추가했습니다."
+      ]
+    },
     {
       "version": "알파 v0.30",
       "date": "2026-07-30",
@@ -267,7 +275,7 @@
     "alpha": {
       "label": "알파",
       "description": "dev 변경을 베타와 분리해 사람 테스트하는 공개 알파 공간. 테스트 기능/데이터는 UI와 코드에서 제거한다.",
-      "visibleLabel": "알파 v0.30",
+      "visibleLabel": "알파 v0.31",
       "allowTestTools": false,
       "public": true
     },
