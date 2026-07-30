@@ -51,6 +51,17 @@ const STORAGE_KEYS = {
 
 const PATCH_NOTES = [
   {
+    "version": "알파 v1.0",
+    "date": "2026-07-30",
+    "title": "결과창 랭킹판 preview 테스트",
+    "items": [
+      "클리어 결과창에 내 주변 랭킹 3줄 preview를 표시",
+      "랭킹 등록/상승 시 내 기록이 아래에서 올라오는 애니메이션 추가",
+      "랭킹 미진입/유지 시 내 기록을 은은하게 강조",
+      "공개 알파에는 내부 테스트 도구를 제외하고 실전 결과창 UX만 반영"
+    ]
+  },
+  {
     "version": "알파 v0.35",
     "date": "2026-07-30",
     "title": "시간 감점 완화 테스트",
@@ -225,8 +236,8 @@ const PATCH_NOTES = [
   }
 ];
 const CURRENT_PATCH_NOTE_VERSION = PATCH_NOTES[0]?.version || '';
-const AVAILABLE_ALPHA_VERSION = '0.35';
-const CLIENT_ALPHA_VERSION = '0.35'; // dev-only update-check test baseline; public builds inject their channel version.
+const AVAILABLE_ALPHA_VERSION = '1.0';
+const CLIENT_ALPHA_VERSION = '1.0'; // dev-only update-check test baseline; public builds inject their channel version.
 
 const SUPABASE_CONFIG = {
   url: 'https://zhhvyvjbqdwurwlgseod.supabase.co',
@@ -314,6 +325,7 @@ const resultMoves = $('resultMoves');
 const resultScore = $('resultScore');
 const resultPromotionText = $('resultPromotionText');
 const resultRankText = $('resultRankText');
+const resultRankPreview = $('resultRankPreview');
 const resultCloseBtn = $('resultCloseBtn');
 const promotionNotice = $('promotionNotice');
 const promotionNoticeKicker = $('promotionNoticeKicker');
@@ -580,7 +592,7 @@ function isLevel3Unlocked(code = state.difficultyCode) {
 
 function renderVersionLabel() {
   if (!versionLabel) return;
-  versionLabel.textContent = '알파 v0.35';
+  versionLabel.textContent = '알파 v1.0';
   renderPlayerDifficulty();
 }
 
@@ -1706,14 +1718,17 @@ async function submitScoreToServer(result) {
     if (serverResult?.status === 'ok' && Number.isInteger(serverResult.rank)) {
       await refreshServerRankings();
       reconcileResultRankFromCurrentData(result);
+      attachResultRankingPreview(result, { force: true });
     } else if (serverResult?.status === 'not_best') {
       result.serverNotBest = true;
       if (!result.submitted) {
         result.notBest = true;
       }
       await refreshServerRankings();
+      attachResultRankingPreview(result, { force: true });
     } else {
       await refreshServerRankings();
+      attachResultRankingPreview(result, { force: true });
     }
   } catch (error) {
     console.warn('Score server sync failed', error);
@@ -2330,6 +2345,7 @@ function recordWeeklyScore() {
     serverSkipped: Boolean(specialUsed),
   };
   saveRankingData(data);
+  attachResultRankingPreview(result, { force: true });
   updateClearProgress();
   persistGameState();
   if (!specialUsed) submitScoreToServer(result);
@@ -2646,6 +2662,7 @@ function getCurrentPlayerRankMessage(result) {
 }
 
 function getResultRankMessage(result) {
+  if (result.rankPreviewMessage) return result.rankPreviewMessage;
   const hintText = `${result.hintUsed ? ` · 되돌리기 ${result.hintUsed}회` : ''}${result.specialUsed ? ' · 필살기 1회' : ''}`;
   if (result.testPromotion) {
     return '레벨업 테스트 완료입니다. 실제 랭킹에는 등록되지 않습니다.';
@@ -2664,6 +2681,121 @@ function getResultRankMessage(result) {
   return `랭킹 TOP ${result.rankingLimit}까지 ${result.shortage}점 부족합니다. 이번 기록은 랭킹에 등록되지 않습니다${hintText}`;
 }
 
+function getResultRankingPreviewTitle(result) {
+  if (!result) return '랭킹 미리보기';
+  if (result.notBest) return '랭킹 유지';
+  if (result.ranked && result.previousRank && result.previousRank > result.rank) return '랭킹 상승';
+  if (result.ranked) return '랭킹 등록';
+  return '랭킹 미진입';
+}
+
+function getResultRankingPreviewMoveText(result) {
+  if (!result) return '';
+  if (result.notBest && result.previousRank) return `현재 ${result.previousRank}위 유지`;
+  if (result.ranked && result.previousRank && result.previousRank > result.rank) return `${result.previousRank}위 → ${result.rank}위`;
+  if (result.ranked) return `NEW ${result.rank}위`;
+  return `TOP${result.rankingLimit || RANKING_LIMIT} 밖`;
+}
+
+function getRankingPreviewWindow(entries, centerRank, size = 3) {
+  if (!entries.length) return [];
+  const index = Math.max(0, Number(centerRank || 1) - 1);
+  let start = Math.max(0, index - 1);
+  if (start + size > entries.length) start = Math.max(0, entries.length - size);
+  return entries.slice(start, start + size);
+}
+
+function attachResultRankingPreview(result, { force = false } = {}) {
+  if (!result) return result;
+  if (result.rankingPreview && !force) return result;
+  const entries = getRankedEntries(RANKING_LIMIT);
+  const playerId = result.id || state.player?.id;
+  let previewEntries = [];
+
+  if (result.ranked && result.rank) {
+    previewEntries = getRankingPreviewWindow(entries, result.rank, 3).map(entry => ({
+      ...entry,
+      isResult: isSameRankingRecord(entry, result) || (entry.id === playerId && entry.rank === result.rank),
+      rankUp: (isSameRankingRecord(entry, result) || (entry.id === playerId && entry.rank === result.rank)) && (!result.previousRank || result.previousRank > result.rank),
+    }));
+  } else if (result.notBest && result.previousRank) {
+    previewEntries = getRankingPreviewWindow(entries, result.previousRank, 3).map(entry => ({
+      ...entry,
+      isResult: entry.id === playerId,
+      emphasis: entry.id === playerId,
+    }));
+  } else {
+    previewEntries = entries.slice(Math.max(0, RANKING_LIMIT - 2), RANKING_LIMIT).map(entry => ({ ...entry }));
+    previewEntries.push({
+      ...result,
+      rank: entries.length >= RANKING_LIMIT ? RANKING_LIMIT + 1 : entries.length + 1,
+      isResult: true,
+      emphasis: true,
+    });
+    previewEntries = previewEntries.slice(-3);
+  }
+
+  if (!previewEntries.some(entry => entry.isResult)) {
+    const best = entries.find(entry => entry.id === playerId);
+    if (best) {
+      previewEntries = getRankingPreviewWindow(entries, best.rank, 3).map(entry => ({
+        ...entry,
+        isResult: entry.id === playerId,
+        emphasis: entry.id === playerId,
+      }));
+    }
+  }
+
+  if (!previewEntries.length) {
+    previewEntries = [{
+      ...result,
+      rank: result.rank || null,
+      isResult: true,
+      emphasis: !result.ranked,
+      rankUp: Boolean(result.ranked),
+    }];
+  }
+
+  result.rankingPreview = {
+    title: getResultRankingPreviewTitle(result),
+    movementText: getResultRankingPreviewMoveText(result),
+    entries: previewEntries,
+  };
+  return result;
+}
+
+
+function renderResultRankingPreview(result) {
+  if (!resultRankPreview) return;
+  const preview = result?.rankingPreview;
+  if (!preview || !Array.isArray(preview.entries) || preview.entries.length === 0) {
+    resultRankPreview.hidden = true;
+    resultRankPreview.innerHTML = '';
+    return;
+  }
+  const entries = preview.entries.slice(0, 3).map(entry => `
+    <li class="${entry.isResult ? 'current-player-rank' : ''} ${entry.rankUp ? 'rank-up' : ''} ${entry.emphasis ? 'rank-emphasis' : ''}">
+      <div class="ranking-detail-rank">${entry.rank ? `${entry.rank}위` : 'OUT'}</div>
+      <div class="ranking-detail-main">
+        <div class="ranking-detail-player">
+          <strong>${getRankingPlayerLabelHtml(entry)}</strong>
+          <span class="ranking-detail-score">${getRankingScore(entry)}점</span>
+        </div>
+        <div class="ranking-detail-meta">${getRankingMetricLabel(entry)}</div>
+        <div class="ranking-detail-meta">${entry.isResult ? '이번 결과' : '비교 기록'}</div>
+      </div>
+    </li>
+  `).join('');
+  resultRankPreview.innerHTML = `
+    <div class="result-rank-preview-header">
+      <span>${escapeHtml(preview.title || '랭킹 미리보기')}</span>
+      <span class="result-rank-preview-move">${escapeHtml(preview.movementText || '')}</span>
+    </div>
+    <ol class="ranking-detail-list result-rank-preview-list">${entries}</ol>
+  `;
+  resultRankPreview.hidden = false;
+}
+
 function showResultModal(result) {
   if (!resultModal || !result) return;
   state.lastResult = result;
@@ -2675,7 +2807,10 @@ function showResultModal(result) {
   resultTime.textContent = formatTime(result.time);
   resultMoves.textContent = `${result.moves}`;
   resultScore.textContent = `${getRankingScore(result)}점`;
-  resultRankText.textContent = getResultRankMessage(result);
+  attachResultRankingPreview(result);
+  if (!result.rankingPreview?.entries?.length) attachResultRankingPreview(result, { force: true });
+  resultRankText.textContent = result.rankPreviewMessage || getResultRankMessage(result);
+  renderResultRankingPreview(result);
   resultModal.hidden = false;
 }
 
@@ -2686,7 +2821,9 @@ function refreshOpenResultMessage() {
     resultPromotionText.hidden = !promotionMessage;
     resultPromotionText.textContent = promotionMessage;
   }
-  resultRankText.textContent = getResultRankMessage(state.lastResult);
+  attachResultRankingPreview(state.lastResult);
+  resultRankText.textContent = state.lastResult.rankPreviewMessage || getResultRankMessage(state.lastResult);
+  renderResultRankingPreview(state.lastResult);
 }
 
 function openLevel3SkillIntro({ force = false } = {}) {

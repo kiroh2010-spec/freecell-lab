@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Freecell Draft</title>
-  <link rel="stylesheet" href="./style.css" />
+  <link rel="stylesheet" href="./style.css?v=dev-1-0-0730-2101" />
 </head>
 <body>
   <main class="app">
@@ -14,7 +14,7 @@
           <h1>Freecell</h1>
           <button id="updateReloadBtn" class="update-reload-button" type="button" hidden>업데이트</button>
         </div>
-        <p id="versionLabel">DEV v0.9</p>
+        <p id="versionLabel">DEV v1.0 · 0730-2101</p>
       </div>
       <div class="ranking-stack">
         <button id="promotionBtn" class="promotion-button" type="button" hidden disabled>레벨업 준비</button>
@@ -56,6 +56,15 @@
       <button id="operatorNoticeBtn" class="notice-action-button" type="button" aria-label="운영자 공지 보기">공지</button>
       <span class="notice-viewport"><span id="noticeFlow" class="notice-flow"><span class="notice-icon" aria-hidden="true">🔊</span><span id="status">게임을 시작합니다.</span></span></span>
       <button id="patchNotesBtn" class="patch-notes-button" type="button" aria-label="패치노트 보기">패치 v0.6</button>
+    </section>
+
+
+    <section id="devResultTestPanel" class="dev-result-test-panel" aria-label="dev 결과창 테스트">
+      <strong>결과창 테스트</strong>
+      <button id="devResultUnrankedBtn" type="button">미진입</button>
+      <button id="devResultRankedBtn" type="button">등록</button>
+      <button id="devResultRankUpBtn" type="button">상승</button>
+      <button id="devResultKeepBtn" type="button">유지</button>
     </section>
 
     <section id="signupPanel" class="signup-panel" aria-label="플레이어 정보 수정" hidden>
@@ -160,6 +169,7 @@
         </div>
         <p id="resultPromotionText" class="result-promotion-text" hidden></p>
         <p id="resultRankText" class="result-rank-text">랭킹 계산 중</p>
+        <section id="resultRankPreview" class="result-rank-preview" aria-label="결과 랭킹 미리보기" hidden></section>
         <div class="result-actions">
           <button id="resultCloseBtn" type="button">확인</button>
         </div>

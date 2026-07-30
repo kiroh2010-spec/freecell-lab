@@ -34,16 +34,25 @@ def remove_public_dev_html(html: str) -> str:
     html = html.replace('          <div id="playerDifficulty" class="player-difficulty" hidden></div>\n', '')
     html = html.replace('        <button id="specialBtn" class="special-button" type="button" hidden disabled><span>필살기</span><small>(비활성)</small></button>\n', '')
     html = html.replace('        <button id="devScoreViewBtn" type="button">개편 랭킹(사용 안 함)</button>\n', '')
+    html = html.replace('        <button id="devResultUnrankedBtn" type="button">결과:미진입</button>\n', '')
+    html = html.replace('        <button id="devResultRankedBtn" type="button">결과:등록</button>\n', '')
+    html = html.replace('        <button id="devResultRankUpBtn" type="button">결과:상승</button>\n', '')
+    html = html.replace('        <button id="devResultKeepBtn" type="button">결과:유지</button>\n', '')
     html = html.replace('        <button id="devAutoPlayBtn" type="button">자동 플레이</button>\n', '')
     html = re.sub(r"\n        <div id=\"devNoticeEditorPanel\"[\s\S]*?\n        </div>", "", html, count=1)
     html = html.replace('          <button id="devNoticeEditorEditBtn" type="button">편집</button>\n', '')
     html = html.replace('          <button id="devNoticeEditorSaveBtn" type="button" hidden>저장</button>\n', '')
+    html = re.sub(r"\n    <section id=\"devResultTestPanel\"[\s\S]*?\n    </section>", "", html, count=1)
     return html
 
 
 def remove_public_dev_js(js: str) -> str:
     js = js.replace("const promotionTestBtn = $('promotionTestBtn');\n", "")
     js = js.replace("const devScoreViewBtn = $('devScoreViewBtn');\n", "")
+    js = js.replace("const devResultUnrankedBtn = $('devResultUnrankedBtn');\n", "")
+    js = js.replace("const devResultRankedBtn = $('devResultRankedBtn');\n", "")
+    js = js.replace("const devResultRankUpBtn = $('devResultRankUpBtn');\n", "")
+    js = js.replace("const devResultKeepBtn = $('devResultKeepBtn');\n", "")
     js = js.replace("const devNoticeEditorPanel = $('devNoticeEditorPanel');\n", "")
     js = js.replace("const devNoticeEditorInput = $('devNoticeEditorInput');\n", "")
     js = js.replace("const devNoticeEditorStatus = $('devNoticeEditorStatus');\n", "")
@@ -60,6 +69,10 @@ def remove_public_dev_js(js: str) -> str:
     end = js.find("\nfunction updateNoticeTicker()", start)
     if start != -1 and end != -1:
         js = js[:start] + js[end:]
+    start = js.find("\nfunction runResultModalTest(")
+    end = js.find("\nfunction updateNoticeTicker()", start)
+    if start != -1 and end != -1:
+        js = js[:start] + js[end:]
     start = js.find("\nasync function enableDevNoticeEditMode() {")
     end = js.find("\nfunction toggleDevAutoPlay()", start)
     if start != -1 and end != -1:
@@ -71,6 +84,10 @@ def remove_public_dev_js(js: str) -> str:
         js = js[:start] + js[end:]
     js = js.replace("if (promotionTestBtn) promotionTestBtn.addEventListener('click', runPromotionTest);\n", "")
     js = js.replace("if (devScoreViewBtn) devScoreViewBtn.addEventListener('click', toggleDevScoreView);\n", "")
+    js = js.replace("if (devResultUnrankedBtn) devResultUnrankedBtn.addEventListener('click', () => runResultModalTest('unranked'));\n", "")
+    js = js.replace("if (devResultRankedBtn) devResultRankedBtn.addEventListener('click', () => runResultModalTest('ranked'));\n", "")
+    js = js.replace("if (devResultRankUpBtn) devResultRankUpBtn.addEventListener('click', () => runResultModalTest('rank-up'));\n", "")
+    js = js.replace("if (devResultKeepBtn) devResultKeepBtn.addEventListener('click', () => runResultModalTest('keep'));\n", "")
     js = js.replace("if (devNoticeEditorEditBtn) devNoticeEditorEditBtn.addEventListener('click', enableDevNoticeEditMode);\n", "")
     js = js.replace("if (devNoticeEditorSaveBtn) devNoticeEditorSaveBtn.addEventListener('click', saveDevNoticeEditor);\n", "")
     js = js.replace("  if (state.devAutoPlayActive) stopDevAutoPlay('자동 플레이를 중지하고 새 게임을 시작합니다.');\n", "")
@@ -87,13 +104,17 @@ def build_channel(out_dir: Path, channel: str, visible_label: str, public_versio
     html = remove_public_dev_html((root / 'index.html').read_text())
     html = re.sub(r'href="\./style\.css(?:\?v=[^"]+)?"', f'href="./style.css?v={asset_version}"', html)
     html = re.sub(r'src="\./script\.js(?:\?v=[^"]+)?"', f'src="./script.js?v={asset_version}"', html)
-    html = html.replace('DEV v0.9', visible_label)
+    html = re.sub(r'DEV v[^<]+', visible_label, html, count=1)
     html = re.sub(r'>패치 v[0-9]+(?:\.[0-9]+)?</button>', f'>패치 v{public_version}</button>', html)
     (out_dir / 'index.html').write_text(html)
 
     css = (root / 'style.css').read_text()
     css = css.replace('.operator-notice-card,\n.dev-notice-editor-card,\n.patch-notes-card', '.operator-notice-card,\n.patch-notes-card')
     css = re.sub(r"\n\.dev-notice-editor-help,[\s\S]*?\.dev-notice-editor-input:focus \{[\s\S]*?\n\}", "", css, count=1)
+    css = re.sub(r"\n\.dev-result-test-panel \{[\s\S]*?\n\}", "", css, count=1)
+    css = re.sub(r"\n\.dev-result-test-panel strong \{[\s\S]*?\n\}", "", css, count=1)
+    css = re.sub(r"\n\.dev-result-test-panel button \{[\s\S]*?\n\}", "", css, count=1)
+    css = re.sub(r"\n\.dev-result-test-panel button:hover \{[\s\S]*?\n\}", "", css, count=1)
     (out_dir / 'style.css').write_text(css)
     shutil.copyfile(root / 'NOTICE.json', out_dir / 'NOTICE.json')
 
@@ -105,7 +126,7 @@ def build_channel(out_dir: Path, channel: str, visible_label: str, public_versio
     js = re.sub(r"const PATCH_NOTES = \[[\s\S]*?\];\nconst CURRENT_PATCH_NOTE_VERSION", f"const PATCH_NOTES = {notes_json};\nconst CURRENT_PATCH_NOTE_VERSION", js, count=1)
     js = re.sub(r"const AVAILABLE_ALPHA_VERSION = '[^']*';", f"const AVAILABLE_ALPHA_VERSION = '{update_version}';", js)
     js = re.sub(r"const CLIENT_ALPHA_VERSION = '[^']*';", f"const CLIENT_ALPHA_VERSION = '{public_version}';", js)
-    js = js.replace("versionLabel.textContent = 'DEV v0.9';", f"versionLabel.textContent = '{visible_label}';")
+    js = re.sub(r"versionLabel\.textContent = 'DEV v[^']+';", f"versionLabel.textContent = '{visible_label}';", js, count=1)
     (out_dir / 'script.js').write_text(js)
 
     if channel == 'beta':

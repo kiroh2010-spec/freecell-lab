@@ -63,6 +63,10 @@ For any change touching account management, DB schema/RPC, ranking, score, level
 
 ## Alpha / Beta Promotion Rules
 
+- Dev-only tools must never ship to alpha or beta.
+  - This includes cheats, test buttons, fake result/ranking simulators, autoplay helpers, forced clear/promotion tools, and seeded/dev-only data.
+  - Public builds must remove them from both UI and JavaScript code, not just hide them.
+  - Before any alpha-or-higher deployment, run `scripts/build-pages.sh` and grep the public artifacts for dev-only markers such as test button IDs, test function names, and Korean labels like `테스트` when relevant.
 - Alpha and beta use the same version number for the same release candidate.
   - Example: test `알파 v0.15`; if stable, promote it as `베타 v0.15`.
 - Alpha is where specs may be added, removed, or revised during testing.

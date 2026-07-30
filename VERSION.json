@@ -1,7 +1,7 @@
 {
-  "devVersion": "0.9",
-  "alphaVersion": "0.35",
-  "alphaPublicVersion": "0.35",
+  "devVersion": "1.0",
+  "alphaVersion": "1.0",
+  "alphaPublicVersion": "1.0",
   "betaVersion": "0.29",
   "launchVersion": "1.0",
   "patchNotes": [
@@ -122,6 +122,17 @@
     }
   ],
   "alphaPatchNotes": [
+    {
+      "version": "알파 v1.0",
+      "date": "2026-07-30",
+      "title": "결과창 랭킹판 preview 테스트",
+      "items": [
+        "클리어 결과창에 내 주변 랭킹 3줄 preview를 표시",
+        "랭킹 등록/상승 시 내 기록이 아래에서 올라오는 애니메이션 추가",
+        "랭킹 미진입/유지 시 내 기록을 은은하게 강조",
+        "공개 알파에는 내부 테스트 도구를 제외하고 실전 결과창 UX만 반영"
+      ]
+    },
     {
       "version": "알파 v0.35",
       "date": "2026-07-30",
@@ -300,14 +311,14 @@
     "dev": {
       "label": "dev",
       "description": "로컬 개발/테스트 공간. 테스트 기능, 테스트 데이터, 치트성 도구를 유지한다.",
-      "visibleLabel": "DEV v0.9",
+      "visibleLabel": "DEV v1.0 · 0730-2101",
       "allowTestTools": true,
       "public": false
     },
     "alpha": {
       "label": "알파",
       "description": "dev 변경을 베타와 분리해 사람 테스트하는 공개 알파 공간. 테스트 기능/데이터는 UI와 코드에서 제거한다.",
-      "visibleLabel": "알파 v0.35",
+      "visibleLabel": "알파 v1.0",
       "allowTestTools": false,
       "public": true
     },

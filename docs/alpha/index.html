@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Freecell Draft</title>
-  <link rel="stylesheet" href="./style.css?v=alpha-0-35" />
+  <link rel="stylesheet" href="./style.css?v=alpha-1-0" />
 </head>
 <body>
   <main class="app">
@@ -14,7 +14,7 @@
           <h1>Freecell</h1>
           <button id="updateReloadBtn" class="update-reload-button" type="button" hidden>업데이트</button>
         </div>
-        <p id="versionLabel">알파 v0.35</p>
+        <p id="versionLabel">알파 v1.0</p>
       </div>
       <div class="ranking-stack">
         <section id="rankingPanel" class="ranking-panel top-ranking" aria-label="주간 랭킹" role="button" tabindex="0">
@@ -48,8 +48,10 @@
     <section class="statusbar" aria-live="polite" aria-label="게임 알림">
       <button id="operatorNoticeBtn" class="notice-action-button" type="button" aria-label="운영자 공지 보기">공지</button>
       <span class="notice-viewport"><span id="noticeFlow" class="notice-flow"><span class="notice-icon" aria-hidden="true">🔊</span><span id="status">게임을 시작합니다.</span></span></span>
-      <button id="patchNotesBtn" class="patch-notes-button" type="button" aria-label="패치노트 보기">패치 v0.35</button>
+      <button id="patchNotesBtn" class="patch-notes-button" type="button" aria-label="패치노트 보기">패치 v1.0</button>
     </section>
+
+
 
     <section id="signupPanel" class="signup-panel" aria-label="플레이어 정보 수정" hidden>
       <div>
@@ -153,6 +155,7 @@
         </div>
         <p id="resultPromotionText" class="result-promotion-text" hidden></p>
         <p id="resultRankText" class="result-rank-text">랭킹 계산 중</p>
+        <section id="resultRankPreview" class="result-rank-preview" aria-label="결과 랭킹 미리보기" hidden></section>
         <div class="result-actions">
           <button id="resultCloseBtn" type="button">확인</button>
         </div>
@@ -248,6 +251,6 @@
 
   </main>
 
-  <script src="./script.js?v=alpha-0-35"></script>
+  <script src="./script.js?v=alpha-1-0"></script>
 </body>
 </html>
