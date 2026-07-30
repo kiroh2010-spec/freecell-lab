@@ -61,6 +61,21 @@ For any change touching account management, DB schema/RPC, ranking, score, level
 - Keep balance changes in dev/alpha first unless explicitly approved for beta.
 - For beta balance changes, include a short rollback plan.
 
+## Alpha / Beta Promotion Rules
+
+- Alpha and beta use the same version number for the same release candidate.
+  - Example: test `알파 v0.15`; if stable, promote it as `베타 v0.15`.
+- Alpha is where specs may be added, removed, or revised during testing.
+  - If a spec is risky or unstable, remove/fix it in alpha and retest before beta.
+  - Do not patch beta directly with a new or different spec during promotion.
+- Beta is a promotion of the stable alpha candidate, not a separate feature branch.
+  - Allowed beta-only differences: channel label, public path, cache-buster prefix, `channel`, `buildId`, and release-note wording that describes the same accepted specs.
+  - Not allowed beta-only differences: game logic, score formula, ranking behavior, DB/RPC behavior, account flow, or UI behavior.
+- Before beta deployment, compare alpha and beta build artifacts.
+  - HTML/CSS/JS must match after normalizing labels, patch notes, cache strings, and channel metadata.
+  - If unexpected differences exist, stop deployment and rebuild/retest the alpha candidate.
+- A beta deployment is not complete until the public URL shows the expected beta label/version and the promoted behavior is verified.
+
 ## Operator Notice Rules
 
 - Operator notices are operator-authored content, not assistant-authored release notes.

@@ -12,6 +12,14 @@ const PROMOTION_TIME_LIMIT_SECONDS = 7 * 60;
 const PROMOTION_TIME_WARNING_SECONDS = 30;
 const SPECIAL_SKILL_SCORE_PENALTY = 200;
 const DEV_FORCE_SPECIAL_UNLOCK = false;
+const LEVEL_SYSTEM_ENABLED = false;
+const SCORE_TIME_BASE_SECONDS = 2 * 60;
+const SCORE_TIME_BASE_POINTS = 4000;
+const SCORE_TIME_PENALTY_PER_SECOND = 5;
+const SCORE_MIN_CLEAR_POINTS = 300;
+const SCORE_MOVE_BONUS_BASE = 140;
+const SCORE_MOVE_BONUS_MAX = 100;
+const SCORE_MIN_TOTAL = 100;
 const TIME_BONUS_TIERS = [
   { seconds: 3 * 60, bonus: 200 },
   { seconds: 4 * 60, bonus: 100 },
@@ -39,6 +47,18 @@ const STORAGE_KEYS = {
 };
 
 const PATCH_NOTES = [
+  {
+    "version": "베타 v0.29",
+    "date": "2026-07-30",
+    "title": "기본 난이도·점수/랭킹 구조 정리",
+    "items": [
+      "현재 테스트 기간에 사용하지 않는 난이도 관련 버튼과 배지를 공개 화면에서 제거했습니다.",
+      "점수/랭킹 구조를 current 기준으로 단일화하고 사용하지 않는 개편 랭킹 경로를 정리했습니다.",
+      "결과창 랭킹 문구에서 레벨 표기를 제거하고 바로 위 순위와의 점수차를 표시합니다.",
+      "다이아몬드 문양이 다른 문양보다 작아 보이는 문제를 보정했습니다.",
+      "알파와 베타가 같은 버전 번호로 승격되도록 배포 정책을 정리했습니다."
+    ]
+  },
   {
     "version": "베타 v0.28",
     "date": "2026-07-24",
@@ -144,8 +164,8 @@ const PATCH_NOTES = [
   }
 ];
 const CURRENT_PATCH_NOTE_VERSION = PATCH_NOTES[0]?.version || '';
-const AVAILABLE_ALPHA_VERSION = '0.28';
-const CLIENT_ALPHA_VERSION = '0.28'; // dev-only update-check test baseline; public builds inject their channel version.
+const AVAILABLE_ALPHA_VERSION = '0.29';
+const CLIENT_ALPHA_VERSION = '0.29'; // dev-only update-check test baseline; public builds inject their channel version.
 
 const SUPABASE_CONFIG = {
   url: 'https://zhhvyvjbqdwurwlgseod.supabase.co',
@@ -153,7 +173,7 @@ const SUPABASE_CONFIG = {
 };
 
 const SERVER_RANKING_ENABLED = Boolean(SUPABASE_CONFIG.url && SUPABASE_CONFIG.key);
-const RANKING_SCORE_VERSION = 'reform';
+const RANKING_SCORE_VERSION = 'current';
 const SHOW_LEGACY_SCORE_IN_REFORM = false;
 
 
@@ -189,7 +209,7 @@ const state = {
   rankingTickerIndex: 0,
   lastResult: null,
   availablePatchNotes: null,
-  scoreViewMode: 'reform',
+  scoreViewMode: 'current',
 };
 
 const $ = (id) => document.getElementById(id);
@@ -417,17 +437,20 @@ function getDifficultyTierIndex(code) {
 }
 
 function getActiveDifficultyCode() {
+  if (!LEVEL_SYSTEM_ENABLED) return DIFFICULTY_TIERS[0].code;
   const stats = loadStats();
   return DIFFICULTY_TIERS[stats.difficultyIndex]?.code || DIFFICULTY_TIERS[0].code;
 }
 
 function getPromotionTarget(stats = loadStats()) {
+  if (!LEVEL_SYSTEM_ENABLED) return null;
   const nextTier = DIFFICULTY_TIERS[stats.difficultyIndex + 1];
   if (!nextTier) return null;
   return stats.clears >= nextTier.requiredClears ? nextTier : null;
 }
 
 function getCurrentTier(stats = loadStats()) {
+  if (!LEVEL_SYSTEM_ENABLED) return DIFFICULTY_TIERS[0];
   return DIFFICULTY_TIERS[stats.difficultyIndex] || DIFFICULTY_TIERS[0];
 }
 
@@ -452,11 +475,13 @@ function getPromotionTransitionByTargetCode(targetCode) {
 }
 
 function getScoreMultiplier(code, mode = 'normal') {
+  if (!LEVEL_SYSTEM_ENABLED) return 1;
   const tier = getDifficultyTier(code);
   return tier.multiplier + (mode === 'promotion' ? 0.10 : 0);
 }
 
 function getDealDifficultyCode(code = state.difficultyCode, mode = state.gameMode) {
+  if (!LEVEL_SYSTEM_ENABLED) return DIFFICULTY_TIERS[0].code;
   const normalized = normalizeDifficultyCode(code);
   if (mode !== 'promotion') return normalized;
   const targetIndex = getDifficultyTierIndex(normalized);
@@ -483,12 +508,13 @@ function getChargedUndoUsed(undoLeft = state.undoLeft, code = state.difficultyCo
 }
 
 function isLevel3Unlocked(code = state.difficultyCode) {
+  if (!LEVEL_SYSTEM_ENABLED) return false;
   return DEV_FORCE_SPECIAL_UNLOCK || normalizeDifficultyCode(code) === 'n1';
 }
 
 function renderVersionLabel() {
   if (!versionLabel) return;
-  versionLabel.textContent = '베타 v0.28';
+  versionLabel.textContent = '베타 v0.29';
   renderPlayerDifficulty();
 }
 
@@ -564,12 +590,18 @@ function getPlayerDifficultyDisplayText() {
 
 function renderPlayerDifficulty() {
   if (!playerDifficultyEl) return;
-  playerDifficultyEl.textContent = getPlayerDifficultyDisplayText();
+  playerDifficultyEl.hidden = !LEVEL_SYSTEM_ENABLED;
+  playerDifficultyEl.textContent = LEVEL_SYSTEM_ENABLED ? getPlayerDifficultyDisplayText() : '';
   renderPromotionButton();
 }
 
 function renderPromotionButton() {
   if (!promotionBtn) return;
+  if (!LEVEL_SYSTEM_ENABLED) {
+    promotionBtn.hidden = true;
+    promotionBtn.disabled = true;
+    return;
+  }
   const stats = loadStats();
   const nextTier = getPromotionTarget(stats);
   const transition = nextTier ? getPromotionTransition(nextTier, stats) : null;
@@ -588,6 +620,7 @@ function renderPromotionNotice() {
     if (promotionNoticeBtn) promotionNoticeBtn.hidden = true;
   }
 
+  if (!LEVEL_SYSTEM_ENABLED) return;
   if (state.gameMode === 'promotion') {
     const transition = getPromotionTransitionByTargetCode(state.difficultyCode);
     if (state.won) {
@@ -732,9 +765,10 @@ function cardEl(card, location) {
 
   if (isSameLocation(state.dragging, location)) el.classList.add('dragging');
   if (canSelect(location)) el.classList.add('movable');
+  const suitClass = `suit-${card.suit}`;
   el.innerHTML = isFace
-    ? `<span class="corner"><span>${card.rank}</span><span>${card.symbol}</span></span><span class="face-mark">${faceIcon(card.rank)}</span><span class="center-suit">${card.symbol}</span>`
-    : `<span class="corner"><span>${card.rank}</span><span>${card.symbol}</span></span>${cardPipsHtml(card)}`;
+    ? `<span class="corner"><span>${card.rank}</span><span class="corner-suit ${suitClass}">${card.symbol}</span></span><span class="face-mark">${faceIcon(card.rank)}</span><span class="center-suit ${suitClass}">${card.symbol}</span>`
+    : `<span class="corner"><span>${card.rank}</span><span class="corner-suit ${suitClass}">${card.symbol}</span></span>${cardPipsHtml(card)}`;
   el.title = `${card.rank}${card.symbol}`;
   el.draggable = canSelect(location);
   el.addEventListener('click', (event) => {
@@ -769,7 +803,7 @@ function cardEl(card, location) {
 function cardPipsHtml(card) {
   const count = Math.min(Math.max(card.value || 1, 1), 10);
   const pips = Array.from({ length: count }, (_, index) => (
-    `<span class="pip pip-${index + 1}${isInvertedPip(count, index + 1) ? ' pip-invert' : ''}" aria-hidden="true">${card.symbol}</span>`
+    `<span class="pip pip-${index + 1} suit-${card.suit}${isInvertedPip(count, index + 1) ? ' pip-invert' : ''}" aria-hidden="true">${card.symbol}</span>`
   )).join('');
   return `<span class="pip-grid pip-grid-${count}" aria-hidden="true">${pips}</span>`;
 }
@@ -1087,9 +1121,9 @@ function restoreGameSnapshot(snapshot) {
   state.moves = snapshot.moves;
   state.elapsedSeconds = snapshot.elapsedSeconds;
   state.timerStarted = Boolean(snapshot.timerStarted);
-  state.gameMode = snapshot.gameMode === 'promotion' ? 'promotion' : 'normal';
-  state.difficultyCode = normalizeDifficultyCode(snapshot.difficultyCode || state.difficultyCode);
-  state.promotionExpired = Boolean(snapshot.promotionExpired);
+  state.gameMode = LEVEL_SYSTEM_ENABLED && snapshot.gameMode === 'promotion' ? 'promotion' : 'normal';
+  state.difficultyCode = LEVEL_SYSTEM_ENABLED ? normalizeDifficultyCode(snapshot.difficultyCode || state.difficultyCode) : DIFFICULTY_TIERS[0].code;
+  state.promotionExpired = LEVEL_SYSTEM_ENABLED && Boolean(snapshot.promotionExpired);
   state.specialSelecting = false;
   state.selected = null;
   state.dragging = null;
@@ -1097,6 +1131,12 @@ function restoreGameSnapshot(snapshot) {
 
 function updateSpecialButton() {
   if (!specialBtn) return;
+  if (!LEVEL_SYSTEM_ENABLED) {
+    specialBtn.hidden = true;
+    specialBtn.disabled = true;
+    specialBtn.setAttribute('aria-disabled', 'true');
+    return;
+  }
   const unlocked = isLevel3Unlocked();
   specialBtn.innerHTML = state.specialUsed
     ? '<span>필살기</span><small>사용 완료</small>'
@@ -1410,6 +1450,8 @@ async function supabaseRpc(functionName, body) {
 }
 
 function applyServerStats(profile) {
+  if (!LEVEL_SYSTEM_ENABLED) return false;
+
   if (!profile) return;
   const difficultyIndex = Number.isInteger(profile.difficulty_index)
     ? Math.min(Math.max(profile.difficulty_index, 0), DIFFICULTY_TIERS.length - 1)
@@ -1522,75 +1564,52 @@ async function submitScoreToServer(result) {
       p_mode: result.mode,
     });
     if (serverResult?.status === 'ok' && Number.isInteger(serverResult.rank)) {
-      result.rank = serverResult.rank;
-      result.ranked = serverResult.rank <= result.rankingLimit;
+      await refreshServerRankings();
+      reconcileResultRankFromCurrentData(result);
     } else if (serverResult?.status === 'not_best') {
-      result.submitted = false;
-      result.notBest = true;
+      result.serverNotBest = true;
+      if (!result.submitted) {
+        result.notBest = true;
+      }
+      await refreshServerRankings();
+    } else {
+      await refreshServerRankings();
     }
-    await refreshServerRankings();
   } catch (error) {
     console.warn('Score server sync failed', error);
   }
 }
 
-function mapServerRankingRow(row, { legacyScore = false } = {}) {
+function mapServerRankingRow(row) {
   const time = row.elapsed_time ?? row.time;
   const moves = row.moves;
   const hintUsed = row.hint_used || 0;
   const difficultyCode = row.difficulty_code || 'e1';
   const mode = row.mode || 'normal';
-  const multiplier = getScoreMultiplier(difficultyCode, mode);
-  const scoreV2 = calculateReformScore(time || 0, moves || 0, multiplier, hintUsed, 0);
   return {
     id: row.player_id,
-    score: row.score,
-    scoreV2: legacyScore ? scoreV2 : (Number.isFinite(row.score) ? row.score : scoreV2),
+    score: Number.isFinite(row.score) ? row.score : calculateScore(time || 0, moves || 0, getScoreMultiplier(difficultyCode, mode), hintUsed, 0),
     time,
     moves,
     hintUsed,
     difficultyCode,
     mode,
     completedAt: row.created_at,
-    legacyScore,
   };
-}
-
-function mergeReformRankingRows(reformRows, legacyRows) {
-  const byPlayer = new Map();
-  legacyRows.map(row => mapServerRankingRow(row, { legacyScore: true })).forEach(entry => {
-    byPlayer.set(entry.id, entry);
-  });
-  reformRows.map(row => mapServerRankingRow(row)).forEach(entry => {
-    const previous = byPlayer.get(entry.id);
-    if (!previous || entry.scoreV2 > previous.scoreV2 || (entry.scoreV2 === previous.scoreV2 && entry.time < previous.time)) {
-      byPlayer.set(entry.id, entry);
-    }
-  });
-  return [...byPlayer.values()].sort(compareRankingEntries).slice(0, RANKING_LIMIT);
 }
 
 async function refreshServerRankings({ notify = false } = {}) {
   if (!SERVER_RANKING_ENABLED) return;
   try {
+    const weekKey = getRankingWeekKey();
     const rows = await supabaseRpc('freecell_weekly_leaderboard', {
-      p_week_key: getRankingWeekKey(),
+      p_week_key: weekKey,
       p_limit: RANKING_LIMIT,
     });
-    let entries = rows.map(row => mapServerRankingRow(row));
-    let levelSourceEntries = [...entries];
-    if (RANKING_SCORE_VERSION === 'reform') {
-      const legacyRows = await supabaseRpc('freecell_weekly_leaderboard', {
-        p_week_key: getWeekKey(),
-        p_limit: RANKING_LIMIT,
-      });
-      const legacyEntries = legacyRows.map(row => mapServerRankingRow(row, { legacyScore: true }));
-      levelSourceEntries = [...levelSourceEntries, ...legacyEntries];
-      entries = mergeReformRankingRows(rows, legacyRows);
-    }
-    reconcilePlayerLevelFromRankingEntries(levelSourceEntries);
+    const entries = rows.map(row => mapServerRankingRow(row));
+    reconcilePlayerLevelFromRankingEntries(entries);
     const data = {
-      weekKey: getRankingWeekKey(),
+      weekKey,
       entries,
     };
     saveRankingData(data);
@@ -1598,6 +1617,7 @@ async function refreshServerRankings({ notify = false } = {}) {
     renderRankings();
     renderRankingDetail();
     refreshOpenResultMessage();
+    return data;
   } catch (error) {
     console.warn('Leaderboard refresh failed', error);
   }
@@ -1622,9 +1642,7 @@ function maybeNotifyRankingChange(entries, notify) {
 
   const undoUsed = getChargedUndoUsed();
   const multiplier = getScoreMultiplier(state.difficultyCode, state.gameMode);
-  const projectedScore = RANKING_SCORE_VERSION === 'reform'
-    ? calculateReformScore(state.elapsedSeconds, state.moves, multiplier, undoUsed, state.specialUsed ? 1 : 0)
-    : calculateScore(state.elapsedSeconds, state.moves, multiplier, undoUsed, state.specialUsed ? 1 : 0);
+  const projectedScore = calculateScore(state.elapsedSeconds, state.moves, multiplier, undoUsed, state.specialUsed ? 1 : 0);
   const gap = leaderScore - projectedScore;
   if (gap > 0 && gap <= 500) {
     state.lastRankNoticeAt = now;
@@ -1740,10 +1758,10 @@ async function requestNewGame() {
   setStatus('카드를 모아서 새 판을 섞는 중입니다...');
   try {
     await animateNewGameGather();
-    newGame({ clearSaved: true, mode: 'normal', difficultyCode: DIFFICULTY_TIERS[stats.difficultyIndex].code });
+    newGame({ clearSaved: true, mode: 'normal', difficultyCode: getActiveDifficultyCode() });
     playSound('shuffle');
     await animateNewGameSpread();
-    if (getPromotionTarget(stats)) {
+    if (LEVEL_SYSTEM_ENABLED && getPromotionTarget(stats)) {
       setStatus('레벨업 테스트가 준비되어 있습니다. 집중할 수 있을 때 레벨업 버튼을 눌러 도전하세요.');
     }
   } finally {
@@ -1961,6 +1979,8 @@ function updateTimerDisplay() {
 }
 
 function checkPromotionTimeLimit() {
+  if (!LEVEL_SYSTEM_ENABLED) return false;
+
   if (state.gameMode !== 'promotion' || state.won || state.promotionExpired) return false;
   if (state.elapsedSeconds < PROMOTION_TIME_LIMIT_SECONDS) return false;
   expirePromotionChallenge();
@@ -2019,16 +2039,15 @@ function getWeekKey(date = new Date()) {
 }
 
 function getRankingWeekKey(date = new Date()) {
-  const weekKey = getWeekKey(date);
-  return RANKING_SCORE_VERSION === 'reform' ? `${weekKey}-v2` : weekKey;
+  return getWeekKey(date);
 }
 
 function getActiveRankingScore(entry) {
-  return RANKING_SCORE_VERSION === 'reform' ? entry.scoreV2 : entry.score;
+  return entry.score;
 }
 
 function getServerSubmitScore(result) {
-  return getActiveRankingScore(result);
+  return result.score;
 }
 
 function getNextResetDate(date = new Date()) {
@@ -2053,6 +2072,39 @@ function saveRankingData(data) {
   localStorage.setItem(STORAGE_KEYS.rankings, JSON.stringify(data));
 }
 
+function isSameRankingRecord(entry, result) {
+  return entry?.id === result?.id
+    && entry.time === result.time
+    && entry.moves === result.moves
+    && entry.difficultyCode === result.difficultyCode
+    && entry.mode === result.mode
+    && getRankingScore(entry) === getRankingScore(result);
+}
+
+function reconcileResultRankFromCurrentData(result) {
+  if (!result) return result;
+  const entries = getRankedEntries(RANKING_LIMIT);
+  const resultRank = entries.find(entry => isSameRankingRecord(entry, result));
+  if (resultRank) {
+    result.rank = resultRank.rank;
+    result.ranked = true;
+    result.submitted = true;
+    result.notBest = false;
+    result.shortage = 0;
+    return result;
+  }
+  const playerBest = entries.find(entry => entry.id === result.id) || null;
+  if (playerBest) {
+    const shortage = Math.max(1, getRankingScore(playerBest) - getRankingScore(result) + 1);
+    result.rank = null;
+    result.ranked = false;
+    result.submitted = false;
+    result.notBest = true;
+    result.previousBestScore = getRankingScore(playerBest);
+    result.shortage = shortage;
+  }
+  return result;
+}
 
 function updateRankingPlayerId(oldId, newId) {
   const data = loadRankingData();
@@ -2074,14 +2126,12 @@ function recordWeeklyScore() {
   const undoUsed = getChargedUndoUsed();
   const specialUsed = state.specialUsed ? 1 : 0;
   const score = calculateScore(state.elapsedSeconds, state.moves, multiplier, undoUsed, specialUsed);
-  const scoreV2 = calculateReformScore(state.elapsedSeconds, state.moves, multiplier, undoUsed, specialUsed);
   const completedAt = new Date().toISOString();
   const entry = {
     id: state.player.id,
     time: state.elapsedSeconds,
     moves: state.moves,
     score,
-    scoreV2,
     hintUsed: undoUsed,
     undoUsed,
     specialUsed,
@@ -2093,10 +2143,15 @@ function recordWeeklyScore() {
 
   data.entries.forEach(item => normalizeRankingEntry(item));
   const entryScore = getActiveRankingScore(entry);
+  data.entries.sort(compareActiveRankingEntries);
   const previousBest = data.entries
     .filter(item => item.id === state.player.id)
     .sort(compareActiveRankingEntries)[0] || null;
   const previousBestScore = previousBest ? getActiveRankingScore(previousBest) : null;
+  const previousRankIndex = previousBest
+    ? data.entries.findIndex(item => item === previousBest)
+    : -1;
+  const previousRank = previousRankIndex === -1 ? null : previousRankIndex + 1;
   const personalBestShortage = previousBestScore !== null && entryScore <= previousBestScore
     ? previousBestScore - entryScore + 1
     : 0;
@@ -2129,6 +2184,7 @@ function recordWeeklyScore() {
     submitted,
     notBest: Boolean(personalBestShortage),
     previousBestScore,
+    previousRank,
     serverSkipped: Boolean(specialUsed),
   };
   saveRankingData(data);
@@ -2144,12 +2200,13 @@ function normalizeRankingEntry(entry) {
   entry.multiplier = Number.isFinite(entry.multiplier) ? entry.multiplier : getScoreMultiplier(entry.difficultyCode, entry.mode);
   entry.hintUsed = Number.isInteger(entry.hintUsed) ? entry.hintUsed : (Number.isInteger(entry.undoUsed) ? entry.undoUsed : 0);
   entry.specialUsed = Number.isInteger(entry.specialUsed) ? entry.specialUsed : 0;
-  entry.score = Number.isFinite(entry.score) ? entry.score : calculateScore(entry.time || 0, entry.moves || 0, entry.multiplier, entry.hintUsed, entry.specialUsed);
-  entry.scoreV2 = Number.isFinite(entry.scoreV2) ? entry.scoreV2 : calculateReformScore(entry.time || 0, entry.moves || 0, entry.multiplier, entry.hintUsed, entry.specialUsed);
+  if (!Number.isFinite(entry.score)) {
+    entry.score = calculateScore(entry.time || 0, entry.moves || 0, entry.multiplier, entry.hintUsed, entry.specialUsed);
+  }
 }
 
 function getRankingScore(entry) {
-  return state.scoreViewMode === 'reform' ? entry.scoreV2 : entry.score;
+  return entry.score;
 }
 
 function compareCurrentRankingEntries(a, b) {
@@ -2187,33 +2244,24 @@ function getTimeBonus(time) {
   return tier?.bonus ?? 0;
 }
 
+function getTimeWeightedClearScore(time) {
+  const elapsed = Math.max(0, Number(time) || 0);
+  const timeScore = SCORE_TIME_BASE_POINTS - Math.max(0, elapsed - SCORE_TIME_BASE_SECONDS) * SCORE_TIME_PENALTY_PER_SECOND;
+  return Math.max(SCORE_MIN_CLEAR_POINTS, timeScore);
+}
+
+function getMoveBonus(moves) {
+  const moveCount = Math.max(0, Number(moves) || 0);
+  return Math.min(SCORE_MOVE_BONUS_MAX, Math.max(0, SCORE_MOVE_BONUS_BASE - moveCount));
+}
+
 function calculateScore(time, moves, multiplier = 1, undoUsed = 0, specialUsed = 0) {
+  const undoPenalty = Math.max(0, Number(undoUsed) || 0) * 100;
   const specialPenalty = specialUsed ? SPECIAL_SKILL_SCORE_PENALTY : 0;
-  const base = Math.max(100, 10000 - moves * 5 - undoUsed * 100 - specialPenalty + getTimeBonus(time));
-  return Math.round(base * multiplier);
-}
-
-function getReformTimeBonus(time) {
-  const rawBonus = time <= 300
-    ? Math.max(0, 1000 - time * 3)
-    : Math.max(0, 100 - (time - 300) / 3);
-  return rawBonus * 1.5;
-}
-
-function getReformMoveBonus(moves) {
-  const rawBonus = moves <= 120
-    ? Math.max(0, 900 - moves * 7)
-    : Math.max(0, 60 - (moves - 120) * 0.75);
-  return rawBonus * 1.5;
-}
-
-function calculateReformScore(time, moves, multiplier = 1, undoUsed = 0, specialUsed = 0) {
-  const clearScore = 2000;
-  const timeBonus = getReformTimeBonus(time);
-  const moveBonus = getReformMoveBonus(moves);
-  const undoPenalty = undoUsed * 40;
-  const specialPenalty = specialUsed ? SPECIAL_SKILL_SCORE_PENALTY : 0;
-  const base = Math.max(100, clearScore + timeBonus + moveBonus - undoPenalty - specialPenalty);
+  const base = Math.max(
+    SCORE_MIN_TOTAL,
+    getTimeWeightedClearScore(time) + getMoveBonus(moves) - undoPenalty - specialPenalty,
+  );
   return Math.round(base * multiplier);
 }
 
@@ -2237,6 +2285,7 @@ function formatRankingDate(value) {
 }
 
 function getRankingDifficultyLabel(entry) {
+  if (!LEVEL_SYSTEM_ENABLED) return '';
   return getDifficultyTier(entry?.difficultyCode).displayName || formatDifficultyCode(entry?.difficultyCode, entry?.mode);
 }
 
@@ -2251,12 +2300,16 @@ function escapeHtml(value) {
 
 function getRankingPlayerLabel(entry) {
   if (!entry) return '-';
-  return `${entry.id} ${getRankingDifficultyLabel(entry)}`;
+  const difficultyLabel = getRankingDifficultyLabel(entry);
+  return difficultyLabel ? `${entry.id} ${difficultyLabel}` : entry.id;
 }
 
 function getRankingPlayerLabelHtml(entry) {
   if (!entry) return '-';
-  return `<span class="ranking-player-name">${escapeHtml(entry.id)}</span><span class="ranking-level-badge">${escapeHtml(getRankingDifficultyLabel(entry))}</span>`;
+  const difficultyLabel = getRankingDifficultyLabel(entry);
+  return difficultyLabel
+    ? `<span class="ranking-player-name">${escapeHtml(entry.id)}</span><span class="ranking-level-badge">${escapeHtml(difficultyLabel)}</span>`
+    : `<span class="ranking-player-name">${escapeHtml(entry.id)}</span>`;
 }
 
 function getRankingMetricLabel(entry) {
@@ -2344,6 +2397,10 @@ function updateSoundButton() {
 
 function playSound(kind) {
   if (!state.soundEnabled) return;
+  playSyntheticSound(kind);
+}
+
+function playSyntheticSound(kind) {
   const AudioCtx = window.AudioContext || window.webkitAudioContext;
   if (!AudioCtx) return;
   try {
@@ -2404,26 +2461,64 @@ function playShuffleSound(startTime = audioContext?.currentTime || 0) {
 
 
 function getPromotionResultMessage(result) {
+  if (!LEVEL_SYSTEM_ENABLED) return '';
+
   if (!result || result.mode !== 'promotion') return '';
   const transition = getPromotionTransitionByTargetCode(result.difficultyCode);
   const benefit = normalizeDifficultyCode(result.difficultyCode) === 'n1' ? ' · 필살기 해금' : '';
   return `레벨업 성공: ${transition.label} 완료${benefit}`;
 }
 
+function getAdjacentRankMotivation(entry, entries = getRankedEntries(RANKING_LIMIT)) {
+  if (!entry) return '';
+  const rank = entry.rank || entries.findIndex(item => isSameRankingRecord(item, entry)) + 1;
+  if (!rank) return '';
+  const score = getRankingScore(entry);
+  if (rank === 1) {
+    const next = entries[1] || null;
+    return next ? `2위 ${next.id}보다 ${Math.max(0, score - getRankingScore(next))}점 앞서 있습니다.` : '현재 단독 1위입니다.';
+  }
+  const target = entries[rank - 2] || null;
+  return target ? `${target.rank || rank - 1}위 ${target.id}까지 ${Math.max(0, getRankingScore(target) - score)}점 차이입니다.` : '';
+}
+
+function getResultRankingSummary(result) {
+  const entries = getRankedEntries(RANKING_LIMIT);
+  const resultRank = entries.find(entry => isSameRankingRecord(entry, result));
+  const resultScore = getRankingScore(result);
+  if (resultRank) {
+    if (result.previousRank === resultRank.rank) {
+      return `현재 주간 랭킹 ${resultRank.rank}위를 유지합니다. ${getAdjacentRankMotivation(resultRank, entries)}`;
+    }
+    return `주간 랭킹 ${resultRank.rank}위에 ${resultScore}점으로 반영됐습니다. ${getAdjacentRankMotivation(resultRank, entries)}`;
+  }
+  return `이번 기록 ${resultScore}점`;
+}
+
+function getCurrentPlayerRankMessage(result) {
+  const entries = getRankedEntries(RANKING_LIMIT);
+  const currentRank = entries.find(entry => entry.id === result.id) || null;
+  if (!currentRank) return '';
+  return `현재 주간 랭킹 ${currentRank.rank}위를 유지합니다. ${getAdjacentRankMotivation(currentRank, entries)}`;
+}
+
 function getResultRankMessage(result) {
   const hintText = `${result.hintUsed ? ` · 되돌리기 ${result.hintUsed}회` : ''}${result.specialUsed ? ' · 필살기 1회' : ''}`;
-  const modeText = '';
-  const leaderText = getLeaderText();
+  if (result.testPromotion) {
+    return '레벨업 테스트 완료입니다. 실제 랭킹에는 등록되지 않습니다.';
+  }
   if (result.serverSkipped) {
-    return `필살기를 사용한 dev 테스트 기록입니다. 로컬 랭킹에는 반영됐고, 서버 랭킹에는 아직 등록하지 않습니다. ${leaderText}. ${formatDifficultyCode(result.difficultyCode, result.mode)}${modeText}${hintText}`;
+    return `필살기를 사용한 dev 테스트 기록입니다. ${getResultRankingSummary(result)} 서버 랭킹에는 아직 등록하지 않습니다${hintText}`;
   }
   if (result.notBest) {
-    return `최고 점수까지 ${result.shortage}점 부족합니다. 이번 기록은 랭킹에 등록되지 않습니다. ${leaderText}. ${formatDifficultyCode(result.difficultyCode, result.mode)}${modeText}${hintText}`;
+    const currentRankText = getCurrentPlayerRankMessage(result);
+    if (currentRankText) return `${currentRankText}${hintText}`;
+    return `랭킹 TOP ${result.rankingLimit}까지 ${result.shortage}점 부족합니다. 이번 기록은 랭킹에 등록되지 않습니다${hintText}`;
   }
   if (result.ranked) {
-    return `주간 랭킹 ${result.rank}위에 반영됐습니다. ${leaderText}. ${formatDifficultyCode(result.difficultyCode, result.mode)}${modeText}${hintText}`;
+    return `${getResultRankingSummary(result)}${hintText}`;
   }
-  return `랭킹 TOP ${result.rankingLimit}까지 ${result.shortage}점 부족합니다. ${leaderText}. ${formatDifficultyCode(result.difficultyCode, result.mode)}${modeText}${hintText}`;
+  return `랭킹 TOP ${result.rankingLimit}까지 ${result.shortage}점 부족합니다. 이번 기록은 랭킹에 등록되지 않습니다${hintText}`;
 }
 
 function showResultModal(result) {
@@ -2452,6 +2547,7 @@ function refreshOpenResultMessage() {
 }
 
 function openLevel3SkillIntro({ force = false } = {}) {
+  if (!LEVEL_SYSTEM_ENABLED) return;
   if (!level3SkillModal) return;
   if (!force && localStorage.getItem(STORAGE_KEYS.level3SkillSeen)) return;
   level3SkillModal.hidden = false;
@@ -2492,11 +2588,22 @@ function escapeHtml(value) {
     .replaceAll("'", '&#039;');
 }
 
+function isDisabledLevelNoticeText(value) {
+  if (LEVEL_SYSTEM_ENABLED) return false;
+  return /레벨|LV|필살기|3LV|2LV/i.test(String(value || ''));
+}
+
 function renderOperatorNotice(notice) {
   if (!operatorNoticeBody || !notice) return;
   const operator = escapeHtml(notice.operator || '운영자');
-  const message = escapeHtml(notice.message || '성원 감사합니다.');
-  const sections = Array.isArray(notice.sections) ? notice.sections : [];
+  const message = escapeHtml(isDisabledLevelNoticeText(notice.message) ? '성원 감사합니다.' : (notice.message || '성원 감사합니다.'));
+  const sections = (Array.isArray(notice.sections) ? notice.sections : [])
+    .map(section => ({
+      ...section,
+      items: (Array.isArray(section.items) ? section.items : []).filter(item => !isDisabledLevelNoticeText(item.text) && !isDisabledLevelNoticeText(item.note)),
+    }))
+    .filter(section => !isDisabledLevelNoticeText(section.title) && section.items.length);
+
   operatorNoticeBody.innerHTML = `
     <p><strong>${operator} :</strong> ${message}</p>
     ${sections.map(section => `
@@ -2551,7 +2658,13 @@ function getPatchNoteVersionNumber(note) {
 function renderPatchNotes(notesSource = null) {
   if (!patchNotesList) return;
   const source = Array.isArray(notesSource) && notesSource.length ? notesSource : PATCH_NOTES;
-  const notes = [...source].sort((a, b) => getPatchNoteVersionNumber(b) - getPatchNoteVersionNumber(a));
+  const notes = [...source]
+    .map(note => ({
+      ...note,
+      title: isDisabledLevelNoticeText(note.title) ? 'UX 보정' : note.title,
+      items: (Array.isArray(note.items) ? note.items : []).filter(item => !isDisabledLevelNoticeText(item)),
+    }))
+    .sort((a, b) => getPatchNoteVersionNumber(b) - getPatchNoteVersionNumber(a));
   patchNotesList.innerHTML = notes.map(note => `
     <article class="patch-note-entry">
       <div class="patch-note-version">${note.version}</div>
@@ -2605,7 +2718,7 @@ function renderRankingDetail() {
       <div class="ranking-detail-main">
         <div class="ranking-detail-player">
           <strong>${getRankingPlayerLabelHtml(entry)}</strong>
-          <span class="ranking-detail-score">${getRankingScore(entry)}점${state.scoreViewMode === 'reform' && SHOW_LEGACY_SCORE_IN_REFORM ? ` <small>기존 ${entry.score}점</small>` : ''}</span>
+          <span class="ranking-detail-score">${getRankingScore(entry)}점</span>
         </div>
         <div class="ranking-detail-meta">${getRankingMetricLabel(entry)}</div>
         <div class="ranking-detail-meta">등록: ${formatRankingDate(entry.completedAt)}</div>
@@ -2649,6 +2762,8 @@ function getPromotionModalTexts(tier, stats = loadStats()) {
 }
 
 function openPromotionModal() {
+  if (!LEVEL_SYSTEM_ENABLED) return;
+
   const target = getPromotionTarget(loadStats());
   if (!target) {
     setStatus('아직 레벨업 조건을 채우는 중입니다. 클리어를 쌓으면 레벨업 테스트가 열립니다.');
@@ -2672,6 +2787,8 @@ function closePromotionModal() {
 }
 
 function challengePromotion() {
+  if (!LEVEL_SYSTEM_ENABLED) return;
+
   const target = getPromotionTarget(loadStats());
   if (!target) {
     closePromotionModal();
@@ -2702,7 +2819,7 @@ function updateNoticeTicker() {
 }
 
 function setStatus(message) {
-  statusEl.textContent = message;
+  statusEl.textContent = isDisabledLevelNoticeText(message) ? '현재 테스트 기간에는 기본 난이도로 진행합니다.' : message;
   updateNoticeTicker();
 }
 
@@ -2727,7 +2844,7 @@ window.setInterval(() => {
   }
 }, 2000);
 window.setInterval(() => {
-  if (state.timerStarted && !state.won) refreshServerRankings({ notify: true });
+  refreshServerRankings({ notify: state.timerStarted && !state.won });
 }, 30000);
 checkAvailableAlphaPatch();
 window.setInterval(checkAvailableAlphaPatch, 30 * 1000);

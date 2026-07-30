@@ -48,6 +48,18 @@ const STORAGE_KEYS = {
 
 const PATCH_NOTES = [
   {
+    "version": "알파 v0.29",
+    "date": "2026-07-30",
+    "title": "기본 난이도·점수/랭킹 구조 정리",
+    "items": [
+      "현재 테스트 기간에 사용하지 않는 난이도 관련 버튼과 배지를 공개 화면에서 제거했습니다.",
+      "점수/랭킹 구조를 current 기준으로 단일화하고 사용하지 않는 개편 랭킹 경로를 정리했습니다.",
+      "결과창 랭킹 문구에서 레벨 표기를 제거하고 바로 위 순위와의 점수차를 표시합니다.",
+      "다이아몬드 문양이 다른 문양보다 작아 보이는 문제를 보정했습니다.",
+      "알파와 베타가 같은 버전 번호로 승격되도록 배포 정책을 정리했습니다."
+    ]
+  },
+  {
     "version": "0.14",
     "title": "기본 난이도 표시 정리",
     "date": "2026-07-29",
@@ -162,8 +174,8 @@ const PATCH_NOTES = [
   }
 ];
 const CURRENT_PATCH_NOTE_VERSION = PATCH_NOTES[0]?.version || '';
-const AVAILABLE_ALPHA_VERSION = '0.14';
-const CLIENT_ALPHA_VERSION = '0.14'; // dev-only update-check test baseline; public builds inject their channel version.
+const AVAILABLE_ALPHA_VERSION = '0.29';
+const CLIENT_ALPHA_VERSION = '0.29'; // dev-only update-check test baseline; public builds inject their channel version.
 
 const SUPABASE_CONFIG = {
   url: 'https://zhhvyvjbqdwurwlgseod.supabase.co',
@@ -512,7 +524,7 @@ function isLevel3Unlocked(code = state.difficultyCode) {
 
 function renderVersionLabel() {
   if (!versionLabel) return;
-  versionLabel.textContent = '알파 v0.14';
+  versionLabel.textContent = '알파 v0.29';
   renderPlayerDifficulty();
 }
 
