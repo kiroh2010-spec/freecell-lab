@@ -2490,7 +2490,8 @@ function getCurrentPlayerRankMessage(result) {
   const entries = getRankedEntries(RANKING_LIMIT);
   const currentRank = entries.find(entry => entry.id === result.id) || null;
   if (!currentRank) return '';
-  return `기존 최고 ${getRankingScore(currentRank)}점으로 주간 랭킹 ${currentRank.rank}위를 유지합니다.`;
+  const motivation = getAdjacentRankMotivation(currentRank, entries);
+  return `기존 최고 ${getRankingScore(currentRank)}점으로 주간 랭킹 ${currentRank.rank}위를 유지합니다.${motivation ? ` ${motivation}` : ''}`;
 }
 
 function getResultRankMessage(result) {
