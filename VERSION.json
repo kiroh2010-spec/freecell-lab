@@ -1,7 +1,7 @@
 {
   "devVersion": "0.9",
-  "alphaVersion": "0.31",
-  "alphaPublicVersion": "0.31",
+  "alphaVersion": "0.32",
+  "alphaPublicVersion": "0.32",
   "betaVersion": "0.29",
   "launchVersion": "1.0",
   "patchNotes": [
@@ -122,6 +122,14 @@
     }
   ],
   "alphaPatchNotes": [
+    {
+      "version": "알파 v0.32",
+      "date": "2026-07-30",
+      "title": "백그라운드 실제 경과시간 보정",
+      "items": [
+        "모바일에서 화면 잠금이나 백그라운드 복귀 후에도 실제 지나간 시간이 플레이 타임에 반영되도록 타이머를 Date.now() 기준으로 보정했습니다."
+      ]
+    },
     {
       "version": "알파 v0.31",
       "date": "2026-07-30",
@@ -275,7 +283,7 @@
     "alpha": {
       "label": "알파",
       "description": "dev 변경을 베타와 분리해 사람 테스트하는 공개 알파 공간. 테스트 기능/데이터는 UI와 코드에서 제거한다.",
-      "visibleLabel": "알파 v0.31",
+      "visibleLabel": "알파 v0.32",
       "allowTestTools": false,
       "public": true
     },

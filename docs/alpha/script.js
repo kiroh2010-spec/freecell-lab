@@ -51,6 +51,14 @@ const STORAGE_KEYS = {
 
 const PATCH_NOTES = [
   {
+    "version": "알파 v0.32",
+    "date": "2026-07-30",
+    "title": "백그라운드 실제 경과시간 보정",
+    "items": [
+      "모바일에서 화면 잠금이나 백그라운드 복귀 후에도 실제 지나간 시간이 플레이 타임에 반영되도록 타이머를 Date.now() 기준으로 보정했습니다."
+    ]
+  },
+  {
     "version": "알파 v0.31",
     "date": "2026-07-30",
     "title": "모바일 더블터치 판정 개선",
@@ -193,8 +201,8 @@ const PATCH_NOTES = [
   }
 ];
 const CURRENT_PATCH_NOTE_VERSION = PATCH_NOTES[0]?.version || '';
-const AVAILABLE_ALPHA_VERSION = '0.31';
-const CLIENT_ALPHA_VERSION = '0.31'; // dev-only update-check test baseline; public builds inject their channel version.
+const AVAILABLE_ALPHA_VERSION = '0.32';
+const CLIENT_ALPHA_VERSION = '0.32'; // dev-only update-check test baseline; public builds inject their channel version.
 
 const SUPABASE_CONFIG = {
   url: 'https://zhhvyvjbqdwurwlgseod.supabase.co',
@@ -219,6 +227,7 @@ const state = {
   elapsedSeconds: 0,
   timerStarted: false,
   timerId: null,
+  timerLastSyncedAt: null,
   scoreSaved: false,
   player: null,
   passwordVisible: false,
@@ -343,8 +352,9 @@ function newGame({ clearSaved = true, mode = 'normal', difficultyCode = null } =
   state.moves = 0;
   state.elapsedSeconds = 0;
   state.timerStarted = false;
+  state.timerLastSyncedAt = null;
   state.scoreSaved = false;
-  stopTimer();
+  stopTimer({ sync: false });
   state.gameMode = mode;
   state.difficultyCode = normalizeDifficultyCode(difficultyCode || getActiveDifficultyCode());
   state.undoAllowance = getUndoAllowance(state.difficultyCode);
@@ -545,7 +555,7 @@ function isLevel3Unlocked(code = state.difficultyCode) {
 
 function renderVersionLabel() {
   if (!versionLabel) return;
-  versionLabel.textContent = '알파 v0.31';
+  versionLabel.textContent = '알파 v0.32';
   renderPlayerDifficulty();
 }
 
@@ -1173,6 +1183,7 @@ function cloneGameSnapshot() {
     moves: state.moves,
     elapsedSeconds: state.elapsedSeconds,
     timerStarted: state.timerStarted,
+    timerLastSyncedAt: state.timerLastSyncedAt,
     gameMode: state.gameMode,
     difficultyCode: state.difficultyCode,
     undoLeft: state.undoLeft,
@@ -1195,6 +1206,7 @@ function restoreGameSnapshot(snapshot) {
   state.moves = snapshot.moves;
   state.elapsedSeconds = snapshot.elapsedSeconds;
   state.timerStarted = Boolean(snapshot.timerStarted);
+  state.timerLastSyncedAt = state.timerStarted ? Date.now() : null;
   state.gameMode = LEVEL_SYSTEM_ENABLED && snapshot.gameMode === 'promotion' ? 'promotion' : 'normal';
   state.difficultyCode = LEVEL_SYSTEM_ENABLED ? normalizeDifficultyCode(snapshot.difficultyCode || state.difficultyCode) : DIFFICULTY_TIERS[0].code;
   state.promotionExpired = LEVEL_SYSTEM_ENABLED && Boolean(snapshot.promotionExpired);
@@ -1411,7 +1423,8 @@ function undoMove() {
 }
 
 
-function persistGameState() {
+function persistGameState({ syncTimer = true } = {}) {
+  if (syncTimer) syncTimerElapsed({ persist: false });
   const hasTableauCards = state.tableau.some(column => column.length);
   const hasCompletedFoundations = Object.values(state.foundations).reduce((sum, pile) => sum + pile.length, 0) === 52;
   if (!hasTableauCards && !state.won && !hasCompletedFoundations) return;
@@ -1424,6 +1437,7 @@ function persistGameState() {
     moves: state.moves,
     elapsedSeconds: state.elapsedSeconds,
     timerStarted: state.timerStarted,
+    timerLastSyncedAt: state.timerLastSyncedAt,
     won: state.won,
     scoreSaved: state.scoreSaved,
     promotionExpired: state.promotionExpired,
@@ -1454,6 +1468,7 @@ function restoreSavedGame() {
   state.moves = saved.moves ?? 0;
   state.elapsedSeconds = saved.elapsedSeconds ?? 0;
   state.timerStarted = Boolean(saved.timerStarted && !saved.won);
+  state.timerLastSyncedAt = state.timerStarted ? Date.now() : null;
   state.won = Boolean(saved.won);
   state.scoreSaved = Boolean(saved.scoreSaved);
   state.promotionExpired = Boolean(saved.promotionExpired);
@@ -1466,9 +1481,13 @@ function restoreSavedGame() {
   state.specialSelecting = Boolean(saved.specialSelecting) && isLevel3Unlocked(state.difficultyCode) && !state.specialUsed;
 
 
-  if (state.timerStarted && saved.savedAt) {
-    const deltaSeconds = Math.max(0, Math.floor((Date.now() - saved.savedAt) / 1000));
-    state.elapsedSeconds += deltaSeconds;
+  if (state.timerStarted) {
+    const savedSyncAt = Number.isFinite(saved.timerLastSyncedAt) ? saved.timerLastSyncedAt : saved.savedAt;
+    if (savedSyncAt) {
+      const deltaSeconds = Math.max(0, Math.floor((Date.now() - savedSyncAt) / 1000));
+      state.elapsedSeconds += deltaSeconds;
+    }
+    state.timerLastSyncedAt = Date.now();
   }
   if (state.gameMode === 'promotion' && state.elapsedSeconds >= PROMOTION_TIME_LIMIT_SECONDS && !state.won) {
     state.promotionExpired = true;
@@ -1492,14 +1511,31 @@ function isValidSavedGame(saved) {
   return foundationCards + tableauCards + freecellCards === 52;
 }
 
+function syncTimerElapsed({ persist = false } = {}) {
+  if (!state.timerStarted || state.won || state.promotionExpired) return false;
+  const now = Date.now();
+  if (!Number.isFinite(state.timerLastSyncedAt)) {
+    state.timerLastSyncedAt = now;
+    return false;
+  }
+  const deltaSeconds = Math.max(0, Math.floor((now - state.timerLastSyncedAt) / 1000));
+  if (!deltaSeconds) return false;
+
+  state.elapsedSeconds += deltaSeconds;
+  state.timerLastSyncedAt += deltaSeconds * 1000;
+  updateTimerDisplay();
+  if (checkPromotionTimeLimit()) return true;
+  if (persist) persistGameState({ syncTimer: false });
+  return true;
+}
+
 function resumeTimer() {
-  stopTimer();
+  stopTimer({ sync: false });
   if (state.won || state.promotionExpired || !state.timerStarted) return;
+  if (!Number.isFinite(state.timerLastSyncedAt)) state.timerLastSyncedAt = Date.now();
+  syncTimerElapsed({ persist: true });
   state.timerId = window.setInterval(() => {
-    state.elapsedSeconds += 1;
-    updateTimerDisplay();
-    if (checkPromotionTimeLimit()) return;
-    persistGameState();
+    syncTimerElapsed({ persist: true });
   }, 1000);
 }
 
@@ -2020,15 +2056,14 @@ async function handleSignup(event) {
 function startTimer() {
   if (state.won || state.promotionExpired || state.timerStarted) return;
   state.timerStarted = true;
-  state.timerId = window.setInterval(() => {
-    state.elapsedSeconds += 1;
-    updateTimerDisplay();
-    if (checkPromotionTimeLimit()) return;
-    persistGameState();
-  }, 1000);
+  state.timerLastSyncedAt = Date.now();
+  updateTimerDisplay();
+  persistGameState({ syncTimer: false });
+  resumeTimer();
 }
 
-function stopTimer() {
+function stopTimer({ sync = true } = {}) {
+  if (sync) syncTimerElapsed({ persist: false });
   if (state.timerId) window.clearInterval(state.timerId);
   state.timerId = null;
 }
@@ -2805,6 +2840,7 @@ function checkWin() {
   const total = Object.values(state.foundations).reduce((sum, pile) => sum + pile.length, 0);
   if (state.promotionExpired) return;
   if (total === 52) {
+    syncTimerElapsed({ persist: false });
     statusEl.classList.add('win');
     statusEl.textContent = `승리! ${formatTime(state.elapsedSeconds)} · ${state.moves}수 만에 클리어했습니다.`;
     if (!state.won) {
@@ -2922,6 +2958,21 @@ window.setInterval(() => {
 }, 30000);
 checkAvailableAlphaPatch();
 window.setInterval(checkAvailableAlphaPatch, 30 * 1000);
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') {
+    syncTimerElapsed({ persist: true });
+    updateTimerDisplay();
+  } else {
+    persistGameState();
+  }
+});
+window.addEventListener('pageshow', () => {
+  syncTimerElapsed({ persist: true });
+  updateTimerDisplay();
+});
+window.addEventListener('pagehide', () => {
+  persistGameState();
+});
 updateSoundButton();
 
 $('newGameBtn').addEventListener('click', requestNewGame);
