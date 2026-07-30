@@ -1,5 +1,5 @@
 {
-  "devVersion": "0.36",
+  "devVersion": "1.0",
   "alphaVersion": "0.36",
   "betaVersion": "0.29",
   "launchVersion": "1.0",
@@ -193,7 +193,7 @@
     "dev": {
       "label": "dev",
       "description": "로컬 개발/테스트 공간. 테스트 기능, 테스트 데이터, 치트성 도구를 유지한다.",
-      "visibleLabel": "DEV v0.36 · 0730-2110",
+      "visibleLabel": "DEV v1.0 · 0730-2114",
       "allowTestTools": true,
       "public": false
     },
@@ -234,6 +234,6 @@
   },
   "channel": "alpha",
   "buildId": "alpha-0-36",
-  "commit": "2690a8c",
-  "builtAt": "2026-07-30T12:10:31.327757+00:00"
+  "commit": "4881be0",
+  "builtAt": "2026-07-30T12:14:15.332629+00:00"
 }
