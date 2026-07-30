@@ -48,6 +48,14 @@ const STORAGE_KEYS = {
 
 const PATCH_NOTES = [
   {
+    "version": "알파 v0.30",
+    "date": "2026-07-30",
+    "title": "기존 최고 랭킹 유지 문구 개선",
+    "items": [
+      "이번 기록이 기존 최고 기록보다 낮을 때 결과창 랭킹 문구를 기존 최고 점수 기준으로 표시하도록 개선했습니다."
+    ]
+  },
+  {
     "version": "알파 v0.29",
     "date": "2026-07-30",
     "title": "기본 난이도·점수/랭킹 구조 정리",
@@ -174,8 +182,8 @@ const PATCH_NOTES = [
   }
 ];
 const CURRENT_PATCH_NOTE_VERSION = PATCH_NOTES[0]?.version || '';
-const AVAILABLE_ALPHA_VERSION = '0.29';
-const CLIENT_ALPHA_VERSION = '0.29'; // dev-only update-check test baseline; public builds inject their channel version.
+const AVAILABLE_ALPHA_VERSION = '0.30';
+const CLIENT_ALPHA_VERSION = '0.30'; // dev-only update-check test baseline; public builds inject their channel version.
 
 const SUPABASE_CONFIG = {
   url: 'https://zhhvyvjbqdwurwlgseod.supabase.co',
@@ -524,7 +532,7 @@ function isLevel3Unlocked(code = state.difficultyCode) {
 
 function renderVersionLabel() {
   if (!versionLabel) return;
-  versionLabel.textContent = '알파 v0.29';
+  versionLabel.textContent = '알파 v0.30';
   renderPlayerDifficulty();
 }
 
@@ -2509,7 +2517,7 @@ function getCurrentPlayerRankMessage(result) {
   const entries = getRankedEntries(RANKING_LIMIT);
   const currentRank = entries.find(entry => entry.id === result.id) || null;
   if (!currentRank) return '';
-  return `현재 주간 랭킹 ${currentRank.rank}위를 유지합니다. ${getAdjacentRankMotivation(currentRank, entries)}`;
+  return `기존 최고 ${getRankingScore(currentRank)}점으로 주간 랭킹 ${currentRank.rank}위를 유지합니다.`;
 }
 
 function getResultRankMessage(result) {
